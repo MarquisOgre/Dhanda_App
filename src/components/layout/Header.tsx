@@ -56,8 +56,10 @@ export function Header() {
           <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
         </Button>
 
-        <Button variant="ghost" size="icon">
-          <Settings className="w-5 h-5" />
+        <Button variant="ghost" size="icon" asChild>
+          <Link to="/settings">
+            <Settings className="w-5 h-5" />
+          </Link>
         </Button>
       </div>
     </header>
