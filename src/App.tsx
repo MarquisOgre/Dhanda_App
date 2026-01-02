@@ -13,6 +13,19 @@ import ItemsList from "./pages/items/ItemsList";
 import AddItem from "./pages/items/AddItem";
 import Categories from "./pages/items/Categories";
 import SaleInvoices from "./pages/sale/SaleInvoices";
+import CreateSaleInvoice from "./pages/sale/CreateSaleInvoice";
+import EstimationList from "./pages/sale/EstimationList";
+import CreateEstimation from "./pages/sale/CreateEstimation";
+import ProformaList from "./pages/sale/ProformaList";
+import CreateProformaInvoice from "./pages/sale/CreateProformaInvoice";
+import PaymentInList from "./pages/sale/PaymentInList";
+import PaymentIn from "./pages/sale/PaymentIn";
+import SaleOrderList from "./pages/sale/SaleOrderList";
+import CreateSaleOrder from "./pages/sale/CreateSaleOrder";
+import DeliveryChallanList from "./pages/sale/DeliveryChallanList";
+import CreateDeliveryChallan from "./pages/sale/CreateDeliveryChallan";
+import SaleReturnList from "./pages/sale/SaleReturnList";
+import CreateSaleReturn from "./pages/sale/CreateSaleReturn";
 import PurchaseBills from "./pages/purchase/PurchaseBills";
 import BankAccounts from "./pages/cash-bank/BankAccounts";
 import ReportsOverview from "./pages/reports/ReportsOverview";
@@ -29,198 +42,44 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <AppLayout>
-                <Dashboard />
-              </AppLayout>
-            }
-          />
+          <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
           {/* Parties */}
-          <Route
-            path="/parties"
-            element={
-              <AppLayout>
-                <PartiesList />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/parties/add"
-            element={
-              <AppLayout>
-                <AddParty />
-              </AppLayout>
-            }
-          />
+          <Route path="/parties" element={<AppLayout><PartiesList /></AppLayout>} />
+          <Route path="/parties/add" element={<AppLayout><AddParty /></AppLayout>} />
           {/* Items */}
-          <Route
-            path="/items"
-            element={
-              <AppLayout>
-                <ItemsList />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/items/add"
-            element={
-              <AppLayout>
-                <AddItem />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/items/categories"
-            element={
-              <AppLayout>
-                <Categories />
-              </AppLayout>
-            }
-          />
+          <Route path="/items" element={<AppLayout><ItemsList /></AppLayout>} />
+          <Route path="/items/add" element={<AppLayout><AddItem /></AppLayout>} />
+          <Route path="/items/categories" element={<AppLayout><Categories /></AppLayout>} />
           {/* Sale */}
-          <Route
-            path="/sale/invoices"
-            element={
-              <AppLayout>
-                <SaleInvoices />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/sale/estimation"
-            element={
-              <AppLayout>
-                <SaleInvoices />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/sale/proforma"
-            element={
-              <AppLayout>
-                <SaleInvoices />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/sale/payment-in"
-            element={
-              <AppLayout>
-                <SaleInvoices />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/sale/order"
-            element={
-              <AppLayout>
-                <SaleInvoices />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/sale/dc"
-            element={
-              <AppLayout>
-                <SaleInvoices />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/sale/return"
-            element={
-              <AppLayout>
-                <SaleInvoices />
-              </AppLayout>
-            }
-          />
+          <Route path="/sale/invoices" element={<AppLayout><SaleInvoices /></AppLayout>} />
+          <Route path="/sale/invoices/new" element={<AppLayout><CreateSaleInvoice /></AppLayout>} />
+          <Route path="/sale/estimation" element={<AppLayout><EstimationList /></AppLayout>} />
+          <Route path="/sale/estimation/new" element={<AppLayout><CreateEstimation /></AppLayout>} />
+          <Route path="/sale/proforma" element={<AppLayout><ProformaList /></AppLayout>} />
+          <Route path="/sale/proforma/new" element={<AppLayout><CreateProformaInvoice /></AppLayout>} />
+          <Route path="/sale/payment-in" element={<AppLayout><PaymentInList /></AppLayout>} />
+          <Route path="/sale/payment-in/new" element={<AppLayout><PaymentIn /></AppLayout>} />
+          <Route path="/sale/order" element={<AppLayout><SaleOrderList /></AppLayout>} />
+          <Route path="/sale/order/new" element={<AppLayout><CreateSaleOrder /></AppLayout>} />
+          <Route path="/sale/dc" element={<AppLayout><DeliveryChallanList /></AppLayout>} />
+          <Route path="/sale/dc/new" element={<AppLayout><CreateDeliveryChallan /></AppLayout>} />
+          <Route path="/sale/return" element={<AppLayout><SaleReturnList /></AppLayout>} />
+          <Route path="/sale/return/new" element={<AppLayout><CreateSaleReturn /></AppLayout>} />
           {/* Purchase */}
-          <Route
-            path="/purchase/bills"
-            element={
-              <AppLayout>
-                <PurchaseBills />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/purchase/payment-out"
-            element={
-              <AppLayout>
-                <PurchaseBills />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/purchase/expenses"
-            element={
-              <AppLayout>
-                <PurchaseBills />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/purchase/order"
-            element={
-              <AppLayout>
-                <PurchaseBills />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/purchase/return"
-            element={
-              <AppLayout>
-                <PurchaseBills />
-              </AppLayout>
-            }
-          />
+          <Route path="/purchase/bills" element={<AppLayout><PurchaseBills /></AppLayout>} />
+          <Route path="/purchase/payment-out" element={<AppLayout><PurchaseBills /></AppLayout>} />
+          <Route path="/purchase/expenses" element={<AppLayout><PurchaseBills /></AppLayout>} />
+          <Route path="/purchase/order" element={<AppLayout><PurchaseBills /></AppLayout>} />
+          <Route path="/purchase/return" element={<AppLayout><PurchaseBills /></AppLayout>} />
           {/* Cash & Bank */}
-          <Route
-            path="/cash-bank/accounts"
-            element={
-              <AppLayout>
-                <BankAccounts />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/cash-bank/cash"
-            element={
-              <AppLayout>
-                <BankAccounts />
-              </AppLayout>
-            }
-          />
+          <Route path="/cash-bank/accounts" element={<AppLayout><BankAccounts /></AppLayout>} />
+          <Route path="/cash-bank/cash" element={<AppLayout><BankAccounts /></AppLayout>} />
           {/* Reports */}
-          <Route
-            path="/reports/*"
-            element={
-              <AppLayout>
-                <ReportsOverview />
-              </AppLayout>
-            }
-          />
+          <Route path="/reports/*" element={<AppLayout><ReportsOverview /></AppLayout>} />
           {/* Backup */}
-          <Route
-            path="/backup/*"
-            element={
-              <AppLayout>
-                <SyncShare />
-              </AppLayout>
-            }
-          />
+          <Route path="/backup/*" element={<AppLayout><SyncShare /></AppLayout>} />
           {/* Utilities */}
-          <Route
-            path="/utilities/*"
-            element={
-              <AppLayout>
-                <UtilitiesOverview />
-              </AppLayout>
-            }
-          />
+          <Route path="/utilities/*" element={<AppLayout><UtilitiesOverview /></AppLayout>} />
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
