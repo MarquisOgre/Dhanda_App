@@ -27,10 +27,21 @@ import CreateDeliveryChallan from "./pages/sale/CreateDeliveryChallan";
 import SaleReturnList from "./pages/sale/SaleReturnList";
 import CreateSaleReturn from "./pages/sale/CreateSaleReturn";
 import PurchaseBills from "./pages/purchase/PurchaseBills";
+import CreatePurchaseBill from "./pages/purchase/CreatePurchaseBill";
+import PaymentOutList from "./pages/purchase/PaymentOutList";
+import PaymentOut from "./pages/purchase/PaymentOut";
+import ExpensesList from "./pages/purchase/ExpensesList";
+import CreateExpense from "./pages/purchase/CreateExpense";
+import PurchaseOrderList from "./pages/purchase/PurchaseOrderList";
+import CreatePurchaseOrder from "./pages/purchase/CreatePurchaseOrder";
+import PurchaseReturnList from "./pages/purchase/PurchaseReturnList";
+import CreatePurchaseReturn from "./pages/purchase/CreatePurchaseReturn";
 import BankAccounts from "./pages/cash-bank/BankAccounts";
+import CashInHand from "./pages/cash-bank/CashInHand";
 import ReportsOverview from "./pages/reports/ReportsOverview";
 import SyncShare from "./pages/backup/SyncShare";
 import UtilitiesOverview from "./pages/utilities/UtilitiesOverview";
+import Settings from "./pages/settings/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,13 +78,20 @@ const App = () => (
           <Route path="/sale/return/new" element={<AppLayout><CreateSaleReturn /></AppLayout>} />
           {/* Purchase */}
           <Route path="/purchase/bills" element={<AppLayout><PurchaseBills /></AppLayout>} />
-          <Route path="/purchase/payment-out" element={<AppLayout><PurchaseBills /></AppLayout>} />
-          <Route path="/purchase/expenses" element={<AppLayout><PurchaseBills /></AppLayout>} />
-          <Route path="/purchase/order" element={<AppLayout><PurchaseBills /></AppLayout>} />
-          <Route path="/purchase/return" element={<AppLayout><PurchaseBills /></AppLayout>} />
+          <Route path="/purchase/bills/new" element={<AppLayout><CreatePurchaseBill /></AppLayout>} />
+          <Route path="/purchase/payment-out" element={<AppLayout><PaymentOutList /></AppLayout>} />
+          <Route path="/purchase/payment-out/new" element={<AppLayout><PaymentOut /></AppLayout>} />
+          <Route path="/purchase/expenses" element={<AppLayout><ExpensesList /></AppLayout>} />
+          <Route path="/purchase/expenses/new" element={<AppLayout><CreateExpense /></AppLayout>} />
+          <Route path="/purchase/order" element={<AppLayout><PurchaseOrderList /></AppLayout>} />
+          <Route path="/purchase/order/new" element={<AppLayout><CreatePurchaseOrder /></AppLayout>} />
+          <Route path="/purchase/return" element={<AppLayout><PurchaseReturnList /></AppLayout>} />
+          <Route path="/purchase/return/new" element={<AppLayout><CreatePurchaseReturn /></AppLayout>} />
           {/* Cash & Bank */}
           <Route path="/cash-bank/accounts" element={<AppLayout><BankAccounts /></AppLayout>} />
-          <Route path="/cash-bank/cash" element={<AppLayout><BankAccounts /></AppLayout>} />
+          <Route path="/cash-bank/cash" element={<AppLayout><CashInHand /></AppLayout>} />
+          {/* Settings */}
+          <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
           {/* Reports */}
           <Route path="/reports/*" element={<AppLayout><ReportsOverview /></AppLayout>} />
           {/* Backup */}
