@@ -38,9 +38,28 @@ import PurchaseReturnList from "./pages/purchase/PurchaseReturnList";
 import CreatePurchaseReturn from "./pages/purchase/CreatePurchaseReturn";
 import BankAccounts from "./pages/cash-bank/BankAccounts";
 import CashInHand from "./pages/cash-bank/CashInHand";
-import ReportsOverview from "./pages/reports/ReportsOverview";
+// Reports
+import SaleReport from "./pages/reports/SaleReport";
+import PurchaseReport from "./pages/reports/PurchaseReport";
+import ProfitLoss from "./pages/reports/ProfitLoss";
+import BillWisePnL from "./pages/reports/BillWisePnL";
+import BalanceSheet from "./pages/reports/BalanceSheet";
+import StockSummary from "./pages/reports/StockSummary";
+import ItemWisePnL from "./pages/reports/ItemWisePnL";
+import StockDetail from "./pages/reports/StockDetail";
+import ItemDetail from "./pages/reports/ItemDetail";
+import TaxesReport from "./pages/reports/TaxesReport";
+import ExpenseReport from "./pages/reports/ExpenseReport";
+// Backup
 import SyncShare from "./pages/backup/SyncShare";
-import UtilitiesOverview from "./pages/utilities/UtilitiesOverview";
+import AutoBackup from "./pages/backup/AutoBackup";
+import BackupToComputer from "./pages/backup/BackupToComputer";
+import RestoreBackup from "./pages/backup/RestoreBackup";
+// Utilities
+import ImportItems from "./pages/utilities/ImportItems";
+import BulkUpdate from "./pages/utilities/BulkUpdate";
+import RecycleBin from "./pages/utilities/RecycleBin";
+// Settings
 import Settings from "./pages/settings/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -90,14 +109,29 @@ const App = () => (
           {/* Cash & Bank */}
           <Route path="/cash-bank/accounts" element={<AppLayout><BankAccounts /></AppLayout>} />
           <Route path="/cash-bank/cash" element={<AppLayout><CashInHand /></AppLayout>} />
+          {/* Reports */}
+          <Route path="/reports/sale" element={<AppLayout><SaleReport /></AppLayout>} />
+          <Route path="/reports/purchase" element={<AppLayout><PurchaseReport /></AppLayout>} />
+          <Route path="/reports/pnl" element={<AppLayout><ProfitLoss /></AppLayout>} />
+          <Route path="/reports/bill-wise-pnl" element={<AppLayout><BillWisePnL /></AppLayout>} />
+          <Route path="/reports/balance-sheet" element={<AppLayout><BalanceSheet /></AppLayout>} />
+          <Route path="/reports/stock-summary" element={<AppLayout><StockSummary /></AppLayout>} />
+          <Route path="/reports/item-wise-pnl" element={<AppLayout><ItemWisePnL /></AppLayout>} />
+          <Route path="/reports/stock-detail" element={<AppLayout><StockDetail /></AppLayout>} />
+          <Route path="/reports/item-detail" element={<AppLayout><ItemDetail /></AppLayout>} />
+          <Route path="/reports/taxes" element={<AppLayout><TaxesReport /></AppLayout>} />
+          <Route path="/reports/expense" element={<AppLayout><ExpenseReport /></AppLayout>} />
+          {/* Backup */}
+          <Route path="/backup/sync" element={<AppLayout><SyncShare /></AppLayout>} />
+          <Route path="/backup/auto" element={<AppLayout><AutoBackup /></AppLayout>} />
+          <Route path="/backup/download" element={<AppLayout><BackupToComputer /></AppLayout>} />
+          <Route path="/backup/restore" element={<AppLayout><RestoreBackup /></AppLayout>} />
+          {/* Utilities */}
+          <Route path="/utilities/import" element={<AppLayout><ImportItems /></AppLayout>} />
+          <Route path="/utilities/bulk-update" element={<AppLayout><BulkUpdate /></AppLayout>} />
+          <Route path="/utilities/recycle-bin" element={<AppLayout><RecycleBin /></AppLayout>} />
           {/* Settings */}
           <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
-          {/* Reports */}
-          <Route path="/reports/*" element={<AppLayout><ReportsOverview /></AppLayout>} />
-          {/* Backup */}
-          <Route path="/backup/*" element={<AppLayout><SyncShare /></AppLayout>} />
-          {/* Utilities */}
-          <Route path="/utilities/*" element={<AppLayout><UtilitiesOverview /></AppLayout>} />
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
