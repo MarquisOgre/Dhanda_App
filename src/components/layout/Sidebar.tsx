@@ -153,26 +153,17 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center">
-            <img
-              src="/logo.png"   // or /favicon.png
-              alt="Dhanda App Logo"
-              className="w-10 h-10 object-contain"
-            />
-          </div>
-          <div>
-            {/* <h1 className="text-xl font-bold text-sidebar-foreground">AccuBooks</h1> */}
-            <p className="text-xs text-sidebar-foreground/60">
-              Accounting Software
-            </p>
-          </div>
-        </div>
+      <div className="p-4 border-b border-sidebar-border">
+  <Link to="/" className="flex justify-start">
+    <img
+      src="/logo.png"
+      alt="Dhanda App Logo"
+      className="w-full max-w-[180px] h-auto object-contain"
+    />
+  </Link>
+</div>
 
-        </Link>
-      </div>
+
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
