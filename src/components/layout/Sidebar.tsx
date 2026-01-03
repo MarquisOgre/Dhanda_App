@@ -155,13 +155,22 @@ export function Sidebar() {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl btn-gradient flex items-center justify-center">
-            <Receipt className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-3">
+          <div className="w-10 h-10 flex items-center justify-center">
+            <img
+              src="/logo.png"   // or /favicon.png
+              alt="Dhanda App Logo"
+              className="w-10 h-10 object-contain"
+            />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-sidebar-foreground">AccuBooks</h1>
-            <p className="text-xs text-sidebar-foreground/60">Accounting Software</p>
+            {/* <h1 className="text-xl font-bold text-sidebar-foreground">AccuBooks</h1> */}
+            <p className="text-xs text-sidebar-foreground/60">
+              Accounting Software
+            </p>
           </div>
+        </div>
+
         </Link>
       </div>
 
