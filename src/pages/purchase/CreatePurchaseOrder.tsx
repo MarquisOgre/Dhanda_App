@@ -6,32 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PartySelector } from "@/components/sale/PartySelector";
-import { InvoiceItemsTable } from "@/components/sale/InvoiceItemsTable";
+import { InvoiceItemsTable, InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 export default function CreatePurchaseOrder() {
   const [orderNumber] = useState("PO-028");
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedParty, setSelectedParty] = useState("");
-  const [items, setItems] = useState([
-    { id: 1, name: "", hsn: "", qty: 1, unit: "Pcs", rate: 0, discount: 0, tax: 18, amount: 0 },
+  const [showPreview, setShowPreview] = useState(false);
+  const [items, setItems] = useState<InvoiceItem[]>([
+    { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
-
-  const subtotal = items.reduce((sum, item) => sum + item.qty * item.rate - item.discount, 0);
-  const totalTax = items.reduce((sum, item) => {
-    const taxableAmount = item.qty * item.rate - item.discount;
-    return sum + (taxableAmount * item.tax) / 100;
-  }, 0);
-  const grandTotal = subtotal + totalTax;
 
   return (
     <div className="space-y-6">
@@ -49,29 +36,10 @@ export default function CreatePurchaseOrder() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Printer className="w-4 h-4" />
-                Preview
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-              <DialogHeader>
-                <DialogTitle>Purchase Order Preview</DialogTitle>
-              </DialogHeader>
-              <InvoicePreview
-                type="Purchase Order"
-                number={orderNumber}
-                date={orderDate}
-                party={selectedParty}
-                items={items}
-                subtotal={subtotal}
-                tax={totalTax}
-                total={grandTotal}
-              />
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" className="gap-2" onClick={() => setShowPreview(true)}>
+            <Printer className="w-4 h-4" />
+            Preview
+          </Button>
           <Button variant="outline" className="gap-2">
             <Send className="w-4 h-4" />
             Send to Supplier
@@ -116,14 +84,15 @@ export default function CreatePurchaseOrder() {
             <PartySelector
               value={selectedParty}
               onChange={setSelectedParty}
-              placeholder="Select supplier..."
+              partyType="supplier"
+              label="Select Supplier"
             />
           </div>
 
           {/* Items Table */}
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Items</h3>
-            <InvoiceItemsTable items={items} setItems={setItems} />
+            <InvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
           {/* Terms & Notes */}
@@ -140,7 +109,7 @@ export default function CreatePurchaseOrder() {
 
         {/* Summary Sidebar */}
         <div className="space-y-6">
-          <TaxSummary subtotal={subtotal} tax={totalTax} total={grandTotal} />
+          <TaxSummary items={items} />
           
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Order Status</h3>
@@ -157,6 +126,18 @@ export default function CreatePurchaseOrder() {
           </div>
         </div>
       </div>
+
+      {/* Invoice Preview Dialog */}
+      <InvoicePreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        documentType="Purchase Order"
+        documentNumber={orderNumber}
+        date={orderDate}
+        partyId={selectedParty}
+        items={items}
+        notes={notes}
+      />
     </div>
   );
 }

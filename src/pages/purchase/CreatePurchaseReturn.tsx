@@ -6,16 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PartySelector } from "@/components/sale/PartySelector";
-import { InvoiceItemsTable } from "@/components/sale/InvoiceItemsTable";
+import { InvoiceItemsTable, InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -36,17 +29,11 @@ export default function CreatePurchaseReturn() {
   const [selectedParty, setSelectedParty] = useState("");
   const [originalBill, setOriginalBill] = useState("");
   const [returnReason, setReturnReason] = useState("");
-  const [items, setItems] = useState([
-    { id: 1, name: "", hsn: "", qty: 1, unit: "Pcs", rate: 0, discount: 0, tax: 18, amount: 0 },
+  const [showPreview, setShowPreview] = useState(false);
+  const [items, setItems] = useState<InvoiceItem[]>([
+    { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
-
-  const subtotal = items.reduce((sum, item) => sum + item.qty * item.rate - item.discount, 0);
-  const totalTax = items.reduce((sum, item) => {
-    const taxableAmount = item.qty * item.rate - item.discount;
-    return sum + (taxableAmount * item.tax) / 100;
-  }, 0);
-  const grandTotal = subtotal + totalTax;
 
   return (
     <div className="space-y-6">
@@ -64,29 +51,10 @@ export default function CreatePurchaseReturn() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Printer className="w-4 h-4" />
-                Preview
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-              <DialogHeader>
-                <DialogTitle>Debit Note Preview</DialogTitle>
-              </DialogHeader>
-              <InvoicePreview
-                type="Purchase Return / Debit Note"
-                number={returnNumber}
-                date={returnDate}
-                party={selectedParty}
-                items={items}
-                subtotal={subtotal}
-                tax={totalTax}
-                total={grandTotal}
-              />
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" className="gap-2" onClick={() => setShowPreview(true)}>
+            <Printer className="w-4 h-4" />
+            Preview
+          </Button>
           <Button className="btn-gradient gap-2">
             <Save className="w-4 h-4" />
             Save Return
@@ -138,7 +106,8 @@ export default function CreatePurchaseReturn() {
             <PartySelector
               value={selectedParty}
               onChange={setSelectedParty}
-              placeholder="Select supplier..."
+              partyType="supplier"
+              label="Select Supplier"
             />
           </div>
 
@@ -168,7 +137,7 @@ export default function CreatePurchaseReturn() {
           {/* Items Table */}
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Return Items</h3>
-            <InvoiceItemsTable items={items} setItems={setItems} />
+            <InvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
           {/* Notes */}
@@ -185,7 +154,7 @@ export default function CreatePurchaseReturn() {
 
         {/* Summary Sidebar */}
         <div className="space-y-6">
-          <TaxSummary subtotal={subtotal} tax={totalTax} total={grandTotal} />
+          <TaxSummary items={items} />
 
           <div className="metric-card bg-warning/10 border-warning/20">
             <h3 className="font-semibold mb-2 text-warning">Debit Note</h3>
@@ -195,6 +164,18 @@ export default function CreatePurchaseReturn() {
           </div>
         </div>
       </div>
+
+      {/* Invoice Preview Dialog */}
+      <InvoicePreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        documentType="Purchase Return / Debit Note"
+        documentNumber={returnNumber}
+        date={returnDate}
+        partyId={selectedParty}
+        items={items}
+        notes={notes}
+      />
     </div>
   );
 }

@@ -89,7 +89,8 @@ export default function PaymentOut() {
             <PartySelector
               value={selectedParty}
               onChange={setSelectedParty}
-              placeholder="Select supplier..."
+              partyType="supplier"
+              label="Select Supplier"
             />
           </div>
 

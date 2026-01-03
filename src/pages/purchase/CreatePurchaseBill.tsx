@@ -9,35 +9,16 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { InvoiceItemsTable, InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 export default function CreatePurchaseBill() {
   const [billNumber] = useState("PUR-043");
   const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedParty, setSelectedParty] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
-
-  const subtotal = items.reduce((sum, item) => {
-    const itemSubtotal = item.quantity * item.rate;
-    const discountAmount = (itemSubtotal * item.discount) / 100;
-    return sum + (itemSubtotal - discountAmount);
-  }, 0);
-  const totalTax = items.reduce((sum, item) => {
-    const itemSubtotal = item.quantity * item.rate;
-    const discountAmount = (itemSubtotal * item.discount) / 100;
-    const taxableAmount = itemSubtotal - discountAmount;
-    return sum + (taxableAmount * item.taxRate) / 100;
-  }, 0);
-  const grandTotal = subtotal + totalTax;
 
   return (
     <div className="space-y-6">
@@ -55,29 +36,10 @@ export default function CreatePurchaseBill() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Printer className="w-4 h-4" />
-                Preview
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-              <DialogHeader>
-                <DialogTitle>Bill Preview</DialogTitle>
-              </DialogHeader>
-              <InvoicePreview
-                type="Purchase Bill"
-                number={billNumber}
-                date={billDate}
-                party={selectedParty}
-                items={items}
-                subtotal={subtotal}
-                tax={totalTax}
-                total={grandTotal}
-              />
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" className="gap-2" onClick={() => setShowPreview(true)}>
+            <Printer className="w-4 h-4" />
+            Preview
+          </Button>
           <Button className="btn-gradient gap-2">
             <Save className="w-4 h-4" />
             Save Bill
@@ -118,14 +80,15 @@ export default function CreatePurchaseBill() {
             <PartySelector
               value={selectedParty}
               onChange={setSelectedParty}
-              placeholder="Select supplier..."
+              partyType="supplier"
+              label="Select Supplier"
             />
           </div>
 
           {/* Items Table */}
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Items</h3>
-            <InvoiceItemsTable items={items} setItems={setItems} />
+            <InvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
           {/* Notes */}
@@ -142,9 +105,21 @@ export default function CreatePurchaseBill() {
 
         {/* Summary Sidebar */}
         <div className="space-y-6">
-          <TaxSummary subtotal={subtotal} tax={totalTax} total={grandTotal} />
+          <TaxSummary items={items} />
         </div>
       </div>
+
+      {/* Invoice Preview Dialog */}
+      <InvoicePreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        documentType="Purchase Bill"
+        documentNumber={billNumber}
+        date={billDate}
+        partyId={selectedParty}
+        items={items}
+        notes={notes}
+      />
     </div>
   );
 }
