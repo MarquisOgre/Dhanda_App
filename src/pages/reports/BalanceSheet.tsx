@@ -1,5 +1,4 @@
-import { Download, Building2, Wallet, TrendingUp, TrendingDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Building2, Wallet, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,6 +7,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState } from "react";
+import { PrintButton } from "@/components/PrintButton";
+import { generateReportPDF, downloadPDF } from "@/lib/pdf";
+import { printTable } from "@/lib/print";
 
 export default function BalanceSheet() {
   const [asOnDate, setAsOnDate] = useState("today");
@@ -57,6 +59,72 @@ export default function BalanceSheet() {
 
   const totalEquity = equity.reduce((sum, e) => sum + e.amount, 0);
 
+  const handlePrint = () => {
+    const allRows = [
+      ["ASSETS", "", ""],
+      ["Current Assets", "", ""],
+      ...assets.current.map(a => ["", a.name, `₹${a.amount.toLocaleString()}`]),
+      ["", "Total Current Assets", `₹${totalCurrentAssets.toLocaleString()}`],
+      ["Fixed Assets", "", ""],
+      ...assets.fixed.map(a => ["", a.name, `${a.amount < 0 ? '-' : ''}₹${Math.abs(a.amount).toLocaleString()}`]),
+      ["", "Total Fixed Assets", `₹${totalFixedAssets.toLocaleString()}`],
+      ["", "TOTAL ASSETS", `₹${totalAssets.toLocaleString()}`],
+      ["", "", ""],
+      ["LIABILITIES & EQUITY", "", ""],
+      ["Current Liabilities", "", ""],
+      ...liabilities.current.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
+      ["", "Total Current Liabilities", `₹${totalCurrentLiabilities.toLocaleString()}`],
+      ["Long-term Liabilities", "", ""],
+      ...liabilities.longTerm.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
+      ["", "Total Long-term Liabilities", `₹${totalLongTermLiabilities.toLocaleString()}`],
+      ["Owner's Equity", "", ""],
+      ...equity.map(e => ["", e.name, `₹${e.amount.toLocaleString()}`]),
+      ["", "Total Equity", `₹${totalEquity.toLocaleString()}`],
+      ["", "TOTAL LIABILITIES + EQUITY", `₹${(totalLiabilities + totalEquity).toLocaleString()}`],
+    ];
+
+    printTable({
+      title: "Balance Sheet",
+      subtitle: "As on Today",
+      columns: ["Section", "Particulars", "Amount"],
+      rows: allRows,
+    });
+  };
+
+  const handleExportPDF = () => {
+    const allRows = [
+      ["ASSETS", "", ""],
+      ["Current Assets", "", ""],
+      ...assets.current.map(a => ["", a.name, `₹${a.amount.toLocaleString()}`]),
+      ["", "Total Current Assets", `₹${totalCurrentAssets.toLocaleString()}`],
+      ["Fixed Assets", "", ""],
+      ...assets.fixed.map(a => ["", a.name, `${a.amount < 0 ? '-' : ''}₹${Math.abs(a.amount).toLocaleString()}`]),
+      ["", "Total Fixed Assets", `₹${totalFixedAssets.toLocaleString()}`],
+      ["", "TOTAL ASSETS", `₹${totalAssets.toLocaleString()}`],
+      ["", "", ""],
+      ["LIABILITIES & EQUITY", "", ""],
+      ["Current Liabilities", "", ""],
+      ...liabilities.current.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
+      ["", "Total Current Liabilities", `₹${totalCurrentLiabilities.toLocaleString()}`],
+      ["Long-term Liabilities", "", ""],
+      ...liabilities.longTerm.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
+      ["", "Total Long-term Liabilities", `₹${totalLongTermLiabilities.toLocaleString()}`],
+      ["Owner's Equity", "", ""],
+      ...equity.map(e => ["", e.name, `₹${e.amount.toLocaleString()}`]),
+      ["", "Total Equity", `₹${totalEquity.toLocaleString()}`],
+      ["", "TOTAL LIABILITIES + EQUITY", `₹${(totalLiabilities + totalEquity).toLocaleString()}`],
+    ];
+
+    const doc = generateReportPDF({
+      title: "Balance Sheet",
+      subtitle: "Dhandha App",
+      dateRange: "As on Today",
+      columns: ["Section", "Particulars", "Amount"],
+      rows: allRows,
+    });
+    downloadPDF(doc, `balance-sheet-${new Date().toISOString().split('T')[0]}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -76,10 +144,7 @@ export default function BalanceSheet() {
               <SelectItem value="year-end">Year End (31 Mar)</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
+          <PrintButton onPrint={handlePrint} onExportPDF={handleExportPDF} />
         </div>
       </div>
 

@@ -1,5 +1,4 @@
-import { Download, TrendingUp, TrendingDown, IndianRupee, Minus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,6 +7,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState } from "react";
+import { PrintButton } from "@/components/PrintButton";
+import { generateReportPDF, downloadPDF } from "@/lib/pdf";
+import { printTable } from "@/lib/print";
 
 export default function ProfitLoss() {
   const [period, setPeriod] = useState("this-year");
@@ -33,6 +35,62 @@ export default function ProfitLoss() {
   const netProfit = totalIncome - totalExpenses;
   const profitMargin = ((netProfit / totalIncome) * 100).toFixed(1);
 
+  const handlePrint = () => {
+    const allRows = [
+      ["INCOME", "", ""],
+      ...incomeData.map(i => ["", i.category, `₹${i.amount.toLocaleString()}`]),
+      ["", "Total Income", `₹${totalIncome.toLocaleString()}`],
+      ["", "", ""],
+      ["EXPENSES", "", ""],
+      ...expenseData.map(e => ["", e.category, `₹${e.amount.toLocaleString()}`]),
+      ["", "Total Expenses", `₹${totalExpenses.toLocaleString()}`],
+      ["", "", ""],
+      ["NET PROFIT", "", `₹${netProfit.toLocaleString()}`],
+    ];
+
+    printTable({
+      title: "Profit & Loss Statement",
+      subtitle: "This Year (FY 2024-25)",
+      columns: ["Section", "Particulars", "Amount"],
+      rows: allRows,
+      summary: [
+        { label: "Total Income", value: `₹${totalIncome.toLocaleString()}` },
+        { label: "Total Expenses", value: `₹${totalExpenses.toLocaleString()}` },
+        { label: "Net Profit", value: `₹${netProfit.toLocaleString()}` },
+        { label: "Profit Margin", value: `${profitMargin}%` },
+      ]
+    });
+  };
+
+  const handleExportPDF = () => {
+    const allRows = [
+      ["INCOME", "", ""],
+      ...incomeData.map(i => ["", i.category, `₹${i.amount.toLocaleString()}`]),
+      ["", "Total Income", `₹${totalIncome.toLocaleString()}`],
+      ["", "", ""],
+      ["EXPENSES", "", ""],
+      ...expenseData.map(e => ["", e.category, `₹${e.amount.toLocaleString()}`]),
+      ["", "Total Expenses", `₹${totalExpenses.toLocaleString()}`],
+      ["", "", ""],
+      ["NET PROFIT", "", `₹${netProfit.toLocaleString()}`],
+    ];
+
+    const doc = generateReportPDF({
+      title: "Profit & Loss Statement",
+      subtitle: "Dhandha App",
+      dateRange: "This Year (FY 2024-25)",
+      columns: ["Section", "Particulars", "Amount"],
+      rows: allRows,
+      summary: [
+        { label: "Total Income", value: `₹${totalIncome.toLocaleString()}` },
+        { label: "Total Expenses", value: `₹${totalExpenses.toLocaleString()}` },
+        { label: "Net Profit", value: `₹${netProfit.toLocaleString()}` },
+        { label: "Profit Margin", value: `${profitMargin}%` },
+      ]
+    });
+    downloadPDF(doc, `profit-loss-${new Date().toISOString().split('T')[0]}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -52,10 +110,7 @@ export default function ProfitLoss() {
               <SelectItem value="last-year">Last Year (FY 2023-24)</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
+          <PrintButton onPrint={handlePrint} onExportPDF={handleExportPDF} />
         </div>
       </div>
 

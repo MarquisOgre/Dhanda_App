@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Filter, Calendar, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
+import { Download, Filter, Calendar, TrendingUp, IndianRupee, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PrintButton } from "@/components/PrintButton";
+import { generateReportPDF, downloadPDF } from "@/lib/pdf";
+import { printTable } from "@/lib/print";
 
 const salesData = [
   { id: 1, invoice: "INV-001", date: "02 Jan 2026", party: "Rahul Electronics", items: 5, amount: 45000, profit: 8500 },
@@ -25,6 +28,52 @@ export default function SaleReport() {
   const totalProfit = salesData.reduce((sum, s) => sum + s.profit, 0);
   const avgOrderValue = totalSales / salesData.length;
 
+  const handlePrint = () => {
+    printTable({
+      title: "Sale Report",
+      subtitle: "This Month",
+      columns: ["Invoice", "Date", "Party", "Items", "Amount", "Profit", "Margin"],
+      rows: salesData.map(sale => [
+        sale.invoice,
+        sale.date,
+        sale.party,
+        sale.items,
+        `₹${sale.amount.toLocaleString()}`,
+        `₹${sale.profit.toLocaleString()}`,
+        `${((sale.profit / sale.amount) * 100).toFixed(1)}%`
+      ]),
+      summary: [
+        { label: "Total Sales", value: `₹${totalSales.toLocaleString()}` },
+        { label: "Total Profit", value: `₹${totalProfit.toLocaleString()}` },
+        { label: "Profit Margin", value: `${((totalProfit / totalSales) * 100).toFixed(1)}%` },
+      ]
+    });
+  };
+
+  const handleExportPDF = () => {
+    const doc = generateReportPDF({
+      title: "Sale Report",
+      subtitle: "Dhandha App",
+      dateRange: "This Month",
+      columns: ["Invoice", "Date", "Party", "Items", "Amount", "Profit", "Margin"],
+      rows: salesData.map(sale => [
+        sale.invoice,
+        sale.date,
+        sale.party,
+        sale.items,
+        `₹${sale.amount.toLocaleString()}`,
+        `₹${sale.profit.toLocaleString()}`,
+        `${((sale.profit / sale.amount) * 100).toFixed(1)}%`
+      ]),
+      summary: [
+        { label: "Total Sales", value: `₹${totalSales.toLocaleString()}` },
+        { label: "Total Profit", value: `₹${totalProfit.toLocaleString()}` },
+        { label: "Profit Margin", value: `${((totalProfit / totalSales) * 100).toFixed(1)}%` },
+      ]
+    });
+    downloadPDF(doc, `sale-report-${new Date().toISOString().split('T')[0]}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -32,10 +81,7 @@ export default function SaleReport() {
           <h1 className="text-2xl font-bold">Sale Report</h1>
           <p className="text-muted-foreground">Analyze your sales performance</p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Export Report
-        </Button>
+        <PrintButton onPrint={handlePrint} onExportPDF={handleExportPDF} />
       </div>
 
       {/* Summary Cards */}

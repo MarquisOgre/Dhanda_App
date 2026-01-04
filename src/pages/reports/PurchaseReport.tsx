@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Filter, TrendingUp, TrendingDown, IndianRupee, Package } from "lucide-react";
+import { Filter, TrendingUp, TrendingDown, IndianRupee, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PrintButton } from "@/components/PrintButton";
+import { generateReportPDF, downloadPDF } from "@/lib/pdf";
+import { printTable } from "@/lib/print";
 
 const purchaseData = [
   { id: 1, bill: "PUR-041", date: "02 Jan 2026", party: "ABC Suppliers", items: 10, amount: 125000, paid: 100000 },
@@ -25,6 +28,52 @@ export default function PurchaseReport() {
   const totalPaid = purchaseData.reduce((sum, p) => sum + p.paid, 0);
   const totalPending = totalPurchase - totalPaid;
 
+  const handlePrint = () => {
+    printTable({
+      title: "Purchase Report",
+      subtitle: "This Month",
+      columns: ["Bill No.", "Date", "Supplier", "Items", "Amount", "Paid", "Balance"],
+      rows: purchaseData.map(p => [
+        p.bill,
+        p.date,
+        p.party,
+        p.items,
+        `₹${p.amount.toLocaleString()}`,
+        `₹${p.paid.toLocaleString()}`,
+        `₹${(p.amount - p.paid).toLocaleString()}`
+      ]),
+      summary: [
+        { label: "Total Purchase", value: `₹${totalPurchase.toLocaleString()}` },
+        { label: "Total Paid", value: `₹${totalPaid.toLocaleString()}` },
+        { label: "Pending Payment", value: `₹${totalPending.toLocaleString()}` },
+      ]
+    });
+  };
+
+  const handleExportPDF = () => {
+    const doc = generateReportPDF({
+      title: "Purchase Report",
+      subtitle: "Dhandha App",
+      dateRange: "This Month",
+      columns: ["Bill No.", "Date", "Supplier", "Items", "Amount", "Paid", "Balance"],
+      rows: purchaseData.map(p => [
+        p.bill,
+        p.date,
+        p.party,
+        p.items,
+        `₹${p.amount.toLocaleString()}`,
+        `₹${p.paid.toLocaleString()}`,
+        `₹${(p.amount - p.paid).toLocaleString()}`
+      ]),
+      summary: [
+        { label: "Total Purchase", value: `₹${totalPurchase.toLocaleString()}` },
+        { label: "Total Paid", value: `₹${totalPaid.toLocaleString()}` },
+        { label: "Pending Payment", value: `₹${totalPending.toLocaleString()}` },
+      ]
+    });
+    downloadPDF(doc, `purchase-report-${new Date().toISOString().split('T')[0]}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -32,10 +81,7 @@ export default function PurchaseReport() {
           <h1 className="text-2xl font-bold">Purchase Report</h1>
           <p className="text-muted-foreground">Track your purchase transactions</p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Export Report
-        </Button>
+        <PrintButton onPrint={handlePrint} onExportPDF={handleExportPDF} />
       </div>
 
       {/* Summary Cards */}
