@@ -2,10 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 // Pages
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PartiesList from "./pages/parties/PartiesList";
 import AddParty from "./pages/parties/AddParty";
@@ -59,11 +62,102 @@ import RestoreBackup from "./pages/backup/RestoreBackup";
 import ImportItems from "./pages/utilities/ImportItems";
 import BulkUpdate from "./pages/utilities/BulkUpdate";
 import RecycleBin from "./pages/utilities/RecycleBin";
+import ResetDatabase from "./pages/utilities/ResetDatabase";
 // Settings
 import Settings from "./pages/settings/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+// Protected Route wrapper
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <AppLayout>{children}</AppLayout>;
+}
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      {/* Parties */}
+      <Route path="/parties" element={<ProtectedRoute><PartiesList /></ProtectedRoute>} />
+      <Route path="/parties/add" element={<ProtectedRoute><AddParty /></ProtectedRoute>} />
+      {/* Items */}
+      <Route path="/items" element={<ProtectedRoute><ItemsList /></ProtectedRoute>} />
+      <Route path="/items/add" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
+      <Route path="/items/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+      {/* Sale */}
+      <Route path="/sale/invoices" element={<ProtectedRoute><SaleInvoices /></ProtectedRoute>} />
+      <Route path="/sale/invoices/new" element={<ProtectedRoute><CreateSaleInvoice /></ProtectedRoute>} />
+      <Route path="/sale/estimation" element={<ProtectedRoute><EstimationList /></ProtectedRoute>} />
+      <Route path="/sale/estimation/new" element={<ProtectedRoute><CreateEstimation /></ProtectedRoute>} />
+      <Route path="/sale/proforma" element={<ProtectedRoute><ProformaList /></ProtectedRoute>} />
+      <Route path="/sale/proforma/new" element={<ProtectedRoute><CreateProformaInvoice /></ProtectedRoute>} />
+      <Route path="/sale/payment-in" element={<ProtectedRoute><PaymentInList /></ProtectedRoute>} />
+      <Route path="/sale/payment-in/new" element={<ProtectedRoute><PaymentIn /></ProtectedRoute>} />
+      <Route path="/sale/order" element={<ProtectedRoute><SaleOrderList /></ProtectedRoute>} />
+      <Route path="/sale/order/new" element={<ProtectedRoute><CreateSaleOrder /></ProtectedRoute>} />
+      <Route path="/sale/dc" element={<ProtectedRoute><DeliveryChallanList /></ProtectedRoute>} />
+      <Route path="/sale/dc/new" element={<ProtectedRoute><CreateDeliveryChallan /></ProtectedRoute>} />
+      <Route path="/sale/return" element={<ProtectedRoute><SaleReturnList /></ProtectedRoute>} />
+      <Route path="/sale/return/new" element={<ProtectedRoute><CreateSaleReturn /></ProtectedRoute>} />
+      {/* Purchase */}
+      <Route path="/purchase/bills" element={<ProtectedRoute><PurchaseBills /></ProtectedRoute>} />
+      <Route path="/purchase/bills/new" element={<ProtectedRoute><CreatePurchaseBill /></ProtectedRoute>} />
+      <Route path="/purchase/payment-out" element={<ProtectedRoute><PaymentOutList /></ProtectedRoute>} />
+      <Route path="/purchase/payment-out/new" element={<ProtectedRoute><PaymentOut /></ProtectedRoute>} />
+      <Route path="/purchase/expenses" element={<ProtectedRoute><ExpensesList /></ProtectedRoute>} />
+      <Route path="/purchase/expenses/new" element={<ProtectedRoute><CreateExpense /></ProtectedRoute>} />
+      <Route path="/purchase/order" element={<ProtectedRoute><PurchaseOrderList /></ProtectedRoute>} />
+      <Route path="/purchase/order/new" element={<ProtectedRoute><CreatePurchaseOrder /></ProtectedRoute>} />
+      <Route path="/purchase/return" element={<ProtectedRoute><PurchaseReturnList /></ProtectedRoute>} />
+      <Route path="/purchase/return/new" element={<ProtectedRoute><CreatePurchaseReturn /></ProtectedRoute>} />
+      {/* Cash & Bank */}
+      <Route path="/cash-bank/accounts" element={<ProtectedRoute><BankAccounts /></ProtectedRoute>} />
+      <Route path="/cash-bank/cash" element={<ProtectedRoute><CashInHand /></ProtectedRoute>} />
+      {/* Reports */}
+      <Route path="/reports/sale" element={<ProtectedRoute><SaleReport /></ProtectedRoute>} />
+      <Route path="/reports/purchase" element={<ProtectedRoute><PurchaseReport /></ProtectedRoute>} />
+      <Route path="/reports/pnl" element={<ProtectedRoute><ProfitLoss /></ProtectedRoute>} />
+      <Route path="/reports/bill-wise-pnl" element={<ProtectedRoute><BillWisePnL /></ProtectedRoute>} />
+      <Route path="/reports/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
+      <Route path="/reports/stock-summary" element={<ProtectedRoute><StockSummary /></ProtectedRoute>} />
+      <Route path="/reports/item-wise-pnl" element={<ProtectedRoute><ItemWisePnL /></ProtectedRoute>} />
+      <Route path="/reports/stock-detail" element={<ProtectedRoute><StockDetail /></ProtectedRoute>} />
+      <Route path="/reports/item-detail" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
+      <Route path="/reports/taxes" element={<ProtectedRoute><TaxesReport /></ProtectedRoute>} />
+      <Route path="/reports/expense" element={<ProtectedRoute><ExpenseReport /></ProtectedRoute>} />
+      {/* Backup */}
+      <Route path="/backup/sync" element={<ProtectedRoute><SyncShare /></ProtectedRoute>} />
+      <Route path="/backup/auto" element={<ProtectedRoute><AutoBackup /></ProtectedRoute>} />
+      <Route path="/backup/download" element={<ProtectedRoute><BackupToComputer /></ProtectedRoute>} />
+      <Route path="/backup/restore" element={<ProtectedRoute><RestoreBackup /></ProtectedRoute>} />
+      {/* Utilities */}
+      <Route path="/utilities/import" element={<ProtectedRoute><ImportItems /></ProtectedRoute>} />
+      <Route path="/utilities/bulk-update" element={<ProtectedRoute><BulkUpdate /></ProtectedRoute>} />
+      <Route path="/utilities/recycle-bin" element={<ProtectedRoute><RecycleBin /></ProtectedRoute>} />
+      <Route path="/utilities/reset" element={<ProtectedRoute><ResetDatabase /></ProtectedRoute>} />
+      {/* Settings */}
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      {/* 404 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -71,70 +165,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
-          {/* Parties */}
-          <Route path="/parties" element={<AppLayout><PartiesList /></AppLayout>} />
-          <Route path="/parties/add" element={<AppLayout><AddParty /></AppLayout>} />
-          {/* Items */}
-          <Route path="/items" element={<AppLayout><ItemsList /></AppLayout>} />
-          <Route path="/items/add" element={<AppLayout><AddItem /></AppLayout>} />
-          <Route path="/items/categories" element={<AppLayout><Categories /></AppLayout>} />
-          {/* Sale */}
-          <Route path="/sale/invoices" element={<AppLayout><SaleInvoices /></AppLayout>} />
-          <Route path="/sale/invoices/new" element={<AppLayout><CreateSaleInvoice /></AppLayout>} />
-          <Route path="/sale/estimation" element={<AppLayout><EstimationList /></AppLayout>} />
-          <Route path="/sale/estimation/new" element={<AppLayout><CreateEstimation /></AppLayout>} />
-          <Route path="/sale/proforma" element={<AppLayout><ProformaList /></AppLayout>} />
-          <Route path="/sale/proforma/new" element={<AppLayout><CreateProformaInvoice /></AppLayout>} />
-          <Route path="/sale/payment-in" element={<AppLayout><PaymentInList /></AppLayout>} />
-          <Route path="/sale/payment-in/new" element={<AppLayout><PaymentIn /></AppLayout>} />
-          <Route path="/sale/order" element={<AppLayout><SaleOrderList /></AppLayout>} />
-          <Route path="/sale/order/new" element={<AppLayout><CreateSaleOrder /></AppLayout>} />
-          <Route path="/sale/dc" element={<AppLayout><DeliveryChallanList /></AppLayout>} />
-          <Route path="/sale/dc/new" element={<AppLayout><CreateDeliveryChallan /></AppLayout>} />
-          <Route path="/sale/return" element={<AppLayout><SaleReturnList /></AppLayout>} />
-          <Route path="/sale/return/new" element={<AppLayout><CreateSaleReturn /></AppLayout>} />
-          {/* Purchase */}
-          <Route path="/purchase/bills" element={<AppLayout><PurchaseBills /></AppLayout>} />
-          <Route path="/purchase/bills/new" element={<AppLayout><CreatePurchaseBill /></AppLayout>} />
-          <Route path="/purchase/payment-out" element={<AppLayout><PaymentOutList /></AppLayout>} />
-          <Route path="/purchase/payment-out/new" element={<AppLayout><PaymentOut /></AppLayout>} />
-          <Route path="/purchase/expenses" element={<AppLayout><ExpensesList /></AppLayout>} />
-          <Route path="/purchase/expenses/new" element={<AppLayout><CreateExpense /></AppLayout>} />
-          <Route path="/purchase/order" element={<AppLayout><PurchaseOrderList /></AppLayout>} />
-          <Route path="/purchase/order/new" element={<AppLayout><CreatePurchaseOrder /></AppLayout>} />
-          <Route path="/purchase/return" element={<AppLayout><PurchaseReturnList /></AppLayout>} />
-          <Route path="/purchase/return/new" element={<AppLayout><CreatePurchaseReturn /></AppLayout>} />
-          {/* Cash & Bank */}
-          <Route path="/cash-bank/accounts" element={<AppLayout><BankAccounts /></AppLayout>} />
-          <Route path="/cash-bank/cash" element={<AppLayout><CashInHand /></AppLayout>} />
-          {/* Reports */}
-          <Route path="/reports/sale" element={<AppLayout><SaleReport /></AppLayout>} />
-          <Route path="/reports/purchase" element={<AppLayout><PurchaseReport /></AppLayout>} />
-          <Route path="/reports/pnl" element={<AppLayout><ProfitLoss /></AppLayout>} />
-          <Route path="/reports/bill-wise-pnl" element={<AppLayout><BillWisePnL /></AppLayout>} />
-          <Route path="/reports/balance-sheet" element={<AppLayout><BalanceSheet /></AppLayout>} />
-          <Route path="/reports/stock-summary" element={<AppLayout><StockSummary /></AppLayout>} />
-          <Route path="/reports/item-wise-pnl" element={<AppLayout><ItemWisePnL /></AppLayout>} />
-          <Route path="/reports/stock-detail" element={<AppLayout><StockDetail /></AppLayout>} />
-          <Route path="/reports/item-detail" element={<AppLayout><ItemDetail /></AppLayout>} />
-          <Route path="/reports/taxes" element={<AppLayout><TaxesReport /></AppLayout>} />
-          <Route path="/reports/expense" element={<AppLayout><ExpenseReport /></AppLayout>} />
-          {/* Backup */}
-          <Route path="/backup/sync" element={<AppLayout><SyncShare /></AppLayout>} />
-          <Route path="/backup/auto" element={<AppLayout><AutoBackup /></AppLayout>} />
-          <Route path="/backup/download" element={<AppLayout><BackupToComputer /></AppLayout>} />
-          <Route path="/backup/restore" element={<AppLayout><RestoreBackup /></AppLayout>} />
-          {/* Utilities */}
-          <Route path="/utilities/import" element={<AppLayout><ImportItems /></AppLayout>} />
-          <Route path="/utilities/bulk-update" element={<AppLayout><BulkUpdate /></AppLayout>} />
-          <Route path="/utilities/recycle-bin" element={<AppLayout><RecycleBin /></AppLayout>} />
-          {/* Settings */}
-          <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

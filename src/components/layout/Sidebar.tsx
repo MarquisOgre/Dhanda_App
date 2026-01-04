@@ -124,6 +124,7 @@ const navItems: NavItem[] = [
       { title: "Import Items", href: "/utilities/import" },
       { title: "Update Items in Bulk", href: "/utilities/bulk-update" },
       { title: "Recycle Bin", href: "/utilities/recycle-bin" },
+      { title: "Reset Database", href: "/utilities/reset" },
     ],
   },
 ];

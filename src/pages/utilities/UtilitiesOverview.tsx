@@ -29,7 +29,7 @@ const utilities = [
     title: "Export Data",
     description: "Export your data to Excel or CSV",
     icon: Download,
-    href: "/utilities/export",
+    href: "/backup/download",
     color: "text-success bg-success/10",
   },
   {
@@ -37,6 +37,13 @@ const utilities = [
     description: "Recover deleted items, invoices, and parties",
     icon: Trash2,
     href: "/utilities/recycle-bin",
+    color: "text-warning bg-warning/10",
+  },
+  {
+    title: "Reset Database",
+    description: "Clear all data and start fresh (Admin only)",
+    icon: Database,
+    href: "/utilities/reset",
     color: "text-destructive bg-destructive/10",
   },
 ];

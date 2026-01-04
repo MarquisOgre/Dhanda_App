@@ -14,16 +14,585 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bank_accounts: {
+        Row: {
+          account_name: string
+          account_number: string | null
+          bank_name: string | null
+          created_at: string
+          current_balance: number | null
+          id: string
+          ifsc_code: string | null
+          is_primary: boolean | null
+          opening_balance: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          current_balance?: number | null
+          id?: string
+          ifsc_code?: string | null
+          is_primary?: boolean | null
+          opening_balance?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          current_balance?: number | null
+          id?: string
+          ifsc_code?: string | null
+          is_primary?: boolean | null
+          opening_balance?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      business_settings: {
+        Row: {
+          business_address: string | null
+          business_name: string | null
+          created_at: string
+          email: string | null
+          gstin: string | null
+          id: string
+          invoice_prefix: string | null
+          invoice_terms: string | null
+          logo_url: string | null
+          pan: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_address?: string | null
+          business_name?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          invoice_prefix?: string | null
+          invoice_terms?: string | null
+          logo_url?: string | null
+          pan?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_address?: string | null
+          business_name?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          invoice_prefix?: string | null
+          invoice_terms?: string | null
+          logo_url?: string | null
+          pan?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cash_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          transaction_date: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_date?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          expense_date: string
+          expense_number: string
+          id: string
+          notes: string | null
+          payment_mode: string | null
+          reference_number: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          expense_date?: string
+          expense_number: string
+          id?: string
+          notes?: string | null
+          payment_mode?: string | null
+          reference_number?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          expense_date?: string
+          expense_number?: string
+          id?: string
+          notes?: string | null
+          payment_mode?: string | null
+          reference_number?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      invoice_items: {
+        Row: {
+          created_at: string
+          discount_amount: number | null
+          discount_percent: number | null
+          hsn_code: string | null
+          id: string
+          invoice_id: string
+          item_id: string | null
+          item_name: string
+          quantity: number
+          rate: number
+          tax_amount: number | null
+          tax_rate: number | null
+          total: number
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          hsn_code?: string | null
+          id?: string
+          invoice_id: string
+          item_id?: string | null
+          item_name: string
+          quantity?: number
+          rate?: number
+          tax_amount?: number | null
+          tax_rate?: number | null
+          total?: number
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          hsn_code?: string | null
+          id?: string
+          invoice_id?: string
+          item_id?: string | null
+          item_name?: string
+          quantity?: number
+          rate?: number
+          tax_amount?: number | null
+          tax_rate?: number | null
+          total?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          balance_due: number | null
+          created_at: string
+          deleted_at: string | null
+          discount_amount: number | null
+          due_date: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          invoice_type: string
+          is_deleted: boolean | null
+          notes: string | null
+          paid_amount: number | null
+          party_id: string | null
+          status: string | null
+          subtotal: number | null
+          tax_amount: number | null
+          terms: string | null
+          total_amount: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_due?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          invoice_type: string
+          is_deleted?: boolean | null
+          notes?: string | null
+          paid_amount?: number | null
+          party_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          terms?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_due?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          invoice_type?: string
+          is_deleted?: boolean | null
+          notes?: string | null
+          paid_amount?: number | null
+          party_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          terms?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      items: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          current_stock: number | null
+          deleted_at: string | null
+          hsn_code: string | null
+          id: string
+          is_deleted: boolean | null
+          low_stock_alert: number | null
+          name: string
+          opening_stock: number | null
+          purchase_price: number | null
+          sale_price: number | null
+          tax_rate: number | null
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          current_stock?: number | null
+          deleted_at?: string | null
+          hsn_code?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          low_stock_alert?: number | null
+          name: string
+          opening_stock?: number | null
+          purchase_price?: number | null
+          sale_price?: number | null
+          tax_rate?: number | null
+          unit?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          current_stock?: number | null
+          deleted_at?: string | null
+          hsn_code?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          low_stock_alert?: number | null
+          name?: string
+          opening_stock?: number | null
+          purchase_price?: number | null
+          sale_price?: number | null
+          tax_rate?: number | null
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parties: {
+        Row: {
+          billing_address: string | null
+          created_at: string
+          credit_limit: number | null
+          email: string | null
+          gstin: string | null
+          id: string
+          name: string
+          opening_balance: number | null
+          party_type: string | null
+          phone: string | null
+          shipping_address: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_address?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          name: string
+          opening_balance?: number | null
+          party_type?: string | null
+          phone?: string | null
+          shipping_address?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_address?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          name?: string
+          opening_balance?: number | null
+          party_type?: string | null
+          phone?: string | null
+          shipping_address?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          party_id: string | null
+          payment_date: string
+          payment_mode: string | null
+          payment_number: string
+          payment_type: string
+          reference_number: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          party_id?: string | null
+          payment_date?: string
+          payment_mode?: string | null
+          payment_number: string
+          payment_type: string
+          reference_number?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          party_id?: string | null
+          payment_date?: string
+          payment_mode?: string | null
+          payment_number?: string
+          payment_type?: string
+          reference_number?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_write: { Args: { _user_id: string }; Returns: boolean }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "supervisor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +719,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "supervisor", "viewer"],
+    },
   },
 } as const
