@@ -162,16 +162,31 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
       {/* Logo */}
       <div className="p-4 border-b border-sidebar-border">
-  <Link to="/" className="flex justify-start">
-    <img
-      src="/logo.png"
-      alt="Dhanda App Logo"
-      className="w-full max-w-[180px] h-auto object-contain"
-    />
-  </Link>
-</div>
+        <Link to="/" className="flex justify-start">
+          <img
+            src="/logo.png"
+            alt="Dhanda App Logo"
+            className="w-full max-w-[180px] h-auto object-contain"
+          />
+        </Link>
+      </div>
 
-
+      {/* Business Name */}
+      <div className="px-4 py-3 border-b border-sidebar-border">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-sidebar-accent flex items-center justify-center">
+            <span className="text-sm font-bold text-sidebar-primary">
+              {businessSettings?.business_name?.charAt(0)?.toUpperCase() || 'B'}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate text-sidebar-foreground">
+              {businessSettings?.business_name || 'My Business'}
+            </p>
+            <p className="text-xs text-sidebar-foreground/60">FY {getCurrentFinancialYear()}</p>
+          </div>
+        </div>
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
@@ -228,23 +243,6 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-            <span className="text-sm font-semibold">
-              {businessSettings?.business_name?.charAt(0)?.toUpperCase() || 'B'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
-              {businessSettings?.business_name || 'My Business'}
-            </p>
-            <p className="text-xs text-sidebar-foreground/60">FY {getCurrentFinancialYear()}</p>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }
