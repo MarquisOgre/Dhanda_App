@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Printer, Download, ClipboardList } from "lucide-react";
+import { Loader2, Printer, Download, ClipboardList, Search, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -48,6 +49,8 @@ const StockRegister = () => {
   const [selectedYear, setSelectedYear] = useState(String(currentDate.getFullYear()));
   const [loading, setLoading] = useState(true);
   const [stockData, setStockData] = useState<StockItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "in-stock" | "out-of-stock" | "low-stock">("all");
 
   // Generate year options (last 5 years)
   const yearOptions = useMemo(() => {
@@ -310,9 +313,31 @@ const StockRegister = () => {
     toast.success("Stock register exported successfully");
   };
 
-  // Calculate totals
+  // Filter stock data based on search and filter type
+  const filteredStockData = useMemo(() => {
+    return stockData.filter((item) => {
+      // Search filter
+      const matchesSearch = searchQuery === "" || 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.unit.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Stock filter
+      let matchesFilter = true;
+      if (filterType === "in-stock") {
+        matchesFilter = item.closingQty > 0;
+      } else if (filterType === "out-of-stock") {
+        matchesFilter = item.closingQty <= 0;
+      } else if (filterType === "low-stock") {
+        matchesFilter = item.closingQty > 0 && item.closingQty <= 10;
+      }
+      
+      return matchesSearch && matchesFilter;
+    });
+  }, [stockData, searchQuery, filterType]);
+
+  // Calculate totals from filtered data
   const totals = useMemo(() => {
-    return stockData.reduce(
+    return filteredStockData.reduce(
       (acc, item) => ({
         openingQty: acc.openingQty + item.openingQty,
         openingAmt: acc.openingAmt + item.openingAmt,
@@ -324,7 +349,7 @@ const StockRegister = () => {
       }),
       { openingQty: 0, openingAmt: 0, purchaseQty: 0, purchaseAmt: 0, closingQty: 0, saleQty: 0, saleAmt: 0 }
     );
-  }, [stockData]);
+  }, [filteredStockData]);
 
   if (loading) {
     return (
@@ -382,12 +407,39 @@ const StockRegister = () => {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">
-            Stock Movement - {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
-          </CardTitle>
-          <CardDescription>
-            Opening Qty + Purchase Qty - Sale Qty = Closing Qty
-          </CardDescription>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <CardTitle className="text-lg">
+                Stock Movement - {MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
+              </CardTitle>
+              <CardDescription>
+                Opening Qty + Purchase Qty - Sale Qty = Closing Qty
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search items..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-[200px]"
+                />
+              </div>
+              <Select value={filterType} onValueChange={(value: "all" | "in-stock" | "out-of-stock" | "low-stock") => setFilterType(value)}>
+                <SelectTrigger className="w-[150px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Items</SelectItem>
+                  <SelectItem value="in-stock">In Stock</SelectItem>
+                  <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                  <SelectItem value="low-stock">Low Stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -420,15 +472,15 @@ const StockRegister = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockData.length === 0 ? (
+                {filteredStockData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
-                      No items found
+                      {stockData.length === 0 ? "No items found" : "No items match your search/filter criteria"}
                     </TableCell>
                   </TableRow>
                 ) : (
                   <>
-                    {stockData.map((item, index) => (
+                    {filteredStockData.map((item, index) => (
                       <TableRow key={item.id}>
                         <TableCell className="text-center">{index + 1}</TableCell>
                         <TableCell className="font-medium">{item.name}</TableCell>
