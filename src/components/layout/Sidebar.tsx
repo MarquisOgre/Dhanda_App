@@ -43,6 +43,11 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard className="w-5 h-5" />,
   },
   {
+    title: "Stock Register",
+    href: "/items/stock-register",
+    icon: <FolderOpen className="w-5 h-5" />,
+  },
+  {
     title: "Parties",
     icon: <Users className="w-5 h-5" />,
     children: [
@@ -57,7 +62,6 @@ const navItems: NavItem[] = [
       { title: "All Items", href: "/items" },
       { title: "Add Item", href: "/items/add" },
       { title: "Categories", href: "/items/categories" },
-      { title: "Stock Register", href: "/items/stock-register" },
     ],
   },
   {
