@@ -7,8 +7,8 @@ export function Footer() {
   const isExpiringSoon = daysRemaining <= 30 && daysRemaining > 0;
 
   return (
-    <footer className="bg-gradient-to-r from-[hsl(199,89%,48%)] to-[hsl(172,66%,50%)] text-white py-3 px-6 mt-auto">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
+    <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[hsl(199,89%,48%)] to-[hsl(172,66%,50%)] text-white py-3 px-6 z-40">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm max-w-screen-2xl mx-auto">
         {/* Left - Branding */}
         <div className="flex items-center gap-2">
           <span className="font-semibold">Dhanda App</span>

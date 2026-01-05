@@ -2,6 +2,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { LicenseExpired } from "@/components/LicenseExpired";
+import { LicenseReminder } from "@/components/LicenseReminder";
 import { isLicenseValid } from "@/lib/license";
 
 interface AppLayoutProps {
@@ -15,13 +16,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background">
+      <LicenseReminder />
       <Sidebar />
-      <div className="ml-64 flex flex-col flex-1">
+      <div className="ml-64 pb-14">
         <Header />
-        <main className="p-6 animate-fade-in flex-1">{children}</main>
-        <Footer />
+        <main className="p-6 animate-fade-in">{children}</main>
       </div>
+      <Footer />
     </div>
   );
 }
