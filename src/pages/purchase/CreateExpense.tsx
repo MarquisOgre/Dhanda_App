@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Save, Upload } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const expenseCategories = [
   "Office Supplies",
@@ -27,13 +30,54 @@ const expenseCategories = [
 ];
 
 export default function CreateExpense() {
-  const [expenseNumber] = useState("EXP-026");
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  
+  const [expenseNumber, setExpenseNumber] = useState("EXP-026");
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split("T")[0]);
   const [category, setCategory] = useState("");
   const [paymentMode, setPaymentMode] = useState("");
   const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [notes, setNotes] = useState("");
+
+  const handleSave = async () => {
+    if (!user) {
+      toast.error("Please login to save expense");
+      return;
+    }
+    if (!category) {
+      toast.error("Please select a category");
+      return;
+    }
+    if (!amount || Number(amount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("expenses").insert({
+        user_id: user.id,
+        expense_number: expenseNumber,
+        expense_date: expenseDate,
+        category,
+        payment_mode: paymentMode || "cash",
+        amount: parseFloat(amount),
+        reference_number: referenceNumber || null,
+        notes: notes || null,
+      });
+
+      if (error) throw error;
+      toast.success("Expense saved successfully!");
+      navigate("/purchase/expenses");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save expense");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -50,8 +94,8 @@ export default function CreateExpense() {
             <p className="text-muted-foreground">Record a new business expense</p>
           </div>
         </div>
-        <Button className="btn-gradient gap-2">
-          <Save className="w-4 h-4" />
+        <Button className="btn-gradient gap-2" onClick={handleSave} disabled={loading}>
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Save Expense
         </Button>
       </div>
@@ -65,7 +109,7 @@ export default function CreateExpense() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="expenseNo">Expense Number</Label>
-                <Input id="expenseNo" value={expenseNumber} readOnly className="bg-muted" />
+                <Input id="expenseNo" value={expenseNumber} onChange={(e) => setExpenseNumber(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expenseDate">Date</Label>
@@ -77,7 +121,7 @@ export default function CreateExpense() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>Category *</Label>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
@@ -92,7 +136,7 @@ export default function CreateExpense() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
+                <Label htmlFor="amount">Amount *</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -125,53 +169,25 @@ export default function CreateExpense() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="reference">Reference Number</Label>
-                <Input id="reference" placeholder="Transaction/Cheque number" />
-              </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="metric-card">
-            <h3 className="font-semibold mb-4">Description</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="description">Expense Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe the expense..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Additional Notes</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Any additional notes..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
+                <Input 
+                  id="reference" 
+                  placeholder="Transaction/Cheque number" 
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
                 />
               </div>
             </div>
           </div>
 
-          {/* Attachments */}
+          {/* Notes */}
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">Attachments</h3>
-            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-2">
-                Drag and drop files here, or click to browse
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Supported formats: PDF, JPG, PNG (Max 5MB)
-              </p>
-              <Button variant="outline" className="mt-4">
-                Choose Files
-              </Button>
-            </div>
+            <h3 className="font-semibold mb-4">Notes</h3>
+            <Textarea
+              placeholder="Add any notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
           </div>
         </div>
 
@@ -197,16 +213,6 @@ export default function CreateExpense() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="metric-card">
-            <h3 className="font-semibold mb-4">Quick Tips</h3>
-            <ul className="text-sm text-muted-foreground space-y-2">
-              <li>• Keep receipts for tax purposes</li>
-              <li>• Categorize expenses correctly</li>
-              <li>• Add clear descriptions</li>
-              <li>• Attach supporting documents</li>
-            </ul>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Save, Search } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,31 +13,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PartySelector } from "@/components/sale/PartySelector";
-import { cn } from "@/lib/utils";
-
-const pendingBills = [
-  { id: 1, number: "PUR-041", date: "01 Jan 2026", amount: 65200, balance: 35200 },
-  { id: 2, number: "PUR-040", date: "30 Dec 2025", amount: 125000, balance: 125000 },
-];
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function PaymentOut() {
-  const [receiptNumber] = useState("PAY-OUT-015");
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  
+  const [receiptNumber, setReceiptNumber] = useState("PAY-OUT-015");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedParty, setSelectedParty] = useState("");
   const [paymentMode, setPaymentMode] = useState("");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
-  const [selectedBills, setSelectedBills] = useState<number[]>([]);
 
-  const toggleBillSelection = (billId: number) => {
-    setSelectedBills((prev) =>
-      prev.includes(billId)
-        ? prev.filter((id) => id !== billId)
-        : [...prev, billId]
-    );
+  const handleSave = async () => {
+    if (!user) {
+      toast.error("Please login to save payment");
+      return;
+    }
+    if (!selectedParty) {
+      toast.error("Please select a supplier");
+      return;
+    }
+    if (!amount || Number(amount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    if (!paymentMode) {
+      toast.error("Please select payment mode");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("payments").insert({
+        user_id: user.id,
+        payment_number: receiptNumber,
+        payment_type: "payment_out",
+        payment_date: paymentDate,
+        party_id: selectedParty,
+        payment_mode: paymentMode,
+        amount: parseFloat(amount),
+        notes: notes || null,
+      });
+
+      if (error) throw error;
+      toast.success("Payment recorded successfully!");
+      navigate("/purchase/payment-out");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save payment");
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const totalPending = pendingBills.reduce((sum, bill) => sum + bill.balance, 0);
 
   return (
     <div className="space-y-6">
@@ -54,8 +85,8 @@ export default function PaymentOut() {
             <p className="text-muted-foreground">Record payment to supplier</p>
           </div>
         </div>
-        <Button className="btn-gradient gap-2">
-          <Save className="w-4 h-4" />
+        <Button className="btn-gradient gap-2" onClick={handleSave} disabled={loading}>
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Save Payment
         </Button>
       </div>
@@ -69,7 +100,7 @@ export default function PaymentOut() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="receiptNo">Receipt Number</Label>
-                <Input id="receiptNo" value={receiptNumber} readOnly className="bg-muted" />
+                <Input id="receiptNo" value={receiptNumber} onChange={(e) => setReceiptNumber(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="paymentDate">Payment Date</Label>
@@ -92,46 +123,6 @@ export default function PaymentOut() {
               partyType="supplier"
               label="Select Supplier"
             />
-          </div>
-
-          {/* Pending Bills */}
-          <div className="metric-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Pending Bills</h3>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search bills..." className="pl-10" />
-              </div>
-            </div>
-            <div className="space-y-3">
-              {pendingBills.map((bill) => (
-                <div
-                  key={bill.id}
-                  onClick={() => toggleBillSelection(bill.id)}
-                  className={cn(
-                    "p-4 rounded-lg border cursor-pointer transition-all",
-                    selectedBills.includes(bill.id)
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{bill.number}</p>
-                      <p className="text-sm text-muted-foreground">{bill.date}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">
-                        Bill Amount: ₹{bill.amount.toLocaleString()}
-                      </p>
-                      <p className="font-semibold text-destructive">
-                        Balance: ₹{bill.balance.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Payment Mode */}
@@ -183,18 +174,14 @@ export default function PaymentOut() {
             <h3 className="font-semibold mb-4">Payment Summary</h3>
             <div className="space-y-4">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Total Pending</span>
-                <span className="font-medium">₹{totalPending.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Payment Amount</span>
-                <span className="font-medium">₹{Number(amount || 0).toLocaleString()}</span>
+                <span className="text-muted-foreground">Payment Mode</span>
+                <span className="font-medium capitalize">{paymentMode || "-"}</span>
               </div>
               <div className="border-t border-border pt-4">
                 <div className="flex justify-between">
-                  <span className="font-semibold">Remaining Balance</span>
+                  <span className="font-semibold">Payment Amount</span>
                   <span className="font-bold text-lg">
-                    ₹{(totalPending - Number(amount || 0)).toLocaleString()}
+                    ₹{Number(amount || 0).toLocaleString()}
                   </span>
                 </div>
               </div>

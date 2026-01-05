@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Eye, Calendar, Truck } from "lucide-react";
+import { ArrowLeft, Save, Eye, Calendar, Truck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +13,11 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import { useToast } from "@/hooks/use-toast";
+import { useInvoiceSave } from "@/hooks/useInvoiceSave";
 
 export default function CreateDeliveryChallan() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { saveInvoice, loading } = useInvoiceSave();
   
   const [dcNumber, setDcNumber] = useState("DC-001");
   const [dcDate, setDcDate] = useState<Date>(new Date());
@@ -32,17 +32,19 @@ export default function CreateDeliveryChallan() {
     { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 0, amount: 0 },
   ]);
 
-  const handleSave = () => {
-    if (!selectedParty) {
-      toast({ title: "Error", description: "Please select a party", variant: "destructive" });
-      return;
+  const handleSave = async () => {
+    const result = await saveInvoice({
+      invoiceType: "delivery_challan",
+      invoiceNumber: dcNumber,
+      invoiceDate: dcDate,
+      partyId: selectedParty,
+      items,
+      notes: `${notes}\nChallan Type: ${challanType}\nTransport: ${transportMode}\nVehicle: ${vehicleNumber}`,
+    });
+
+    if (result) {
+      navigate("/sale/dc");
     }
-    if (items.filter((i) => i.itemId).length === 0) {
-      toast({ title: "Error", description: "Please add at least one item", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Success", description: "Delivery Challan created successfully!" });
-    navigate("/sale/dc");
   };
 
   return (
@@ -61,8 +63,9 @@ export default function CreateDeliveryChallan() {
           <Button variant="outline" onClick={() => setShowPreview(true)} className="gap-2">
             <Eye className="w-4 h-4" />Preview
           </Button>
-          <Button onClick={handleSave} className="btn-gradient gap-2">
-            <Save className="w-4 h-4" />Save
+          <Button onClick={handleSave} className="btn-gradient gap-2" disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save
           </Button>
         </div>
       </div>

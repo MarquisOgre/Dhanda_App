@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Eye, Calendar, ClipboardList } from "lucide-react";
+import { ArrowLeft, Save, Eye, Calendar, ClipboardList, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +12,11 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import { useToast } from "@/hooks/use-toast";
+import { useInvoiceSave } from "@/hooks/useInvoiceSave";
 
 export default function CreateSaleOrder() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { saveInvoice, loading } = useInvoiceSave();
   
   const [orderNumber, setOrderNumber] = useState("SO-001");
   const [orderDate, setOrderDate] = useState<Date>(new Date());
@@ -29,17 +29,20 @@ export default function CreateSaleOrder() {
     { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
   ]);
 
-  const handleSave = () => {
-    if (!selectedParty) {
-      toast({ title: "Error", description: "Please select a party", variant: "destructive" });
-      return;
+  const handleSave = async () => {
+    const result = await saveInvoice({
+      invoiceType: "sale_order",
+      invoiceNumber: orderNumber,
+      invoiceDate: orderDate,
+      dueDate: deliveryDate,
+      partyId: selectedParty,
+      items,
+      notes,
+    });
+
+    if (result) {
+      navigate("/sale/order");
     }
-    if (items.filter((i) => i.itemId).length === 0) {
-      toast({ title: "Error", description: "Please add at least one item", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Success", description: "Sale Order created successfully!" });
-    navigate("/sale/order");
   };
 
   return (
@@ -61,8 +64,9 @@ export default function CreateSaleOrder() {
           <Button variant="outline" onClick={() => setShowPreview(true)} className="gap-2">
             <Eye className="w-4 h-4" />Preview
           </Button>
-          <Button onClick={handleSave} className="btn-gradient gap-2">
-            <Save className="w-4 h-4" />Save Order
+          <Button onClick={handleSave} className="btn-gradient gap-2" disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Order
           </Button>
         </div>
       </div>

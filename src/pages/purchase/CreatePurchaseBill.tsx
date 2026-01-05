@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Save, Printer } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,16 +9,37 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { InvoiceItemsTable, InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
+import { useInvoiceSave } from "@/hooks/useInvoiceSave";
 
 export default function CreatePurchaseBill() {
-  const [billNumber] = useState("PUR-043");
+  const navigate = useNavigate();
+  const { saveInvoice, loading } = useInvoiceSave();
+  
+  const [billNumber, setBillNumber] = useState("PUR-043");
   const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
+  const [dueDate, setDueDate] = useState("");
   const [selectedParty, setSelectedParty] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
+
+  const handleSave = async () => {
+    const result = await saveInvoice({
+      invoiceType: "purchase_bill",
+      invoiceNumber: billNumber,
+      invoiceDate: new Date(billDate),
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      partyId: selectedParty,
+      items,
+      notes,
+    });
+
+    if (result) {
+      navigate("/purchase/bills");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -40,8 +61,8 @@ export default function CreatePurchaseBill() {
             <Printer className="w-4 h-4" />
             Preview
           </Button>
-          <Button className="btn-gradient gap-2">
-            <Save className="w-4 h-4" />
+          <Button className="btn-gradient gap-2" onClick={handleSave} disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Bill
           </Button>
         </div>
@@ -56,7 +77,7 @@ export default function CreatePurchaseBill() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="billNo">Bill Number</Label>
-                <Input id="billNo" value={billNumber} readOnly className="bg-muted" />
+                <Input id="billNo" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="billDate">Bill Date</Label>
@@ -69,7 +90,7 @@ export default function CreatePurchaseBill() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dueDate">Due Date</Label>
-                <Input id="dueDate" type="date" />
+                <Input id="dueDate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
             </div>
           </div>

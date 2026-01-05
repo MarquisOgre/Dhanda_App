@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Eye, Calendar } from "lucide-react";
+import { ArrowLeft, Save, Eye, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,16 +8,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { PartySelector } from "@/components/sale/PartySelector";
 import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import { useToast } from "@/hooks/use-toast";
+import { useInvoiceSave } from "@/hooks/useInvoiceSave";
 
 export default function CreateEstimation() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { saveInvoice, loading } = useInvoiceSave();
   
   const [estimationNumber, setEstimationNumber] = useState("EST-001");
   const [estimationDate, setEstimationDate] = useState<Date>(new Date());
@@ -41,20 +40,20 @@ export default function CreateEstimation() {
     },
   ]);
 
-  const handleSave = () => {
-    if (!selectedParty) {
-      toast({ title: "Error", description: "Please select a party", variant: "destructive" });
-      return;
-    }
+  const handleSave = async () => {
+    const result = await saveInvoice({
+      invoiceType: "estimation",
+      invoiceNumber: estimationNumber,
+      invoiceDate: estimationDate,
+      dueDate: validUntil,
+      partyId: selectedParty,
+      items,
+      notes,
+    });
 
-    const validItems = items.filter((item) => item.itemId);
-    if (validItems.length === 0) {
-      toast({ title: "Error", description: "Please add at least one item", variant: "destructive" });
-      return;
+    if (result) {
+      navigate("/sale/estimation");
     }
-
-    toast({ title: "Success", description: "Estimation created successfully!" });
-    navigate("/sale/estimation");
   };
 
   return (
@@ -77,8 +76,8 @@ export default function CreateEstimation() {
             <Eye className="w-4 h-4" />
             Preview
           </Button>
-          <Button onClick={handleSave} className="btn-gradient gap-2">
-            <Save className="w-4 h-4" />
+          <Button onClick={handleSave} className="btn-gradient gap-2" disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Estimation
           </Button>
         </div>
