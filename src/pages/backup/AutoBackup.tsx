@@ -1,7 +1,6 @@
-import { useState } from "react";
-import { Clock, HardDrive, Settings, CheckCircle, AlertCircle, ToggleLeft, ToggleRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock, HardDrive, Settings, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -11,20 +10,66 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-
-const backupHistory = [
-  { id: 1, date: "02 Jan 2026, 11:30 PM", size: "12.5 MB", status: "success" },
-  { id: 2, date: "01 Jan 2026, 11:30 PM", size: "12.3 MB", status: "success" },
-  { id: 3, date: "31 Dec 2025, 11:30 PM", size: "12.1 MB", status: "success" },
-  { id: 4, date: "30 Dec 2025, 11:30 PM", size: "11.9 MB", status: "failed" },
-  { id: 5, date: "29 Dec 2025, 11:30 PM", size: "11.8 MB", status: "success" },
-];
+import { useBackupSettings, useBackups } from "@/hooks/useBackup";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
 
 export default function AutoBackup() {
+  const { settings, loading: settingsLoading, updateSettings } = useBackupSettings();
+  const { backups, loading: backupsLoading, createBackup } = useBackups();
+
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
   const [frequency, setFrequency] = useState("daily");
   const [time, setTime] = useState("23:30");
   const [retention, setRetention] = useState("30");
+  const [saving, setSaving] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setAutoBackupEnabled(settings.auto_backup_enabled);
+      setFrequency(settings.frequency);
+      setTime(settings.backup_time?.slice(0, 5) || "23:30");
+      setRetention(String(settings.retention_days));
+    }
+  }, [settings]);
+
+  const handleSaveSettings = async () => {
+    setSaving(true);
+    await updateSettings({
+      auto_backup_enabled: autoBackupEnabled,
+      frequency,
+      backup_time: `${time}:00`,
+      retention_days: parseInt(retention),
+    });
+    setSaving(false);
+  };
+
+  const handleCreateBackup = async () => {
+    setCreatingBackup(true);
+    await createBackup("auto");
+    setCreatingBackup(false);
+  };
+
+  const successfulBackups = backups.filter((b) => b.status === "success");
+  const lastBackup = backups[0];
+  const totalSize = backups.reduce((acc, b) => {
+    const size = parseFloat(b.file_size?.replace(" MB", "") || "0");
+    return acc + size;
+  }, 0);
+
+  if (settingsLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -33,6 +78,13 @@ export default function AutoBackup() {
           <h1 className="text-2xl font-bold">Auto Backup</h1>
           <p className="text-muted-foreground">Configure automatic data backups</p>
         </div>
+        <Button 
+          className="btn-gradient gap-2" 
+          onClick={handleCreateBackup}
+          disabled={creatingBackup}
+        >
+          {creatingBackup ? "Creating..." : "Create Backup Now"}
+        </Button>
       </div>
 
       {/* Status Card */}
@@ -55,16 +107,26 @@ export default function AutoBackup() {
             <p className="text-sm text-muted-foreground">Last Backup</p>
             <Clock className="w-4 h-4 text-muted-foreground" />
           </div>
-          <p className="text-xl font-bold mt-2">02 Jan 2026</p>
-          <p className="text-xs text-muted-foreground">11:30 PM</p>
+          {lastBackup ? (
+            <>
+              <p className="text-xl font-bold mt-2">
+                {format(new Date(lastBackup.backup_date), "dd MMM yyyy")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(lastBackup.backup_date), "hh:mm a")}
+              </p>
+            </>
+          ) : (
+            <p className="text-xl font-bold mt-2">No backups yet</p>
+          )}
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Total Backups</p>
             <HardDrive className="w-4 h-4 text-muted-foreground" />
           </div>
-          <p className="text-xl font-bold mt-2">127</p>
-          <p className="text-xs text-muted-foreground">58.5 MB total</p>
+          <p className="text-xl font-bold mt-2">{backups.length}</p>
+          <p className="text-xs text-muted-foreground">{totalSize.toFixed(2)} MB total</p>
         </div>
       </div>
 
@@ -104,10 +166,11 @@ export default function AutoBackup() {
 
             <div className="space-y-2">
               <Label>Backup Time</Label>
-              <Input
+              <input
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
@@ -130,7 +193,13 @@ export default function AutoBackup() {
               </p>
             </div>
 
-            <Button className="btn-gradient w-full">Save Settings</Button>
+            <Button 
+              className="btn-gradient w-full" 
+              onClick={handleSaveSettings}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Settings"}
+            </Button>
           </div>
         </div>
 
@@ -138,37 +207,53 @@ export default function AutoBackup() {
         <div className="metric-card">
           <h3 className="font-semibold mb-4">Recent Backups</h3>
           
-          <div className="space-y-3">
-            {backupHistory.map((backup) => (
-              <div
-                key={backup.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
-              >
-                <div className="flex items-center gap-3">
-                  {backup.status === "success" ? (
-                    <CheckCircle className="w-5 h-5 text-success" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                  )}
-                  <div>
-                    <p className="font-medium text-sm">{backup.date}</p>
-                    <p className="text-xs text-muted-foreground">{backup.size}</p>
+          {backupsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16" />
+              ))}
+            </div>
+          ) : backups.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <HardDrive className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No backups yet</p>
+              <p className="text-sm">Create your first backup to see it here</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {backups.slice(0, 5).map((backup) => (
+                <div
+                  key={backup.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
+                >
+                  <div className="flex items-center gap-3">
+                    {backup.status === "success" ? (
+                      <CheckCircle className="w-5 h-5 text-success" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-destructive" />
+                    )}
+                    <div>
+                      <p className="font-medium text-sm">{backup.backup_name}</p>
+                      <p className="text-xs text-muted-foreground">{backup.file_size}</p>
+                    </div>
                   </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    backup.status === "success" 
+                      ? "bg-success/10 text-success" 
+                      : "bg-destructive/10 text-destructive"
+                  }`}>
+                    {backup.status === "success" ? "Success" : "Failed"}
+                  </span>
                 </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                  backup.status === "success" 
-                    ? "bg-success/10 text-success" 
-                    : "bg-destructive/10 text-destructive"
-                }`}>
-                  {backup.status === "success" ? "Success" : "Failed"}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
-          <Button variant="outline" className="w-full mt-4">
-            View All Backups
-          </Button>
+          {backups.length > 5 && (
+            <Button variant="outline" className="w-full mt-4">
+              View All Backups ({backups.length})
+            </Button>
+          )}
         </div>
       </div>
     </div>

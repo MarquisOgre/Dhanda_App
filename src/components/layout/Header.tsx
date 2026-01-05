@@ -1,4 +1,4 @@
-import { Bell, Search, Plus, Settings, LogOut, User, Shield } from "lucide-react";
+import { Bell, Search, Plus, Settings, LogOut, User, Shield, Check, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,9 +11,14 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import { useNotifications } from "@/hooks/useNotifications";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 
 export function Header() {
   const { user, role, signOut, canWrite } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAll } = useNotifications();
 
   const getRoleBadgeVariant = (role: string | null) => {
     switch (role) {
@@ -23,6 +28,19 @@ export function Header() {
         return 'default';
       default:
         return 'secondary';
+    }
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'success':
+        return 'text-success';
+      case 'error':
+        return 'text-destructive';
+      case 'warning':
+        return 'text-warning';
+      default:
+        return 'text-primary';
     }
   };
 
@@ -69,10 +87,79 @@ export function Header() {
           </DropdownMenu>
         )}
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-        </Button>
+        {/* Notifications */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive rounded-full text-[10px] text-white flex items-center justify-center font-medium">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <div className="flex items-center justify-between px-3 py-2 border-b">
+              <span className="font-semibold">Notifications</span>
+              {notifications.length > 0 && (
+                <div className="flex gap-1">
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={markAllAsRead}>
+                      <Check className="w-3 h-3 mr-1" />
+                      Mark all read
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={clearAll}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <ScrollArea className="h-[300px]">
+              {notifications.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No notifications yet</p>
+                </div>
+              ) : (
+                notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={cn(
+                      "px-3 py-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer relative group",
+                      !notification.is_read && "bg-primary/5"
+                    )}
+                    onClick={() => markAsRead(notification.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn("w-2 h-2 rounded-full mt-2", getNotificationIcon(notification.type))} 
+                           style={{ backgroundColor: 'currentColor' }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification.id);
+                        }}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </ScrollArea>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Button variant="ghost" size="icon" asChild>
           <Link to="/settings">
