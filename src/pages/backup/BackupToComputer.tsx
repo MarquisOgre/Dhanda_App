@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Download, HardDrive, FileText, Database, Users, Package, Clock } from "lucide-react";
+import { Download, HardDrive, FileText, Database, Users, Package, Clock, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { useBackups } from "@/hooks/useBackup";
+import { format } from "date-fns";
 
 export default function BackupToComputer() {
   const [selectedData, setSelectedData] = useState<string[]>(["all"]);
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const { backups, downloadBackup } = useBackups();
 
   const dataTypes = [
     { id: "all", label: "All Data", icon: Database, description: "Complete backup of all data" },
@@ -31,21 +34,33 @@ export default function BackupToComputer() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setIsExporting(true);
     setProgress(0);
     
+    // Simulate progress while downloading
     const interval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsExporting(false);
-          return 100;
+        if (prev >= 90) {
+          return prev;
         }
         return prev + 10;
       });
-    }, 300);
+    }, 200);
+
+    await downloadBackup();
+    
+    clearInterval(interval);
+    setProgress(100);
+    
+    setTimeout(() => {
+      setIsExporting(false);
+      setProgress(0);
+    }, 1000);
   };
+
+  const lastDownload = backups.find(b => b.backup_type === "manual");
+  const totalRecords = backups.length;
 
   return (
     <div className="space-y-6">
@@ -63,7 +78,7 @@ export default function BackupToComputer() {
           <div>
             <h3 className="font-semibold">Download Complete Backup</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Export your data as a secure backup file that can be stored on your computer or external drive. 
+              Export your data as a JSON backup file that can be stored on your computer or external drive. 
               This backup can be restored anytime using the Restore Backup feature.
             </p>
           </div>
@@ -107,11 +122,11 @@ export default function BackupToComputer() {
             <div className="p-4 rounded-lg bg-muted/30 space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Format</span>
-                <span className="font-medium">Encrypted Backup (.bak)</span>
+                <span className="font-medium">JSON Backup (.json)</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Estimated Size</span>
-                <span className="font-medium">~15.2 MB</span>
+                <span className="text-sm text-muted-foreground">Total Backups Created</span>
+                <span className="font-medium">{totalRecords}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Data Period</span>
@@ -124,13 +139,28 @@ export default function BackupToComputer() {
                 <Clock className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Last Downloaded</span>
               </div>
-              <p className="font-medium">28 Dec 2025, 03:45 PM</p>
+              {lastDownload ? (
+                <p className="font-medium">
+                  {format(new Date(lastDownload.backup_date), "dd MMM yyyy, hh:mm a")}
+                </p>
+              ) : (
+                <p className="font-medium text-muted-foreground">Never</p>
+              )}
             </div>
 
             {isExporting && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Preparing backup...</span>
+                  <span className="flex items-center gap-2">
+                    {progress === 100 ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-success" />
+                        Download complete!
+                      </>
+                    ) : (
+                      "Preparing backup..."
+                    )}
+                  </span>
                   <span>{progress}%</span>
                 </div>
                 <Progress value={progress} />
@@ -147,7 +177,7 @@ export default function BackupToComputer() {
             </Button>
 
             <p className="text-xs text-muted-foreground text-center">
-              Your backup will be downloaded as a single encrypted file
+              Your backup will be downloaded as a JSON file
             </p>
           </div>
         </div>

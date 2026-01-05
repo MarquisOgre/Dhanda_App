@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      backup_settings: {
+        Row: {
+          auto_backup_enabled: boolean | null
+          backup_time: string | null
+          created_at: string
+          frequency: string | null
+          id: string
+          retention_days: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_backup_enabled?: boolean | null
+          backup_time?: string | null
+          created_at?: string
+          frequency?: string | null
+          id?: string
+          retention_days?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_backup_enabled?: boolean | null
+          backup_time?: string | null
+          created_at?: string
+          frequency?: string | null
+          id?: string
+          retention_days?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      backups: {
+        Row: {
+          backup_date: string
+          backup_name: string
+          backup_type: string
+          created_at: string
+          file_size: string | null
+          id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          backup_date?: string
+          backup_name: string
+          backup_type?: string
+          created_at?: string
+          file_size?: string | null
+          id?: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          backup_date?: string
+          backup_name?: string
+          backup_type?: string
+          created_at?: string
+          file_size?: string | null
+          id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_name: string
@@ -458,6 +524,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message: string
+          title: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          title: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          title?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       parties: {
         Row: {
