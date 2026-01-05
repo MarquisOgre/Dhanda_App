@@ -1,4 +1,5 @@
-import { TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
+import { useState, useEffect } from "react";
+import { TrendingUp, TrendingDown, IndianRupee, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -6,34 +7,86 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function ProfitLoss() {
   const [period, setPeriod] = useState("this-year");
+  const [loading, setLoading] = useState(true);
+  const [incomeData, setIncomeData] = useState<{ category: string; amount: number }[]>([]);
+  const [expenseData, setExpenseData] = useState<{ category: string; amount: number }[]>([]);
 
-  const incomeData = [
-    { category: "Sales Revenue", amount: 2850000 },
-    { category: "Other Income", amount: 25000 },
-    { category: "Interest Earned", amount: 12000 },
-  ];
+  useEffect(() => {
+    fetchProfitLossData();
+  }, []);
 
-  const expenseData = [
-    { category: "Cost of Goods Sold", amount: 1850000 },
-    { category: "Operating Expenses", amount: 245000 },
-    { category: "Salaries & Wages", amount: 320000 },
-    { category: "Rent & Utilities", amount: 85000 },
-    { category: "Marketing & Advertising", amount: 45000 },
-    { category: "Depreciation", amount: 35000 },
-    { category: "Other Expenses", amount: 28000 },
-  ];
+  const fetchProfitLossData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get sales revenue
+      const { data: salesInvoices } = await supabase
+        .from('invoices')
+        .select('total_amount, subtotal')
+        .eq('user_id', user.id)
+        .eq('invoice_type', 'sale')
+        .eq('is_deleted', false);
+
+      const salesRevenue = (salesInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+      const costOfGoods = (salesInvoices || []).reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
+
+      // Get purchase costs
+      const { data: purchaseInvoices } = await supabase
+        .from('invoices')
+        .select('total_amount')
+        .eq('user_id', user.id)
+        .eq('invoice_type', 'purchase')
+        .eq('is_deleted', false);
+
+      const purchaseCost = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+
+      // Get expenses by category
+      const { data: expenses } = await supabase
+        .from('expenses')
+        .select('category, amount')
+        .eq('user_id', user.id);
+
+      const expensesByCategory: { [key: string]: number } = {};
+      (expenses || []).forEach(exp => {
+        if (!expensesByCategory[exp.category]) {
+          expensesByCategory[exp.category] = 0;
+        }
+        expensesByCategory[exp.category] += exp.amount;
+      });
+
+      // Set income data
+      setIncomeData([
+        { category: "Sales Revenue", amount: salesRevenue },
+      ]);
+
+      // Set expense data
+      const expenseItems = [
+        { category: "Cost of Goods Sold", amount: costOfGoods || purchaseCost },
+        ...Object.entries(expensesByCategory).map(([category, amount]) => ({
+          category,
+          amount,
+        })),
+      ];
+      setExpenseData(expenseItems);
+    } catch (error) {
+      console.error('Error fetching P&L data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalIncome = incomeData.reduce((sum, i) => sum + i.amount, 0);
   const totalExpenses = expenseData.reduce((sum, e) => sum + e.amount, 0);
   const netProfit = totalIncome - totalExpenses;
-  const profitMargin = ((netProfit / totalIncome) * 100).toFixed(1);
+  const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : "0";
 
   const handlePrint = () => {
     const allRows = [
@@ -50,7 +103,7 @@ export default function ProfitLoss() {
 
     printTable({
       title: "Profit & Loss Statement",
-      subtitle: "This Year (FY 2024-25)",
+      subtitle: "This Year",
       columns: ["Section", "Particulars", "Amount"],
       rows: allRows,
       summary: [
@@ -78,7 +131,7 @@ export default function ProfitLoss() {
     const doc = generateReportPDF({
       title: "Profit & Loss Statement",
       subtitle: "Dhandha App",
-      dateRange: "This Year (FY 2024-25)",
+      dateRange: "This Year",
       columns: ["Section", "Particulars", "Amount"],
       rows: allRows,
       summary: [
@@ -90,6 +143,14 @@ export default function ProfitLoss() {
     });
     downloadPDF(doc, `profit-loss-${new Date().toISOString().split('T')[0]}`);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -106,8 +167,7 @@ export default function ProfitLoss() {
             <SelectContent>
               <SelectItem value="this-month">This Month</SelectItem>
               <SelectItem value="this-quarter">This Quarter</SelectItem>
-              <SelectItem value="this-year">This Year (FY 2024-25)</SelectItem>
-              <SelectItem value="last-year">Last Year (FY 2023-24)</SelectItem>
+              <SelectItem value="this-year">This Year</SelectItem>
             </SelectContent>
           </Select>
           <PrintButton onPrint={handlePrint} onExportPDF={handleExportPDF} />
@@ -151,12 +211,16 @@ export default function ProfitLoss() {
             Income
           </h3>
           <div className="space-y-3">
-            {incomeData.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                <span className="text-muted-foreground">{item.category}</span>
-                <span className="font-medium">₹{item.amount.toLocaleString()}</span>
-              </div>
-            ))}
+            {incomeData.length === 0 ? (
+              <p className="text-muted-foreground py-4">No income recorded</p>
+            ) : (
+              incomeData.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+                  <span className="text-muted-foreground">{item.category}</span>
+                  <span className="font-medium">₹{item.amount.toLocaleString()}</span>
+                </div>
+              ))
+            )}
             <div className="flex justify-between items-center py-3 bg-success/10 rounded-lg px-3 mt-4">
               <span className="font-semibold">Total Income</span>
               <span className="font-bold text-success">₹{totalIncome.toLocaleString()}</span>
@@ -171,12 +235,16 @@ export default function ProfitLoss() {
             Expenses
           </h3>
           <div className="space-y-3">
-            {expenseData.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                <span className="text-muted-foreground">{item.category}</span>
-                <span className="font-medium">₹{item.amount.toLocaleString()}</span>
-              </div>
-            ))}
+            {expenseData.length === 0 ? (
+              <p className="text-muted-foreground py-4">No expenses recorded</p>
+            ) : (
+              expenseData.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+                  <span className="text-muted-foreground">{item.category}</span>
+                  <span className="font-medium">₹{item.amount.toLocaleString()}</span>
+                </div>
+              ))
+            )}
             <div className="flex justify-between items-center py-3 bg-destructive/10 rounded-lg px-3 mt-4">
               <span className="font-semibold">Total Expenses</span>
               <span className="font-bold text-destructive">₹{totalExpenses.toLocaleString()}</span>

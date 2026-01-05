@@ -1,7 +1,6 @@
-import { useState } from "react";
-import { Download, Filter, TrendingUp, TrendingDown, Wallet, PieChart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, TrendingUp, TrendingDown, Wallet, PieChart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -9,30 +8,82 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const expenseData = [
-  { id: 1, date: "02 Jan 2026", category: "Rent", description: "Office rent - January", amount: 25000 },
-  { id: 2, date: "02 Jan 2026", category: "Utilities", description: "Electricity bill", amount: 4500 },
-  { id: 3, date: "01 Jan 2026", category: "Salaries", description: "Staff salaries - December", amount: 85000 },
-  { id: 4, date: "30 Dec 2025", category: "Marketing", description: "Google Ads campaign", amount: 12000 },
-  { id: 5, date: "28 Dec 2025", category: "Office Supplies", description: "Stationery and supplies", amount: 3500 },
-  { id: 6, date: "25 Dec 2025", category: "Travel", description: "Client meeting - travel expenses", amount: 5800 },
-  { id: 7, date: "22 Dec 2025", category: "Maintenance", description: "Equipment maintenance", amount: 8000 },
-];
+interface ExpenseData {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+}
 
-const categoryTotals = [
-  { category: "Salaries", amount: 320000, percent: 46.4 },
-  { category: "Rent", amount: 150000, percent: 21.7 },
-  { category: "Utilities", amount: 54000, percent: 7.8 },
-  { category: "Marketing", amount: 72000, percent: 10.4 },
-  { category: "Office Supplies", amount: 28000, percent: 4.1 },
-  { category: "Travel", amount: 35000, percent: 5.1 },
-  { category: "Maintenance", amount: 31000, percent: 4.5 },
-];
+interface CategoryTotal {
+  category: string;
+  amount: number;
+  percent: number;
+}
 
 export default function ExpenseReport() {
   const [dateRange, setDateRange] = useState("this-month");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [expenseData, setExpenseData] = useState<ExpenseData[]>([]);
+  const [categoryTotals, setCategoryTotals] = useState<CategoryTotal[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchExpenseData();
+  }, []);
+
+  const fetchExpenseData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: expenses, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('expense_date', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedData = (expenses || []).map(exp => ({
+        id: exp.id,
+        date: exp.expense_date,
+        category: exp.category,
+        description: exp.notes || exp.expense_number,
+        amount: exp.amount,
+      }));
+
+      setExpenseData(formattedData);
+
+      // Calculate category totals
+      const categoryAmounts: { [key: string]: number } = {};
+      formattedData.forEach(exp => {
+        if (!categoryAmounts[exp.category]) {
+          categoryAmounts[exp.category] = 0;
+        }
+        categoryAmounts[exp.category] += exp.amount;
+      });
+
+      const total = Object.values(categoryAmounts).reduce((sum, amt) => sum + amt, 0);
+      const totals = Object.entries(categoryAmounts).map(([category, amount]) => ({
+        category,
+        amount,
+        percent: total > 0 ? (amount / total) * 100 : 0,
+      })).sort((a, b) => b.amount - a.amount);
+
+      setCategoryTotals(totals);
+      setCategories([...new Set(formattedData.map(e => e.category))]);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = expenseData.filter((e) => 
     categoryFilter === "all" || e.category === categoryFilter
@@ -40,6 +91,14 @@ export default function ExpenseReport() {
 
   const totalExpenses = expenseData.reduce((sum, e) => sum + e.amount, 0);
   const avgPerDay = totalExpenses / 30;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -62,16 +121,13 @@ export default function ExpenseReport() {
             <Wallet className="w-4 h-4 text-destructive" />
           </div>
           <p className="text-2xl font-bold mt-2">₹{totalExpenses.toLocaleString()}</p>
-          <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> +8.2% from last month
-          </p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Avg Per Day</p>
             <TrendingDown className="w-4 h-4 text-muted-foreground" />
           </div>
-          <p className="text-2xl font-bold mt-2">₹{avgPerDay.toFixed(0).toLocaleString()}</p>
+          <p className="text-2xl font-bold mt-2">₹{avgPerDay.toFixed(0)}</p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -94,21 +150,25 @@ export default function ExpenseReport() {
         <div className="metric-card">
           <h3 className="font-semibold mb-4">Category Breakdown</h3>
           <div className="space-y-3">
-            {categoryTotals.map((cat, idx) => (
-              <div key={idx}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{cat.category}</span>
-                  <span className="font-medium">₹{cat.amount.toLocaleString()}</span>
+            {categoryTotals.length === 0 ? (
+              <p className="text-muted-foreground py-4">No expenses recorded</p>
+            ) : (
+              categoryTotals.map((cat, idx) => (
+                <div key={idx}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>{cat.category}</span>
+                    <span className="font-medium">₹{cat.amount.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all"
+                      style={{ width: `${cat.percent}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{cat.percent.toFixed(1)}% of total</p>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${cat.percent}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{cat.percent}% of total</p>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -132,13 +192,9 @@ export default function ExpenseReport() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="Rent">Rent</SelectItem>
-                <SelectItem value="Utilities">Utilities</SelectItem>
-                <SelectItem value="Salaries">Salaries</SelectItem>
-                <SelectItem value="Marketing">Marketing</SelectItem>
-                <SelectItem value="Office Supplies">Office Supplies</SelectItem>
-                <SelectItem value="Travel">Travel</SelectItem>
-                <SelectItem value="Maintenance">Maintenance</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -154,25 +210,37 @@ export default function ExpenseReport() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((expense) => (
-                  <tr key={expense.id}>
-                    <td className="text-muted-foreground">{expense.date}</td>
-                    <td>
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-muted">
-                        {expense.category}
-                      </span>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-8 text-muted-foreground">
+                      No expenses found
                     </td>
-                    <td className="font-medium">{expense.description}</td>
-                    <td className="text-right font-medium">₹{expense.amount.toLocaleString()}</td>
                   </tr>
-                ))}
+                ) : (
+                  filtered.map((expense) => (
+                    <tr key={expense.id}>
+                      <td className="text-muted-foreground">
+                        {format(new Date(expense.date), 'dd MMM yyyy')}
+                      </td>
+                      <td>
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-muted">
+                          {expense.category}
+                        </span>
+                      </td>
+                      <td className="font-medium">{expense.description}</td>
+                      <td className="text-right font-medium">₹{expense.amount.toLocaleString()}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
-              <tfoot>
-                <tr className="bg-muted/50 font-semibold">
-                  <td colSpan={3}>Total</td>
-                  <td className="text-right">₹{filtered.reduce((s, e) => s + e.amount, 0).toLocaleString()}</td>
-                </tr>
-              </tfoot>
+              {filtered.length > 0 && (
+                <tfoot>
+                  <tr className="bg-muted/50 font-semibold">
+                    <td colSpan={3}>Total</td>
+                    <td className="text-right">₹{filtered.reduce((s, e) => s + e.amount, 0).toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>

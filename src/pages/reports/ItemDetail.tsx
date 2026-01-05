@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Download, Search, Package, TrendingUp, IndianRupee, BarChart3 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, Search, Package, TrendingUp, IndianRupee, BarChart3, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,20 +9,76 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const itemsData = [
-  { id: 1, name: "Laptop Dell Inspiron 15", hsn: "8471", category: "Electronics", stock: 25, purchaseRate: 35000, saleRate: 45000, lastPurchase: "01 Jan 2026", lastSale: "02 Jan 2026" },
-  { id: 2, name: "Wireless Mouse Logitech", hsn: "8471", category: "Accessories", stock: 150, purchaseRate: 600, saleRate: 850, lastPurchase: "28 Dec 2025", lastSale: "02 Jan 2026" },
-  { id: 3, name: "USB-C Hub 7-in-1", hsn: "8471", category: "Accessories", stock: 8, purchaseRate: 900, saleRate: 1200, lastPurchase: "25 Dec 2025", lastSale: "01 Jan 2026" },
-  { id: 4, name: "Keyboard Mechanical RGB", hsn: "8471", category: "Accessories", stock: 45, purchaseRate: 2500, saleRate: 3500, lastPurchase: "31 Dec 2025", lastSale: "30 Dec 2025" },
-  { id: 5, name: "Monitor 24 inch LED", hsn: "8528", category: "Electronics", stock: 0, purchaseRate: 10000, saleRate: 12000, lastPurchase: "15 Dec 2025", lastSale: "30 Dec 2025" },
-  { id: 6, name: "Printer Ink Cartridge", hsn: "8443", category: "Consumables", stock: 3, purchaseRate: 550, saleRate: 650, lastPurchase: "20 Dec 2025", lastSale: "28 Dec 2025" },
-  { id: 7, name: "External SSD 500GB", hsn: "8471", category: "Storage", stock: 30, purchaseRate: 4500, saleRate: 5500, lastPurchase: "30 Dec 2025", lastSale: "29 Dec 2025" },
-];
+interface ItemData {
+  id: string;
+  name: string;
+  hsn: string;
+  category: string;
+  stock: number;
+  purchaseRate: number;
+  saleRate: number;
+  updatedAt: string;
+}
 
 export default function ItemDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [itemsData, setItemsData] = useState<ItemData[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchItemsData();
+  }, []);
+
+  const fetchItemsData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: items, error } = await supabase
+        .from('items')
+        .select(`
+          id,
+          name,
+          hsn_code,
+          current_stock,
+          purchase_price,
+          sale_price,
+          updated_at,
+          category_id,
+          categories (name)
+        `)
+        .eq('user_id', user.id)
+        .eq('is_deleted', false)
+        .order('name');
+
+      if (error) throw error;
+
+      const formattedData = (items || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        hsn: item.hsn_code || '-',
+        category: (item.categories as any)?.name || 'Uncategorized',
+        stock: item.current_stock || 0,
+        purchaseRate: item.purchase_price || 0,
+        saleRate: item.sale_price || 0,
+        updatedAt: item.updated_at,
+      }));
+
+      setItemsData(formattedData);
+
+      const uniqueCategories = [...new Set(formattedData.map(i => i.category))];
+      setCategories(uniqueCategories);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = itemsData.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -33,7 +89,20 @@ export default function ItemDetail() {
 
   const totalItems = itemsData.length;
   const totalStockValue = itemsData.reduce((sum, i) => sum + (i.stock * i.purchaseRate), 0);
-  const avgMargin = itemsData.reduce((sum, i) => sum + ((i.saleRate - i.purchaseRate) / i.purchaseRate * 100), 0) / totalItems;
+  const avgMargin = itemsData.length > 0 
+    ? itemsData.reduce((sum, i) => {
+        const margin = i.purchaseRate > 0 ? ((i.saleRate - i.purchaseRate) / i.purchaseRate * 100) : 0;
+        return sum + margin;
+      }, 0) / totalItems
+    : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -76,7 +145,7 @@ export default function ItemDetail() {
             <p className="text-sm text-muted-foreground">Categories</p>
             <BarChart3 className="w-4 h-4 text-muted-foreground" />
           </div>
-          <p className="text-2xl font-bold mt-2">4</p>
+          <p className="text-2xl font-bold mt-2">{categories.length}</p>
         </div>
       </div>
 
@@ -97,10 +166,9 @@ export default function ItemDetail() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="Electronics">Electronics</SelectItem>
-            <SelectItem value="Accessories">Accessories</SelectItem>
-            <SelectItem value="Consumables">Consumables</SelectItem>
-            <SelectItem value="Storage">Storage</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -117,27 +185,37 @@ export default function ItemDetail() {
               <th className="text-right">Purchase Rate</th>
               <th className="text-right">Sale Rate</th>
               <th className="text-right">Margin</th>
-              <th>Last Purchase</th>
-              <th>Last Sale</th>
+              <th>Last Updated</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((item) => {
-              const margin = ((item.saleRate - item.purchaseRate) / item.purchaseRate * 100).toFixed(1);
-              return (
-                <tr key={item.id}>
-                  <td className="font-medium">{item.name}</td>
-                  <td className="text-muted-foreground">{item.hsn}</td>
-                  <td>{item.category}</td>
-                  <td className="text-center">{item.stock}</td>
-                  <td className="text-right">₹{item.purchaseRate.toLocaleString()}</td>
-                  <td className="text-right">₹{item.saleRate.toLocaleString()}</td>
-                  <td className="text-right text-success">{margin}%</td>
-                  <td className="text-muted-foreground text-sm">{item.lastPurchase}</td>
-                  <td className="text-muted-foreground text-sm">{item.lastSale}</td>
-                </tr>
-              );
-            })}
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                  No items found
+                </td>
+              </tr>
+            ) : (
+              filtered.map((item) => {
+                const margin = item.purchaseRate > 0 
+                  ? ((item.saleRate - item.purchaseRate) / item.purchaseRate * 100).toFixed(1)
+                  : '0.0';
+                return (
+                  <tr key={item.id}>
+                    <td className="font-medium">{item.name}</td>
+                    <td className="text-muted-foreground">{item.hsn}</td>
+                    <td>{item.category}</td>
+                    <td className="text-center">{item.stock}</td>
+                    <td className="text-right">₹{item.purchaseRate.toLocaleString()}</td>
+                    <td className="text-right">₹{item.saleRate.toLocaleString()}</td>
+                    <td className="text-right text-success">{margin}%</td>
+                    <td className="text-muted-foreground text-sm">
+                      {format(new Date(item.updatedAt), 'dd MMM yyyy')}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
