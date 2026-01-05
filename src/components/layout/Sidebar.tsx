@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 import {
   LayoutDashboard,
   Users,
@@ -132,6 +133,7 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Sale"]);
+  const { businessSettings } = useBusinessSettings();
 
   const toggleExpand = (title: string) => {
     setExpandedItems((prev) =>
@@ -226,10 +228,14 @@ export function Sidebar() {
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2">
           <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-            <span className="text-sm font-semibold">AB</span>
+            <span className="text-sm font-semibold">
+              {businessSettings?.business_name?.charAt(0)?.toUpperCase() || 'B'}
+            </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">My Business</p>
+            <p className="text-sm font-medium truncate">
+              {businessSettings?.business_name || 'My Business'}
+            </p>
             <p className="text-xs text-sidebar-foreground/60">FY 2024-25</p>
           </div>
         </div>
