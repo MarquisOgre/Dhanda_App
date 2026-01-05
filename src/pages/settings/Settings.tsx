@@ -65,9 +65,49 @@ interface UserWithRole {
   role: AppRole;
 }
 
+// All Indian states and union territories
+const INDIAN_STATES = [
+  { code: "AN", name: "Andaman and Nicobar Islands" },
+  { code: "AP", name: "Andhra Pradesh" },
+  { code: "AR", name: "Arunachal Pradesh" },
+  { code: "AS", name: "Assam" },
+  { code: "BR", name: "Bihar" },
+  { code: "CH", name: "Chandigarh" },
+  { code: "CT", name: "Chhattisgarh" },
+  { code: "DN", name: "Dadra and Nagar Haveli and Daman and Diu" },
+  { code: "DL", name: "Delhi" },
+  { code: "GA", name: "Goa" },
+  { code: "GJ", name: "Gujarat" },
+  { code: "HR", name: "Haryana" },
+  { code: "HP", name: "Himachal Pradesh" },
+  { code: "JK", name: "Jammu and Kashmir" },
+  { code: "JH", name: "Jharkhand" },
+  { code: "KA", name: "Karnataka" },
+  { code: "KL", name: "Kerala" },
+  { code: "LA", name: "Ladakh" },
+  { code: "LD", name: "Lakshadweep" },
+  { code: "MP", name: "Madhya Pradesh" },
+  { code: "MH", name: "Maharashtra" },
+  { code: "MN", name: "Manipur" },
+  { code: "ML", name: "Meghalaya" },
+  { code: "MZ", name: "Mizoram" },
+  { code: "NL", name: "Nagaland" },
+  { code: "OR", name: "Odisha" },
+  { code: "PY", name: "Puducherry" },
+  { code: "PB", name: "Punjab" },
+  { code: "RJ", name: "Rajasthan" },
+  { code: "SK", name: "Sikkim" },
+  { code: "TN", name: "Tamil Nadu" },
+  { code: "TG", name: "Telangana" },
+  { code: "TR", name: "Tripura" },
+  { code: "UP", name: "Uttar Pradesh" },
+  { code: "UK", name: "Uttarakhand" },
+  { code: "WB", name: "West Bengal" },
+];
+
 export default function Settings() {
   const { user, role, isAdmin } = useAuth();
-  const { refetch: refetchBusiness } = useBusinessSettings();
+  const { refetch: refetchBusiness, getCurrentFinancialYear } = useBusinessSettings();
   const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,6 +125,19 @@ export default function Settings() {
   const [invoiceTerms, setInvoiceTerms] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [financialYearStart, setFinancialYearStart] = useState("april");
+
+  // Invoice settings
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState(1);
+  const [estimationPrefix, setEstimationPrefix] = useState("EST-");
+  const [purchasePrefix, setPurchasePrefix] = useState("PUR-");
+  const [defaultPaymentTerms, setDefaultPaymentTerms] = useState("30");
+
+  // Tax settings
+  const [gstRegistrationType, setGstRegistrationType] = useState("regular");
+  const [stateCode, setStateCode] = useState("KA");
+  const [defaultTaxRate, setDefaultTaxRate] = useState(18);
+  const [enableTcs, setEnableTcs] = useState(false);
+  const [enableTds, setEnableTds] = useState(false);
 
   // User management
   const [users, setUsers] = useState<UserWithRole[]>([]);
@@ -118,9 +171,9 @@ export default function Settings() {
         .from('business_settings')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
 
@@ -135,6 +188,19 @@ export default function Settings() {
         setInvoiceTerms(data.invoice_terms || "");
         setLogoUrl(data.logo_url || "");
         setFinancialYearStart((data as any).financial_year_start || "april");
+        
+        // Invoice settings
+        setNextInvoiceNumber((data as any).next_invoice_number || 1);
+        setEstimationPrefix((data as any).estimation_prefix || "EST-");
+        setPurchasePrefix((data as any).purchase_prefix || "PUR-");
+        setDefaultPaymentTerms(String((data as any).default_payment_terms || 30));
+        
+        // Tax settings
+        setGstRegistrationType((data as any).gst_registration_type || "regular");
+        setStateCode((data as any).state_code || "KA");
+        setDefaultTaxRate((data as any).default_tax_rate || 18);
+        setEnableTcs((data as any).enable_tcs || false);
+        setEnableTds((data as any).enable_tds || false);
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
@@ -245,6 +311,15 @@ export default function Settings() {
           invoice_terms: invoiceTerms,
           logo_url: logoUrl,
           financial_year_start: financialYearStart,
+          next_invoice_number: nextInvoiceNumber,
+          estimation_prefix: estimationPrefix,
+          purchase_prefix: purchasePrefix,
+          default_payment_terms: parseInt(defaultPaymentTerms),
+          gst_registration_type: gstRegistrationType,
+          state_code: stateCode,
+          default_tax_rate: defaultTaxRate,
+          enable_tcs: enableTcs,
+          enable_tds: enableTds,
           updated_at: new Date().toISOString()
         } as any, { onConflict: 'user_id' });
 
@@ -360,22 +435,6 @@ export default function Settings() {
       toast.error('Failed to change password: ' + error.message);
     } finally {
       setChangingPassword(false);
-    }
-  };
-
-  const getCurrentFinancialYear = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    
-    if (financialYearStart === 'april') {
-      if (month >= 3) {
-        return `${year}-${(year + 1).toString().slice(-2)}`;
-      } else {
-        return `${year - 1}-${year.toString().slice(-2)}`;
-      }
-    } else {
-      return `${year}`;
     }
   };
 
@@ -605,15 +664,28 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label>Next Invoice Number</Label>
-                <Input type="number" defaultValue="156" disabled={!isAdmin} />
+                <Input 
+                  type="number" 
+                  value={nextInvoiceNumber}
+                  onChange={(e) => setNextInvoiceNumber(parseInt(e.target.value) || 1)}
+                  disabled={!isAdmin} 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Estimation Prefix</Label>
-                <Input defaultValue="EST-" disabled={!isAdmin} />
+                <Input 
+                  value={estimationPrefix}
+                  onChange={(e) => setEstimationPrefix(e.target.value)}
+                  disabled={!isAdmin} 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Purchase Bill Prefix</Label>
-                <Input defaultValue="PUR-" disabled={!isAdmin} />
+                <Input 
+                  value={purchasePrefix}
+                  onChange={(e) => setPurchasePrefix(e.target.value)}
+                  disabled={!isAdmin} 
+                />
               </div>
             </div>
           </div>
@@ -633,7 +705,11 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label>Default Payment Terms</Label>
-                <Select defaultValue="30" disabled={!isAdmin}>
+                <Select 
+                  value={defaultPaymentTerms} 
+                  onValueChange={setDefaultPaymentTerms}
+                  disabled={!isAdmin}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -658,7 +734,11 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>GST Registration Type</Label>
-                <Select defaultValue="regular" disabled={!isAdmin}>
+                <Select 
+                  value={gstRegistrationType} 
+                  onValueChange={setGstRegistrationType}
+                  disabled={!isAdmin}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -671,15 +751,20 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label>State</Label>
-                <Select defaultValue="karnataka" disabled={!isAdmin}>
+                <Select 
+                  value={stateCode} 
+                  onValueChange={setStateCode}
+                  disabled={!isAdmin}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="karnataka">Karnataka</SelectItem>
-                    <SelectItem value="maharashtra">Maharashtra</SelectItem>
-                    <SelectItem value="tamilnadu">Tamil Nadu</SelectItem>
-                    <SelectItem value="delhi">Delhi</SelectItem>
+                  <SelectContent className="max-h-64">
+                    {INDIAN_STATES.map((state) => (
+                      <SelectItem key={state.code} value={state.code}>
+                        {state.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -687,12 +772,24 @@ export default function Settings() {
           </div>
 
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">Default Tax Rates</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <h3 className="font-semibold mb-4">Default Tax Rate</h3>
+            <p className="text-sm text-muted-foreground mb-4">Select your default GST rate for new items</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {[0, 5, 12, 18, 28].map((rate) => (
-                <div key={rate} className="flex items-center space-x-2">
-                  <Switch id={`tax-${rate}`} defaultChecked={rate === 18} disabled={!isAdmin} />
-                  <Label htmlFor={`tax-${rate}`}>{rate}% GST</Label>
+                <div 
+                  key={rate} 
+                  className={`border rounded-lg p-4 text-center cursor-pointer transition-all ${
+                    defaultTaxRate === rate 
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5' 
+                      : 'hover:border-primary/50'
+                  } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  onClick={() => isAdmin && setDefaultTaxRate(rate)}
+                >
+                  <p className="text-lg font-semibold">{rate}%</p>
+                  <p className="text-xs text-muted-foreground">GST</p>
+                  {defaultTaxRate === rate && (
+                    <Check className="w-4 h-4 text-primary mx-auto mt-2" />
+                  )}
                 </div>
               ))}
             </div>
@@ -706,14 +803,22 @@ export default function Settings() {
                   <p className="font-medium">Enable TCS</p>
                   <p className="text-sm text-muted-foreground">Tax Collected at Source</p>
                 </div>
-                <Switch disabled={!isAdmin} />
+                <Switch 
+                  checked={enableTcs}
+                  onCheckedChange={setEnableTcs}
+                  disabled={!isAdmin} 
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Enable TDS</p>
                   <p className="text-sm text-muted-foreground">Tax Deducted at Source</p>
                 </div>
-                <Switch disabled={!isAdmin} />
+                <Switch 
+                  checked={enableTds}
+                  onCheckedChange={setEnableTds}
+                  disabled={!isAdmin} 
+                />
               </div>
             </div>
           </div>
@@ -905,23 +1010,35 @@ export default function Settings() {
                 </Dialog>
               )}
             </div>
-            
-            <div className="space-y-4">
-              {loadingUsers ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
-              ) : (
-                users.map((u) => (
-                  <div key={u.user_id} className="border rounded-lg p-4 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{u.full_name || u.email}</p>
-                      <p className="text-sm text-muted-foreground">{u.email}</p>
-                    </div>
+
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : users.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No users found</p>
+            ) : (
+              <div className="space-y-3">
+                {users.map((u) => (
+                  <div
+                    key={u.user_id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-primary">
+                          {u.email?.charAt(0)?.toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{u.full_name || u.email}</p>
+                        <p className="text-sm text-muted-foreground">{u.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
                       {isAdmin && u.user_id !== user?.id ? (
-                        <Select 
-                          value={u.role} 
+                        <Select
+                          value={u.role}
                           onValueChange={(v) => handleChangeRole(u.user_id, v as AppRole)}
                         >
                           <SelectTrigger className="w-32">
@@ -934,63 +1051,20 @@ export default function Settings() {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <span className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full capitalize">
-                          {u.role} {u.user_id === user?.id && '(You)'}
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          u.role === 'admin' ? 'bg-primary/10 text-primary' :
+                          u.role === 'supervisor' ? 'bg-blue-500/10 text-blue-500' :
+                          'bg-gray-500/10 text-gray-500'
+                        }`}>
+                          {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                          {u.user_id === user?.id && ' (You)'}
                         </span>
                       )}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="metric-card">
-            <h3 className="font-semibold mb-4">Role Permissions</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-4">Permission</th>
-                    <th className="text-center py-2 px-4">Admin</th>
-                    <th className="text-center py-2 px-4">Supervisor</th>
-                    <th className="text-center py-2 px-4">Viewer</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">View Data</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">Create/Edit Records</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">Delete Records</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
-                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">Manage Settings</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
-                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 px-4">Reset Database</td>
-                    <td className="text-center py-2 px-4 text-green-500">✓</td>
-                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
-                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 
