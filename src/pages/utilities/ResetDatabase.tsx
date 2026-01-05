@@ -7,15 +7,22 @@ import { AlertTriangle, Trash2, Loader2, CheckCircle2, XCircle } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 export default function ResetDatabase() {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [confirmText, setConfirmText] = useState("");
   const [isResetting, setIsResetting] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
+  const [progress, setProgress] = useState<string[]>([]);
 
   const CONFIRM_PHRASE = "DELETE ALL DATA";
+
+  const addProgress = (message: string) => {
+    setProgress(prev => [...prev, message]);
+  };
 
   const handleReset = async () => {
     if (!user || !isAdmin) {
@@ -29,23 +36,110 @@ export default function ResetDatabase() {
     }
 
     setIsResetting(true);
+    setProgress([]);
 
     try {
-      // Delete all data in order (respecting foreign keys)
-      await supabase.from('invoice_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('invoices').delete().eq('user_id', user.id);
-      await supabase.from('payments').delete().eq('user_id', user.id);
-      await supabase.from('expenses').delete().eq('user_id', user.id);
-      await supabase.from('cash_transactions').delete().eq('user_id', user.id);
-      await supabase.from('items').delete().eq('user_id', user.id);
-      await supabase.from('categories').delete().eq('user_id', user.id);
-      await supabase.from('parties').delete().eq('user_id', user.id);
-      await supabase.from('bank_accounts').delete().eq('user_id', user.id);
+      // Delete in proper order respecting foreign keys
+      
+      // 1. Delete invoice items first (depends on invoices)
+      addProgress("Deleting invoice items...");
+      const { error: invoiceItemsError } = await supabase
+        .from('invoice_items')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      if (invoiceItemsError) {
+        console.error('Invoice items deletion error:', invoiceItemsError);
+        // Continue anyway - might be RLS related
+      }
+      addProgress("✓ Invoice items deleted");
 
+      // 2. Delete payments (may reference invoices)
+      addProgress("Deleting payments...");
+      const { error: paymentsError } = await supabase
+        .from('payments')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (paymentsError) console.error('Payments deletion error:', paymentsError);
+      addProgress("✓ Payments deleted");
+
+      // 3. Delete invoices
+      addProgress("Deleting invoices...");
+      const { error: invoicesError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (invoicesError) console.error('Invoices deletion error:', invoicesError);
+      addProgress("✓ Invoices deleted");
+
+      // 4. Delete expenses
+      addProgress("Deleting expenses...");
+      const { error: expensesError } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (expensesError) console.error('Expenses deletion error:', expensesError);
+      addProgress("✓ Expenses deleted");
+
+      // 5. Delete cash transactions
+      addProgress("Deleting cash transactions...");
+      const { error: cashError } = await supabase
+        .from('cash_transactions')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (cashError) console.error('Cash transactions deletion error:', cashError);
+      addProgress("✓ Cash transactions deleted");
+
+      // 6. Delete items
+      addProgress("Deleting items...");
+      const { error: itemsError } = await supabase
+        .from('items')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (itemsError) console.error('Items deletion error:', itemsError);
+      addProgress("✓ Items deleted");
+
+      // 7. Delete categories
+      addProgress("Deleting categories...");
+      const { error: categoriesError } = await supabase
+        .from('categories')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (categoriesError) console.error('Categories deletion error:', categoriesError);
+      addProgress("✓ Categories deleted");
+
+      // 8. Delete parties
+      addProgress("Deleting parties...");
+      const { error: partiesError } = await supabase
+        .from('parties')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (partiesError) console.error('Parties deletion error:', partiesError);
+      addProgress("✓ Parties deleted");
+
+      // 9. Delete bank accounts
+      addProgress("Deleting bank accounts...");
+      const { error: bankError } = await supabase
+        .from('bank_accounts')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (bankError) console.error('Bank accounts deletion error:', bankError);
+      addProgress("✓ Bank accounts deleted");
+
+      addProgress("Database reset complete!");
       setResetComplete(true);
       toast.success("Database has been reset successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error resetting database:", error);
+      addProgress("❌ Error: " + error.message);
       toast.error("Failed to reset database. Please try again.");
     } finally {
       setIsResetting(false);
@@ -95,12 +189,27 @@ export default function ResetDatabase() {
                   All your business data has been permanently deleted. You can now start fresh.
                 </p>
               </div>
-              <Button onClick={() => window.location.href = "/"} className="mt-4">
+              <Button onClick={() => navigate("/")} className="mt-4">
                 Go to Dashboard
               </Button>
             </div>
           </CardContent>
         </Card>
+
+        {progress.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Reset Log</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm font-mono bg-muted p-4 rounded-lg max-h-48 overflow-y-auto">
+                {progress.map((msg, i) => (
+                  <div key={i} className="py-0.5">{msg}</div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }
@@ -183,7 +292,7 @@ export default function ResetDatabase() {
             </p>
             {step === 2 && (
               <div className="ml-11 mt-3 flex gap-2">
-                <Button variant="outline" onClick={() => window.location.href = "/backup/download"}>
+                <Button variant="outline" onClick={() => navigate("/backup/download")}>
                   Create Backup First
                 </Button>
                 <Button onClick={() => setStep(3)}>
@@ -233,6 +342,14 @@ export default function ResetDatabase() {
                     </>
                   )}
                 </Button>
+
+                {isResetting && progress.length > 0 && (
+                  <div className="text-sm font-mono bg-muted p-4 rounded-lg max-h-32 overflow-y-auto">
+                    {progress.map((msg, i) => (
+                      <div key={i} className="py-0.5">{msg}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

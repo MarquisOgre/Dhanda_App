@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Trash2, RotateCcw, Search, FileText, Users, Package, AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Trash2, RotateCcw, Search, FileText, Users, Package, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,20 +21,94 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { format, differenceInDays } from "date-fns";
 
-const deletedItems = [
-  { id: 1, name: "Old Laptop Model X", type: "item", deletedOn: "02 Jan 2026", deletedBy: "Admin", daysLeft: 28 },
-  { id: 2, name: "Test Customer", type: "party", deletedOn: "01 Jan 2026", deletedBy: "Admin", daysLeft: 27 },
-  { id: 3, name: "INV-OLD-001", type: "invoice", deletedOn: "30 Dec 2025", deletedBy: "Manager", daysLeft: 25 },
-  { id: 4, name: "Discontinued Product", type: "item", deletedOn: "28 Dec 2025", deletedBy: "Admin", daysLeft: 23 },
-  { id: 5, name: "Duplicate Party Entry", type: "party", deletedOn: "25 Dec 2025", deletedBy: "Staff", daysLeft: 20 },
-  { id: 6, name: "Test Invoice Draft", type: "invoice", deletedOn: "22 Dec 2025", deletedBy: "Admin", daysLeft: 17 },
-];
+interface DeletedItem {
+  id: string;
+  name: string;
+  type: 'item' | 'invoice';
+  deletedOn: string;
+  daysLeft: number;
+  table: string;
+}
 
 export default function RecycleBin() {
-  const [items, setItems] = useState(deletedItems);
+  const { user } = useAuth();
+  const [items, setItems] = useState<DeletedItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchDeletedItems();
+    }
+  }, [user]);
+
+  const fetchDeletedItems = async () => {
+    setLoading(true);
+    try {
+      const deletedItems: DeletedItem[] = [];
+      const now = new Date();
+
+      // Fetch deleted items
+      const { data: deletedProducts } = await supabase
+        .from('items')
+        .select('id, name, deleted_at')
+        .eq('is_deleted', true)
+        .not('deleted_at', 'is', null);
+
+      deletedProducts?.forEach(item => {
+        const deletedAt = new Date(item.deleted_at!);
+        const daysLeft = 30 - differenceInDays(now, deletedAt);
+        if (daysLeft > 0) {
+          deletedItems.push({
+            id: item.id,
+            name: item.name,
+            type: 'item',
+            deletedOn: format(deletedAt, 'dd MMM yyyy'),
+            daysLeft,
+            table: 'items',
+          });
+        }
+      });
+
+      // Fetch deleted invoices
+      const { data: deletedInvoices } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, invoice_type, deleted_at')
+        .eq('is_deleted', true)
+        .not('deleted_at', 'is', null);
+
+      deletedInvoices?.forEach(invoice => {
+        const deletedAt = new Date(invoice.deleted_at!);
+        const daysLeft = 30 - differenceInDays(now, deletedAt);
+        if (daysLeft > 0) {
+          deletedItems.push({
+            id: invoice.id,
+            name: `${invoice.invoice_number} (${invoice.invoice_type})`,
+            type: 'invoice',
+            deletedOn: format(deletedAt, 'dd MMM yyyy'),
+            daysLeft,
+            table: 'invoices',
+          });
+        }
+      });
+
+      // Sort by days left (most urgent first)
+      deletedItems.sort((a, b) => a.daysLeft - b.daysLeft);
+      setItems(deletedItems);
+    } catch (error) {
+      console.error('Error fetching deleted items:', error);
+      toast.error('Failed to load recycle bin');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -46,8 +120,6 @@ export default function RecycleBin() {
     switch (type) {
       case "item":
         return <Package className="w-4 h-4" />;
-      case "party":
-        return <Users className="w-4 h-4" />;
       case "invoice":
         return <FileText className="w-4 h-4" />;
       default:
@@ -59,8 +131,6 @@ export default function RecycleBin() {
     switch (type) {
       case "item":
         return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "party":
-        return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
       case "invoice":
         return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
       default:
@@ -68,17 +138,97 @@ export default function RecycleBin() {
     }
   };
 
-  const restoreItem = (id: number) => {
-    setItems(items.filter(i => i.id !== id));
+  const restoreItem = async (item: DeletedItem) => {
+    setActionLoading(item.id);
+    try {
+      const { error } = await supabase
+        .from(item.table as 'items' | 'invoices')
+        .update({ is_deleted: false, deleted_at: null })
+        .eq('id', item.id);
+
+      if (error) throw error;
+
+      setItems(items.filter(i => i.id !== item.id));
+      toast.success(`${item.name} restored successfully`);
+    } catch (error: any) {
+      console.error('Error restoring item:', error);
+      toast.error('Failed to restore: ' + error.message);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const permanentDelete = (id: number) => {
-    setItems(items.filter(i => i.id !== id));
+  const permanentDelete = async (item: DeletedItem) => {
+    setActionLoading(item.id);
+    try {
+      // For invoices, first delete invoice_items
+      if (item.table === 'invoices') {
+        await supabase
+          .from('invoice_items')
+          .delete()
+          .eq('invoice_id', item.id);
+      }
+
+      const { error } = await supabase
+        .from(item.table as 'items' | 'invoices')
+        .delete()
+        .eq('id', item.id);
+
+      if (error) throw error;
+
+      setItems(items.filter(i => i.id !== item.id));
+      toast.success(`${item.name} permanently deleted`);
+    } catch (error: any) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete: ' + error.message);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const emptyRecycleBin = () => {
-    setItems([]);
+  const emptyRecycleBin = async () => {
+    setActionLoading('all');
+    try {
+      // Delete all invoice items for deleted invoices
+      const invoiceIds = items.filter(i => i.table === 'invoices').map(i => i.id);
+      if (invoiceIds.length > 0) {
+        await supabase
+          .from('invoice_items')
+          .delete()
+          .in('invoice_id', invoiceIds);
+
+        await supabase
+          .from('invoices')
+          .delete()
+          .in('id', invoiceIds);
+      }
+
+      // Delete all items
+      const itemIds = items.filter(i => i.table === 'items').map(i => i.id);
+      if (itemIds.length > 0) {
+        await supabase
+          .from('items')
+          .delete()
+          .in('id', itemIds);
+      }
+
+      setItems([]);
+      toast.success('Recycle bin emptied successfully');
+    } catch (error: any) {
+      console.error('Error emptying recycle bin:', error);
+      toast.error('Failed to empty recycle bin: ' + error.message);
+    } finally {
+      setActionLoading(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -89,8 +239,16 @@ export default function RecycleBin() {
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="gap-2" disabled={items.length === 0}>
-              <Trash2 className="w-4 h-4" />
+            <Button 
+              variant="destructive" 
+              className="gap-2" 
+              disabled={items.length === 0 || actionLoading === 'all'}
+            >
+              {actionLoading === 'all' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
               Empty Recycle Bin
             </Button>
           </AlertDialogTrigger>
@@ -142,7 +300,6 @@ export default function RecycleBin() {
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="item">Items</SelectItem>
-            <SelectItem value="party">Parties</SelectItem>
             <SelectItem value="invoice">Invoices</SelectItem>
           </SelectContent>
         </Select>
@@ -163,7 +320,6 @@ export default function RecycleBin() {
                 <th>Name</th>
                 <th>Type</th>
                 <th>Deleted On</th>
-                <th>Deleted By</th>
                 <th>Days Left</th>
                 <th className="text-right">Actions</th>
               </tr>
@@ -183,7 +339,6 @@ export default function RecycleBin() {
                     </span>
                   </td>
                   <td className="text-muted-foreground">{item.deletedOn}</td>
-                  <td>{item.deletedBy}</td>
                   <td>
                     <span className={cn(
                       "font-medium",
@@ -198,14 +353,24 @@ export default function RecycleBin() {
                         variant="outline"
                         size="sm"
                         className="gap-1"
-                        onClick={() => restoreItem(item.id)}
+                        onClick={() => restoreItem(item)}
+                        disabled={actionLoading === item.id}
                       >
-                        <RotateCcw className="w-3 h-3" />
+                        {actionLoading === item.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-3 h-3" />
+                        )}
                         Restore
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-destructive hover:text-destructive gap-1"
+                            disabled={actionLoading === item.id}
+                          >
                             <Trash2 className="w-3 h-3" />
                             Delete
                           </Button>
@@ -220,7 +385,7 @@ export default function RecycleBin() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => permanentDelete(item.id)}
+                              onClick={() => permanentDelete(item)}
                               className="bg-destructive text-destructive-foreground"
                             >
                               Delete Permanently
