@@ -1,34 +1,90 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Wallet, MoreHorizontal, Eye, Download } from "lucide-react";
+import { Plus, Search, Wallet, MoreHorizontal, Eye, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
-const payments = [
-  { id: 1, number: "REC-001", date: "02 Jan 2026", party: "Rahul Electronics", amount: 45000, mode: "Bank Transfer", linkedInvoice: "INV-001" },
-  { id: 2, number: "REC-002", date: "01 Jan 2026", party: "Sharma Traders", amount: 5000, mode: "Cash", linkedInvoice: "INV-002" },
-  { id: 3, number: "REC-003", date: "30 Dec 2025", party: "Global Systems", amount: 125000, mode: "UPI", linkedInvoice: "INV-004" },
-  { id: 4, number: "REC-004", date: "28 Dec 2025", party: "Tech Solutions", amount: 67500, mode: "Cheque", linkedInvoice: "INV-005" },
-];
+interface Payment {
+  id: string;
+  payment_number: string;
+  payment_date: string;
+  amount: number;
+  payment_mode: string | null;
+  parties?: { name: string } | null;
+}
 
 export default function PaymentInList() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchPayments();
+    }
+  }, [user]);
+
+  const fetchPayments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*, parties(name)")
+        .eq("payment_type", "in")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setPayments(data || []);
+    } catch (error: any) {
+      toast.error("Failed to fetch payments: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this payment?")) return;
+    
+    try {
+      const { error } = await supabase.from("payments").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Payment deleted successfully");
+      fetchPayments();
+    } catch (error: any) {
+      toast.error("Failed to delete payment: " + error.message);
+    }
+  };
 
   const filtered = payments.filter(
-    (p) => p.number.toLowerCase().includes(searchQuery.toLowerCase()) || p.party.toLowerCase().includes(searchQuery.toLowerCase())
+    (p) => p.payment_number.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (p.parties?.name && p.parties.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const getModeColor = (mode: string) => {
+  const getModeColor = (mode: string | null) => {
     const colors: Record<string, string> = {
-      Cash: "bg-success/10 text-success",
-      "Bank Transfer": "bg-primary/10 text-primary",
-      UPI: "bg-secondary/50 text-secondary-foreground",
-      Cheque: "bg-warning/10 text-warning",
+      cash: "bg-success/10 text-success",
+      bank: "bg-primary/10 text-primary",
+      upi: "bg-secondary/50 text-secondary-foreground",
+      cheque: "bg-warning/10 text-warning",
     };
-    return colors[mode] || "bg-muted text-muted-foreground";
+    return colors[mode || "cash"] || "bg-muted text-muted-foreground";
   };
+
+  const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -43,10 +99,10 @@ export default function PaymentInList() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="metric-card"><p className="text-sm text-muted-foreground">Total Received</p><p className="text-2xl font-bold text-success mt-1">₹2,42,500</p><p className="text-xs text-muted-foreground mt-1">4 payments</p></div>
-        <div className="metric-card"><p className="text-sm text-muted-foreground">Cash</p><p className="text-2xl font-bold mt-1">₹5,000</p></div>
-        <div className="metric-card"><p className="text-sm text-muted-foreground">Bank/UPI</p><p className="text-2xl font-bold mt-1">₹1,70,000</p></div>
-        <div className="metric-card"><p className="text-sm text-muted-foreground">Cheque</p><p className="text-2xl font-bold mt-1">₹67,500</p></div>
+        <div className="metric-card"><p className="text-sm text-muted-foreground">Total Received</p><p className="text-2xl font-bold text-success mt-1">₹{totalReceived.toLocaleString()}</p><p className="text-xs text-muted-foreground mt-1">{payments.length} payments</p></div>
+        <div className="metric-card"><p className="text-sm text-muted-foreground">Cash</p><p className="text-2xl font-bold mt-1">₹{payments.filter(p => p.payment_mode === "cash").reduce((s, p) => s + p.amount, 0).toLocaleString()}</p></div>
+        <div className="metric-card"><p className="text-sm text-muted-foreground">Bank/UPI</p><p className="text-2xl font-bold mt-1">₹{payments.filter(p => p.payment_mode === "bank" || p.payment_mode === "upi").reduce((s, p) => s + p.amount, 0).toLocaleString()}</p></div>
+        <div className="metric-card"><p className="text-sm text-muted-foreground">Cheque</p><p className="text-2xl font-bold mt-1">₹{payments.filter(p => p.payment_mode === "cheque").reduce((s, p) => s + p.amount, 0).toLocaleString()}</p></div>
       </div>
 
       <div className="relative max-w-md">
@@ -54,33 +110,41 @@ export default function PaymentInList() {
         <Input placeholder="Search payments..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
       </div>
 
-      <div className="metric-card overflow-hidden p-0">
-        <table className="data-table">
-          <thead><tr><th>Receipt</th><th>Date</th><th>Party</th><th className="text-right">Amount</th><th>Mode</th><th>Linked Invoice</th><th></th></tr></thead>
-          <tbody>
-            {filtered.map((pay) => (
-              <tr key={pay.id} className="group">
-                <td><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><Wallet className="w-5 h-5 text-success" /></div><span className="font-medium">{pay.number}</span></div></td>
-                <td className="text-muted-foreground">{pay.date}</td>
-                <td className="font-medium">{pay.party}</td>
-                <td className="text-right font-medium text-success">+₹{pay.amount.toLocaleString()}</td>
-                <td><span className={cn("px-2 py-1 text-xs font-medium rounded-full", getModeColor(pay.mode))}>{pay.mode}</span></td>
-                <td className="text-muted-foreground">{pay.linkedInvoice}</td>
-                <td>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem><Eye className="w-4 h-4 mr-2" />View Receipt</DropdownMenuItem>
-                      <DropdownMenuItem><Download className="w-4 h-4 mr-2" />Download PDF</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No payments found</p>
+          <Button asChild className="mt-4">
+            <Link to="/sale/payment-in/new">Record your first payment</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="metric-card overflow-hidden p-0">
+          <table className="data-table">
+            <thead><tr><th>Receipt</th><th>Date</th><th>Party</th><th className="text-right">Amount</th><th>Mode</th><th></th></tr></thead>
+            <tbody>
+              {filtered.map((pay) => (
+                <tr key={pay.id} className="group">
+                  <td><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><Wallet className="w-5 h-5 text-success" /></div><span className="font-medium">{pay.payment_number}</span></div></td>
+                  <td className="text-muted-foreground">{format(new Date(pay.payment_date), "dd MMM yyyy")}</td>
+                  <td className="font-medium">{pay.parties?.name || "-"}</td>
+                  <td className="text-right font-medium text-success">+₹{pay.amount.toLocaleString()}</td>
+                  <td><span className={cn("px-2 py-1 text-xs font-medium rounded-full capitalize", getModeColor(pay.payment_mode))}>{pay.payment_mode || "Cash"}</span></td>
+                  <td>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem><Eye className="w-4 h-4 mr-2" />View Receipt</DropdownMenuItem>
+                        <DropdownMenuItem><Download className="w-4 h-4 mr-2" />Download PDF</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(pay.id)}>Delete</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
