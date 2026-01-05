@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Building2, 
   User, 
@@ -13,7 +13,15 @@ import {
   MapPin,
   Save,
   Upload,
-  Loader2
+  Loader2,
+  UserPlus,
+  Trash2,
+  Check,
+  Sun,
+  Moon,
+  Monitor,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,16 +41,38 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
+
+type AppRole = 'admin' | 'supervisor' | 'viewer';
+
+interface UserWithRole {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  role: AppRole;
+}
 
 export default function Settings() {
   const { user, role, isAdmin } = useAuth();
   const { refetch: refetchBusiness } = useBusinessSettings();
+  const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   
   // Business settings
   const [businessName, setBusinessName] = useState("");
@@ -54,12 +84,31 @@ export default function Settings() {
   const [invoicePrefix, setInvoicePrefix] = useState("INV-");
   const [invoiceTerms, setInvoiceTerms] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [financialYearStart, setFinancialYearStart] = useState("april");
 
-  
+  // User management
+  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<AppRole>("viewer");
+  const [inviting, setInviting] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+
+  // Password change
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     fetchSettings();
-  }, [user]);
+    if (isAdmin) {
+      fetchUsers();
+    }
+  }, [user, isAdmin]);
 
   const fetchSettings = async () => {
     if (!user) return;
@@ -85,12 +134,87 @@ export default function Settings() {
         setInvoicePrefix(data.invoice_prefix || "INV-");
         setInvoiceTerms(data.invoice_terms || "");
         setLogoUrl(data.logo_url || "");
+        setFinancialYearStart((data as any).financial_year_start || "april");
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
       toast.error('Failed to load settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, email, full_name');
+
+      if (profilesError) throw profilesError;
+
+      const usersWithRoles: UserWithRole[] = rolesData.map(roleItem => {
+        const profile = profilesData.find(p => p.user_id === roleItem.user_id);
+        return {
+          user_id: roleItem.user_id,
+          email: profile?.email || 'Unknown',
+          full_name: profile?.full_name || null,
+          role: roleItem.role as AppRole
+        };
+      });
+
+      setUsers(usersWithRoles);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File size must be less than 2MB');
+      return;
+    }
+
+    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(file.type)) {
+      toast.error('Only PNG, JPG, and WebP images are allowed');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/logo.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('business-logos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('business-logos')
+        .getPublicUrl(fileName);
+
+      const newLogoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      setLogoUrl(newLogoUrl);
+      toast.success('Logo uploaded successfully!');
+    } catch (error: any) {
+      console.error('Error uploading logo:', error);
+      toast.error('Failed to upload logo: ' + error.message);
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -120,12 +244,12 @@ export default function Settings() {
           invoice_prefix: invoicePrefix,
           invoice_terms: invoiceTerms,
           logo_url: logoUrl,
+          financial_year_start: financialYearStart,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+        } as any, { onConflict: 'user_id' });
 
       if (error) throw error;
 
-      // Refetch business settings to update sidebar
       await refetchBusiness();
       toast.success('Settings saved successfully!');
     } catch (error: any) {
@@ -133,6 +257,125 @@ export default function Settings() {
       toast.error('Failed to save settings: ' + error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleInviteUser = async () => {
+    if (!inviteEmail.trim()) {
+      toast.error('Please enter an email address');
+      return;
+    }
+
+    setInviting(true);
+    try {
+      // Create user via Supabase Auth admin invite
+      const { data, error } = await supabase.auth.signUp({
+        email: inviteEmail.trim(),
+        password: Math.random().toString(36).slice(-12) + 'A1!', // Temporary password
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Update the role if not viewer (viewer is default)
+        if (inviteRole !== 'viewer') {
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .update({ role: inviteRole })
+            .eq('user_id', data.user.id);
+
+          if (roleError) {
+            console.error('Error updating role:', roleError);
+          }
+        }
+      }
+
+      toast.success(`Invitation sent to ${inviteEmail}`);
+      setInviteEmail("");
+      setInviteRole("viewer");
+      setInviteDialogOpen(false);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error inviting user:', error);
+      if (error.message?.includes('already registered')) {
+        toast.error('This email is already registered');
+      } else {
+        toast.error('Failed to invite user: ' + error.message);
+      }
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: AppRole) => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ role: newRole })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      toast.success('Role updated successfully');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error changing role:', error);
+      toast.error('Failed to update role');
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast.success('Password updated successfully!');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast.error('Failed to change password: ' + error.message);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const getCurrentFinancialYear = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    
+    if (financialYearStart === 'april') {
+      if (month >= 3) {
+        return `${year}-${(year + 1).toString().slice(-2)}`;
+      } else {
+        return `${year - 1}-${year.toString().slice(-2)}`;
+      }
+    } else {
+      return `${year}`;
     }
   };
 
@@ -247,13 +490,28 @@ export default function Settings() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Business Logo</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                    {logoUrl ? (
-                      <img src={logoUrl} alt="Business Logo" className="max-h-24 mx-auto mb-2" />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={handleLogoUpload}
+                    disabled={!isAdmin || uploadingLogo}
+                  />
+                  <div 
+                    className={`border-2 border-dashed border-border rounded-lg p-6 text-center ${isAdmin ? 'cursor-pointer hover:border-primary' : ''}`}
+                    onClick={() => isAdmin && fileInputRef.current?.click()}
+                  >
+                    {uploadingLogo ? (
+                      <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
+                    ) : logoUrl ? (
+                      <img src={logoUrl} alt="Business Logo" className="max-h-24 mx-auto mb-2 object-contain" />
                     ) : (
                       <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                     )}
-                    <p className="text-sm text-muted-foreground">Click to upload logo</p>
+                    <p className="text-sm text-muted-foreground">
+                      {uploadingLogo ? 'Uploading...' : 'Click to upload logo'}
+                    </p>
                     <p className="text-xs text-muted-foreground">PNG, JPG up to 2MB</p>
                   </div>
                 </div>
@@ -310,7 +568,11 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Financial Year Start</Label>
-                <Select defaultValue="april" disabled={!isAdmin}>
+                <Select 
+                  value={financialYearStart} 
+                  onValueChange={setFinancialYearStart}
+                  disabled={!isAdmin}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -322,7 +584,7 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label>Current FY</Label>
-                <Input value="2024-25" readOnly className="bg-muted" />
+                <Input value={getCurrentFinancialYear()} readOnly className="bg-muted" />
               </div>
             </div>
           </div>
@@ -581,20 +843,105 @@ export default function Settings() {
         {/* Users */}
         <TabsContent value="users" className="space-y-6">
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">User Roles</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Manage user access levels. Admins have full access, Supervisors can create/edit data, Viewers can only view.
-            </p>
-            <div className="space-y-4">
-              <div className="border rounded-lg p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{user?.email}</p>
-                  <p className="text-sm text-muted-foreground capitalize">Role: {role}</p>
-                </div>
-                <span className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full capitalize">
-                  {role}
-                </span>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold">User Management</h3>
+                <p className="text-sm text-muted-foreground">
+                  Manage user access levels. Admins have full access, Supervisors can create/edit data, Viewers can only view.
+                </p>
               </div>
+              {isAdmin && (
+                <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      Invite User
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Invite New User</DialogTitle>
+                      <DialogDescription>
+                        Send an invitation to a new user. They will receive an email to set up their account.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="inviteEmail">Email Address</Label>
+                        <Input
+                          id="inviteEmail"
+                          type="email"
+                          placeholder="user@example.com"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Role</Label>
+                        <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="supervisor">Supervisor</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleInviteUser} disabled={inviting}>
+                        {inviting ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : null}
+                        Send Invitation
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+            
+            <div className="space-y-4">
+              {loadingUsers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : (
+                users.map((u) => (
+                  <div key={u.user_id} className="border rounded-lg p-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{u.full_name || u.email}</p>
+                      <p className="text-sm text-muted-foreground">{u.email}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isAdmin && u.user_id !== user?.id ? (
+                        <Select 
+                          value={u.role} 
+                          onValueChange={(v) => handleChangeRole(u.user_id, v as AppRole)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="supervisor">Supervisor</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full capitalize">
+                          {u.role} {u.user_id === user?.id && '(You)'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -613,33 +960,33 @@ export default function Settings() {
                 <tbody>
                   <tr className="border-b">
                     <td className="py-2 px-4">View Data</td>
-                    <td className="text-center py-2 px-4">✓</td>
-                    <td className="text-center py-2 px-4">✓</td>
-                    <td className="text-center py-2 px-4">✓</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 px-4">Create/Edit Records</td>
-                    <td className="text-center py-2 px-4">✓</td>
-                    <td className="text-center py-2 px-4">✓</td>
-                    <td className="text-center py-2 px-4">—</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
+                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 px-4">Delete Records</td>
-                    <td className="text-center py-2 px-4">✓</td>
-                    <td className="text-center py-2 px-4">—</td>
-                    <td className="text-center py-2 px-4">—</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
+                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 px-4">Manage Settings</td>
-                    <td className="text-center py-2 px-4">✓</td>
-                    <td className="text-center py-2 px-4">—</td>
-                    <td className="text-center py-2 px-4">—</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
+                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-4">Reset Database</td>
-                    <td className="text-center py-2 px-4">✓</td>
-                    <td className="text-center py-2 px-4">—</td>
-                    <td className="text-center py-2 px-4">—</td>
+                    <td className="text-center py-2 px-4 text-green-500">✓</td>
+                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-2 px-4 text-muted-foreground">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -650,21 +997,66 @@ export default function Settings() {
         {/* Security */}
         <TabsContent value="security" className="space-y-6">
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">Password Settings</h3>
-            <div className="space-y-4">
+            <h3 className="font-semibold mb-4">Change Password</h3>
+            <div className="space-y-4 max-w-md">
               <div className="space-y-2">
-                <Label>Current Password</Label>
-                <Input type="password" />
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>New Password</Label>
-                <Input type="password" />
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Confirm New Password</Label>
-                <Input type="password" />
-              </div>
-              <Button variant="outline">Update Password</Button>
+              {newPassword && newPassword.length < 8 && (
+                <p className="text-sm text-destructive">Password must be at least 8 characters</p>
+              )}
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-sm text-destructive">Passwords do not match</p>
+              )}
+              <Button 
+                variant="outline" 
+                onClick={handlePasswordChange}
+                disabled={changingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword.length < 8}
+              >
+                {changingPassword ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Update Password
+              </Button>
             </div>
           </div>
 
@@ -708,17 +1100,35 @@ export default function Settings() {
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Theme</h3>
             <div className="grid grid-cols-3 gap-4">
-              <div className="border rounded-lg p-4 text-center cursor-pointer hover:border-primary">
-                <div className="w-full h-16 bg-background border rounded mb-2"></div>
-                <p className="text-sm">Light</p>
+              <div 
+                className={`border rounded-lg p-4 text-center cursor-pointer transition-all ${theme === 'light' ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary'}`}
+                onClick={() => setTheme('light')}
+              >
+                <div className="w-full h-16 bg-white border rounded mb-2 flex items-center justify-center">
+                  <Sun className="w-6 h-6 text-yellow-500" />
+                </div>
+                <p className="text-sm font-medium">Light</p>
+                {theme === 'light' && <Check className="w-4 h-4 text-primary mx-auto mt-1" />}
               </div>
-              <div className="border rounded-lg p-4 text-center cursor-pointer border-primary">
-                <div className="w-full h-16 bg-gray-900 rounded mb-2"></div>
-                <p className="text-sm">Dark</p>
+              <div 
+                className={`border rounded-lg p-4 text-center cursor-pointer transition-all ${theme === 'dark' ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary'}`}
+                onClick={() => setTheme('dark')}
+              >
+                <div className="w-full h-16 bg-gray-900 rounded mb-2 flex items-center justify-center">
+                  <Moon className="w-6 h-6 text-blue-400" />
+                </div>
+                <p className="text-sm font-medium">Dark</p>
+                {theme === 'dark' && <Check className="w-4 h-4 text-primary mx-auto mt-1" />}
               </div>
-              <div className="border rounded-lg p-4 text-center cursor-pointer hover:border-primary">
-                <div className="w-full h-16 bg-gradient-to-r from-background to-gray-900 rounded mb-2"></div>
-                <p className="text-sm">System</p>
+              <div 
+                className={`border rounded-lg p-4 text-center cursor-pointer transition-all ${theme === 'system' ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary'}`}
+                onClick={() => setTheme('system')}
+              >
+                <div className="w-full h-16 bg-gradient-to-r from-white to-gray-900 rounded mb-2 flex items-center justify-center">
+                  <Monitor className="w-6 h-6 text-gray-500" />
+                </div>
+                <p className="text-sm font-medium">System</p>
+                {theme === 'system' && <Check className="w-4 h-4 text-primary mx-auto mt-1" />}
               </div>
             </div>
           </div>
@@ -729,7 +1139,7 @@ export default function Settings() {
               {['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899'].map((color) => (
                 <button
                   key={color}
-                  className="w-10 h-10 rounded-full border-2 border-transparent hover:border-foreground"
+                  className="w-10 h-10 rounded-full border-2 border-transparent hover:border-foreground transition-all"
                   style={{ backgroundColor: color }}
                 />
               ))}
