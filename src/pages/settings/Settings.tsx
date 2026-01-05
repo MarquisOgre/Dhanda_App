@@ -50,6 +50,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
@@ -105,6 +124,15 @@ const INDIAN_STATES = [
   { code: "WB", name: "West Bengal" },
 ];
 
+const ACCENT_COLORS = [
+  { name: 'Blue', value: '199 89% 48%' },
+  { name: 'Green', value: '142 76% 36%' },
+  { name: 'Purple', value: '262 83% 58%' },
+  { name: 'Orange', value: '38 92% 50%' },
+  { name: 'Red', value: '0 84% 60%' },
+  { name: 'Pink', value: '330 81% 60%' },
+];
+
 export default function Settings() {
   const { user, role, isAdmin } = useAuth();
   const { refetch: refetchBusiness, getCurrentFinancialYear } = useBusinessSettings();
@@ -139,29 +167,71 @@ export default function Settings() {
   const [enableTcs, setEnableTcs] = useState(false);
   const [enableTds, setEnableTds] = useState(false);
 
+  // Print settings
+  const [paperSize, setPaperSize] = useState("a4");
+  const [invoiceTemplate, setInvoiceTemplate] = useState("modern");
+  const [showLogoOnInvoice, setShowLogoOnInvoice] = useState(true);
+  const [showBankDetails, setShowBankDetails] = useState(true);
+  const [showQrCode, setShowQrCode] = useState(false);
+  const [autoPrintOnSave, setAutoPrintOnSave] = useState(false);
+
   // User management
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<AppRole>("viewer");
-  const [inviting, setInviting] = useState(false);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserRole, setNewUserRole] = useState<AppRole>("viewer");
+  const [addingUser, setAddingUser] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   // Password change
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Display preferences (stored in localStorage)
+  const [autoLogoutTime, setAutoLogoutTime] = useState("30");
+  const [accentColor, setAccentColor] = useState("199 89% 48%");
+  const [compactMode, setCompactMode] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   useEffect(() => {
     fetchSettings();
+    loadDisplayPreferences();
     if (isAdmin) {
       fetchUsers();
     }
   }, [user, isAdmin]);
+
+  const loadDisplayPreferences = () => {
+    const savedAutoLogout = localStorage.getItem('autoLogoutTime');
+    const savedAccentColor = localStorage.getItem('accentColor');
+    const savedCompactMode = localStorage.getItem('compactMode');
+    const savedSidebarCollapsed = localStorage.getItem('sidebarCollapsed');
+
+    if (savedAutoLogout) setAutoLogoutTime(savedAutoLogout);
+    if (savedAccentColor) setAccentColor(savedAccentColor);
+    if (savedCompactMode) setCompactMode(savedCompactMode === 'true');
+    if (savedSidebarCollapsed) setSidebarCollapsed(savedSidebarCollapsed === 'true');
+  };
+
+  const saveDisplayPreference = (key: string, value: string | boolean) => {
+    localStorage.setItem(key, String(value));
+    
+    // Apply accent color immediately
+    if (key === 'accentColor') {
+      document.documentElement.style.setProperty('--primary', value as string);
+    }
+    
+    // Apply compact mode
+    if (key === 'compactMode') {
+      document.documentElement.classList.toggle('compact', value as boolean);
+    }
+  };
 
   const fetchSettings = async () => {
     if (!user) return;
@@ -187,20 +257,28 @@ export default function Settings() {
         setInvoicePrefix(data.invoice_prefix || "INV-");
         setInvoiceTerms(data.invoice_terms || "");
         setLogoUrl(data.logo_url || "");
-        setFinancialYearStart((data as any).financial_year_start || "april");
+        setFinancialYearStart(data.financial_year_start || "april");
         
         // Invoice settings
-        setNextInvoiceNumber((data as any).next_invoice_number || 1);
-        setEstimationPrefix((data as any).estimation_prefix || "EST-");
-        setPurchasePrefix((data as any).purchase_prefix || "PUR-");
-        setDefaultPaymentTerms(String((data as any).default_payment_terms || 30));
+        setNextInvoiceNumber(data.next_invoice_number || 1);
+        setEstimationPrefix(data.estimation_prefix || "EST-");
+        setPurchasePrefix(data.purchase_prefix || "PUR-");
+        setDefaultPaymentTerms(String(data.default_payment_terms || 30));
         
         // Tax settings
-        setGstRegistrationType((data as any).gst_registration_type || "regular");
-        setStateCode((data as any).state_code || "KA");
-        setDefaultTaxRate((data as any).default_tax_rate || 18);
-        setEnableTcs((data as any).enable_tcs || false);
-        setEnableTds((data as any).enable_tds || false);
+        setGstRegistrationType(data.gst_registration_type || "regular");
+        setStateCode(data.state_code || "KA");
+        setDefaultTaxRate(data.default_tax_rate || 18);
+        setEnableTcs(data.enable_tcs || false);
+        setEnableTds(data.enable_tds || false);
+
+        // Print settings
+        setPaperSize(data.paper_size || "a4");
+        setInvoiceTemplate(data.invoice_template || "modern");
+        setShowLogoOnInvoice(data.show_logo_on_invoice ?? true);
+        setShowBankDetails(data.show_bank_details ?? true);
+        setShowQrCode(data.show_qr_code || false);
+        setAutoPrintOnSave(data.auto_print_on_save || false);
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
@@ -320,8 +398,14 @@ export default function Settings() {
           default_tax_rate: defaultTaxRate,
           enable_tcs: enableTcs,
           enable_tds: enableTds,
+          paper_size: paperSize,
+          invoice_template: invoiceTemplate,
+          show_logo_on_invoice: showLogoOnInvoice,
+          show_bank_details: showBankDetails,
+          show_qr_code: showQrCode,
+          auto_print_on_save: autoPrintOnSave,
           updated_at: new Date().toISOString()
-        } as any, { onConflict: 'user_id' });
+        }, { onConflict: 'user_id' });
 
       if (error) throw error;
 
@@ -335,20 +419,26 @@ export default function Settings() {
     }
   };
 
-  const handleInviteUser = async () => {
-    if (!inviteEmail.trim()) {
-      toast.error('Please enter an email address');
+  const handleAddUser = async () => {
+    if (!newUserEmail.trim() || !newUserPassword.trim()) {
+      toast.error('Please enter email and password');
       return;
     }
 
-    setInviting(true);
+    if (newUserPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setAddingUser(true);
     try {
-      // Create user via Supabase Auth admin invite
       const { data, error } = await supabase.auth.signUp({
-        email: inviteEmail.trim(),
-        password: Math.random().toString(36).slice(-12) + 'A1!', // Temporary password
+        email: newUserEmail.trim(),
+        password: newUserPassword,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
+          data: {
+            full_name: newUserName.trim() || null,
+          },
         }
       });
 
@@ -356,10 +446,10 @@ export default function Settings() {
 
       if (data.user) {
         // Update the role if not viewer (viewer is default)
-        if (inviteRole !== 'viewer') {
+        if (newUserRole !== 'viewer') {
           const { error: roleError } = await supabase
             .from('user_roles')
-            .update({ role: inviteRole })
+            .update({ role: newUserRole })
             .eq('user_id', data.user.id);
 
           if (roleError) {
@@ -368,20 +458,56 @@ export default function Settings() {
         }
       }
 
-      toast.success(`Invitation sent to ${inviteEmail}`);
-      setInviteEmail("");
-      setInviteRole("viewer");
-      setInviteDialogOpen(false);
+      toast.success(`User ${newUserEmail} added successfully`);
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserName("");
+      setNewUserRole("viewer");
+      setAddUserDialogOpen(false);
       fetchUsers();
     } catch (error: any) {
-      console.error('Error inviting user:', error);
+      console.error('Error adding user:', error);
       if (error.message?.includes('already registered')) {
         toast.error('This email is already registered');
       } else {
-        toast.error('Failed to invite user: ' + error.message);
+        toast.error('Failed to add user: ' + error.message);
       }
     } finally {
-      setInviting(false);
+      setAddingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (userId === user?.id) {
+      toast.error("You cannot delete your own account");
+      return;
+    }
+
+    setDeletingUserId(userId);
+    try {
+      // Delete user role first
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (roleError) throw roleError;
+
+      // Delete profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (profileError) throw profileError;
+
+      toast.success('User deleted successfully');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error('Failed to delete user: ' + error.message);
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -427,7 +553,6 @@ export default function Settings() {
       if (error) throw error;
 
       toast.success('Password updated successfully!');
-      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
@@ -436,6 +561,30 @@ export default function Settings() {
     } finally {
       setChangingPassword(false);
     }
+  };
+
+  const handleAutoLogoutChange = (value: string) => {
+    setAutoLogoutTime(value);
+    saveDisplayPreference('autoLogoutTime', value);
+    toast.success(`Auto logout set to ${value === 'never' ? 'never' : value + ' minutes'}`);
+  };
+
+  const handleAccentColorChange = (color: string) => {
+    setAccentColor(color);
+    saveDisplayPreference('accentColor', color);
+    toast.success('Accent color updated');
+  };
+
+  const handleCompactModeChange = (checked: boolean) => {
+    setCompactMode(checked);
+    saveDisplayPreference('compactMode', checked);
+    toast.success(`Compact mode ${checked ? 'enabled' : 'disabled'}`);
+  };
+
+  const handleSidebarCollapsedChange = (checked: boolean) => {
+    setSidebarCollapsed(checked);
+    saveDisplayPreference('sidebarCollapsed', checked);
+    toast.success(`Sidebar will ${checked ? 'start collapsed' : 'start expanded'}`);
   };
 
   if (loading) {
@@ -831,7 +980,11 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Paper Size</Label>
-                <Select defaultValue="a4" disabled={!isAdmin}>
+                <Select 
+                  value={paperSize} 
+                  onValueChange={setPaperSize}
+                  disabled={!isAdmin}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -845,7 +998,11 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label>Invoice Template</Label>
-                <Select defaultValue="modern" disabled={!isAdmin}>
+                <Select 
+                  value={invoiceTemplate} 
+                  onValueChange={setInvoiceTemplate}
+                  disabled={!isAdmin}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -868,28 +1025,44 @@ export default function Settings() {
                   <p className="font-medium">Show Logo on Invoice</p>
                   <p className="text-sm text-muted-foreground">Display business logo on printed invoices</p>
                 </div>
-                <Switch defaultChecked disabled={!isAdmin} />
+                <Switch 
+                  checked={showLogoOnInvoice}
+                  onCheckedChange={setShowLogoOnInvoice}
+                  disabled={!isAdmin} 
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Show Bank Details</p>
                   <p className="text-sm text-muted-foreground">Print bank account details on invoices</p>
                 </div>
-                <Switch defaultChecked disabled={!isAdmin} />
+                <Switch 
+                  checked={showBankDetails}
+                  onCheckedChange={setShowBankDetails}
+                  disabled={!isAdmin} 
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Show QR Code</p>
                   <p className="text-sm text-muted-foreground">Display UPI QR code for payments</p>
                 </div>
-                <Switch disabled={!isAdmin} />
+                <Switch 
+                  checked={showQrCode}
+                  onCheckedChange={setShowQrCode}
+                  disabled={!isAdmin} 
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Auto Print on Save</p>
                   <p className="text-sm text-muted-foreground">Automatically open print dialog when saving</p>
                 </div>
-                <Switch disabled={!isAdmin} />
+                <Switch 
+                  checked={autoPrintOnSave}
+                  onCheckedChange={setAutoPrintOnSave}
+                  disabled={!isAdmin} 
+                />
               </div>
             </div>
           </div>
@@ -917,73 +1090,67 @@ export default function Settings() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Daily Summary</p>
-                  <p className="text-sm text-muted-foreground">Receive daily sales summary</p>
+                  <p className="text-sm text-muted-foreground">Receive daily business summary</p>
                 </div>
                 <Switch disabled={!isAdmin} />
               </div>
             </div>
           </div>
-
-          <div className="metric-card">
-            <h3 className="font-semibold mb-4">System Alerts</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Overdue Invoices</p>
-                  <p className="text-sm text-muted-foreground">Alert for overdue invoices</p>
-                </div>
-                <Switch defaultChecked disabled={!isAdmin} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">New Order Received</p>
-                  <p className="text-sm text-muted-foreground">Notify on new orders</p>
-                </div>
-                <Switch defaultChecked disabled={!isAdmin} />
-              </div>
-            </div>
-          </div>
         </TabsContent>
 
-        {/* Users */}
+        {/* User Management */}
         <TabsContent value="users" className="space-y-6">
           <div className="metric-card">
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-semibold">User Management</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage user access levels. Admins have full access, Supervisors can create/edit data, Viewers can only view.
-                </p>
-              </div>
+              <h3 className="font-semibold">User Management</h3>
               {isAdmin && (
-                <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
                       <UserPlus className="w-4 h-4" />
-                      Invite User
+                      Add User
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Invite New User</DialogTitle>
+                      <DialogTitle>Add New User</DialogTitle>
                       <DialogDescription>
-                        Send an invitation to a new user. They will receive an email to set up their account.
+                        Create a new user account with specific access level.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="inviteEmail">Email Address</Label>
+                        <Label htmlFor="newUserName">Full Name</Label>
                         <Input
-                          id="inviteEmail"
-                          type="email"
-                          placeholder="user@example.com"
-                          value={inviteEmail}
-                          onChange={(e) => setInviteEmail(e.target.value)}
+                          id="newUserName"
+                          placeholder="John Doe"
+                          value={newUserName}
+                          onChange={(e) => setNewUserName(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Role</Label>
-                        <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)}>
+                        <Label htmlFor="newUserEmail">Email Address</Label>
+                        <Input
+                          id="newUserEmail"
+                          type="email"
+                          placeholder="user@example.com"
+                          value={newUserEmail}
+                          onChange={(e) => setNewUserEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newUserPassword">Password</Label>
+                        <Input
+                          id="newUserPassword"
+                          type="password"
+                          placeholder="Minimum 6 characters"
+                          value={newUserPassword}
+                          onChange={(e) => setNewUserPassword(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Access Level</Label>
+                        <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as AppRole)}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -996,14 +1163,14 @@ export default function Settings() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                      <Button variant="outline" onClick={() => setAddUserDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button onClick={handleInviteUser} disabled={inviting}>
-                        {inviting ? (
+                      <Button onClick={handleAddUser} disabled={addingUser}>
+                        {addingUser ? (
                           <Loader2 className="w-4 h-4 animate-spin mr-2" />
                         ) : null}
-                        Send Invitation
+                        Add User
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -1037,19 +1204,52 @@ export default function Settings() {
                     </div>
                     <div className="flex items-center gap-2">
                       {isAdmin && u.user_id !== user?.id ? (
-                        <Select
-                          value={u.role}
-                          onValueChange={(v) => handleChangeRole(u.user_id, v as AppRole)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="supervisor">Supervisor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <>
+                          <Select
+                            value={u.role}
+                            onValueChange={(v) => handleChangeRole(u.user_id, v as AppRole)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="supervisor">Supervisor</SelectItem>
+                              <SelectItem value="viewer">Viewer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete {u.email}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(u.user_id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deletingUserId === u.user_id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                  ) : null}
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
                       ) : (
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           u.role === 'admin' ? 'bg-primary/10 text-primary' :
@@ -1065,6 +1265,65 @@ export default function Settings() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Access Level Table */}
+          <div className="metric-card">
+            <h3 className="font-semibold mb-4">Access Levels</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Permission</TableHead>
+                  <TableHead className="text-center">Admin</TableHead>
+                  <TableHead className="text-center">Supervisor</TableHead>
+                  <TableHead className="text-center">Viewer</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>View Dashboard & Reports</TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Create/Edit Invoices</TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Manage Items & Parties</TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Record Payments</TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Manage Settings</TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Manage Users</TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Delete Data</TableCell>
+                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                  <TableCell className="text-center">—</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
         </TabsContent>
 
@@ -1139,9 +1398,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Enable 2FA</p>
-                <p className="text-sm text-muted-foreground">Add extra security to your account</p>
+                <p className="text-sm text-muted-foreground">Add extra security to your account (coming soon)</p>
               </div>
-              <Switch />
+              <Switch disabled />
             </div>
           </div>
 
@@ -1153,7 +1412,7 @@ export default function Settings() {
                   <p className="font-medium">Auto Logout</p>
                   <p className="text-sm text-muted-foreground">Automatically logout after inactivity</p>
                 </div>
-                <Select defaultValue="30">
+                <Select value={autoLogoutTime} onValueChange={handleAutoLogoutChange}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
@@ -1210,11 +1469,15 @@ export default function Settings() {
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Accent Color</h3>
             <div className="flex gap-4">
-              {['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899'].map((color) => (
+              {ACCENT_COLORS.map((color) => (
                 <button
-                  key={color}
-                  className="w-10 h-10 rounded-full border-2 border-transparent hover:border-foreground transition-all"
-                  style={{ backgroundColor: color }}
+                  key={color.value}
+                  className={`w-10 h-10 rounded-full border-2 transition-all ${
+                    accentColor === color.value ? 'border-foreground ring-2 ring-offset-2 ring-primary' : 'border-transparent hover:border-foreground/50'
+                  }`}
+                  style={{ backgroundColor: `hsl(${color.value})` }}
+                  onClick={() => handleAccentColorChange(color.value)}
+                  title={color.name}
                 />
               ))}
             </div>
@@ -1228,14 +1491,20 @@ export default function Settings() {
                   <p className="font-medium">Compact Mode</p>
                   <p className="text-sm text-muted-foreground">Reduce spacing for more content</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={compactMode}
+                  onCheckedChange={handleCompactModeChange}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Sidebar Collapsed</p>
                   <p className="text-sm text-muted-foreground">Start with collapsed sidebar</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={sidebarCollapsed}
+                  onCheckedChange={handleSidebarCollapsedChange}
+                />
               </div>
             </div>
           </div>
