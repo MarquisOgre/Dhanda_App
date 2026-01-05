@@ -17,6 +17,7 @@ import AddParty from "./pages/parties/AddParty";
 import ItemsList from "./pages/items/ItemsList";
 import AddItem from "./pages/items/AddItem";
 import Categories from "./pages/items/Categories";
+import StockRegister from "./pages/items/StockRegister";
 import SaleInvoices from "./pages/sale/SaleInvoices";
 import CreateSaleInvoice from "./pages/sale/CreateSaleInvoice";
 import EstimationList from "./pages/sale/EstimationList";
@@ -102,6 +103,7 @@ const AppRoutes = () => {
       <Route path="/items" element={<ProtectedRoute><ItemsList /></ProtectedRoute>} />
       <Route path="/items/add" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
       <Route path="/items/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+      <Route path="/items/stock-register" element={<ProtectedRoute><StockRegister /></ProtectedRoute>} />
       {/* Sale */}
       <Route path="/sale/invoices" element={<ProtectedRoute><SaleInvoices /></ProtectedRoute>} />
       <Route path="/sale/invoices/new" element={<ProtectedRoute><CreateSaleInvoice /></ProtectedRoute>} />
