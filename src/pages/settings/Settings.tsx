@@ -35,10 +35,12 @@ import {
 } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { toast } from "sonner";
 
 export default function Settings() {
   const { user, role, isAdmin } = useAuth();
+  const { refetch: refetchBusiness } = useBusinessSettings();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -123,6 +125,8 @@ export default function Settings() {
 
       if (error) throw error;
 
+      // Refetch business settings to update sidebar
+      await refetchBusiness();
       toast.success('Settings saved successfully!');
     } catch (error: any) {
       console.error('Error saving settings:', error);
