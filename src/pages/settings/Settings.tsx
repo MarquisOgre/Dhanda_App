@@ -304,15 +304,18 @@ export default function Settings() {
 
       if (profilesError) throw profilesError;
 
-      const usersWithRoles: UserWithRole[] = rolesData.map(roleItem => {
-        const profile = profilesData.find(p => p.user_id === roleItem.user_id);
-        return {
-          user_id: roleItem.user_id,
-          email: profile?.email || 'Unknown',
-          full_name: profile?.full_name || null,
-          role: roleItem.role as AppRole
-        };
-      });
+      const usersWithRoles: UserWithRole[] = rolesData
+        .map(roleItem => {
+          const profile = profilesData.find(p => p.user_id === roleItem.user_id);
+          return {
+            user_id: roleItem.user_id,
+            email: profile?.email || 'Unknown',
+            full_name: profile?.full_name || null,
+            role: roleItem.role as AppRole
+          };
+        })
+        // Hide superadmin from user list
+        .filter(u => u.email !== 'marquisogre@gmail.com');
 
       setUsers(usersWithRoles);
     } catch (error: any) {
@@ -625,7 +628,7 @@ export default function Settings() {
       )}
 
       <Tabs defaultValue="business" className="space-y-6">
-        <TabsList className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 w-full h-auto gap-2 bg-transparent p-0">
+        <TabsList className="flex flex-wrap w-full h-auto gap-2 bg-transparent p-0">
           <TabsTrigger value="business" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
             <Building2 className="w-4 h-4" />
             <span className="hidden md:inline">Business</span>
@@ -658,10 +661,12 @@ export default function Settings() {
             <Palette className="w-4 h-4" />
             <span className="hidden md:inline">Theme</span>
           </TabsTrigger>
-          <TabsTrigger value="license" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
-            <Shield className="w-4 h-4" />
-            <span className="hidden md:inline">License</span>
-          </TabsTrigger>
+          {user?.email === 'marquisogre@gmail.com' && (
+            <TabsTrigger value="license" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+              <Shield className="w-4 h-4" />
+              <span className="hidden md:inline">License</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Business Settings */}
