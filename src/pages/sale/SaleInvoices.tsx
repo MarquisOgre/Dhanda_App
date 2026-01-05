@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
   Search,
-  Filter,
   MoreHorizontal,
   FileText,
   Download,
   Send,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,72 +19,95 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
-const invoices = [
-  {
-    id: 1,
-    number: "INV-001",
-    date: "02 Jan 2026",
-    party: "Rahul Electronics",
-    amount: 45000,
-    paid: 45000,
-    status: "paid",
-  },
-  {
-    id: 2,
-    number: "INV-002",
-    date: "01 Jan 2026",
-    party: "Sharma Traders",
-    amount: 12800,
-    paid: 5000,
-    status: "partial",
-  },
-  {
-    id: 3,
-    number: "INV-003",
-    date: "31 Dec 2025",
-    party: "Quick Mart",
-    amount: 8400,
-    paid: 0,
-    status: "unpaid",
-  },
-  {
-    id: 4,
-    number: "INV-004",
-    date: "30 Dec 2025",
-    party: "Global Systems",
-    amount: 125000,
-    paid: 125000,
-    status: "paid",
-  },
-  {
-    id: 5,
-    number: "INV-005",
-    date: "28 Dec 2025",
-    party: "Tech Solutions",
-    amount: 67500,
-    paid: 67500,
-    status: "paid",
-  },
-];
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  total_amount: number | null;
+  paid_amount: number | null;
+  status: string | null;
+  party_id: string | null;
+  parties?: { name: string } | null;
+}
 
 export default function SaleInvoices() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchInvoices();
+    }
+  }, [user]);
+
+  const fetchInvoices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("*, parties(name)")
+        .eq("invoice_type", "sale")
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setInvoices(data || []);
+    } catch (error: any) {
+      toast.error("Failed to fetch invoices: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this invoice?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from("invoices")
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Invoice deleted successfully");
+      fetchInvoices();
+    } catch (error: any) {
+      toast.error("Failed to delete invoice: " + error.message);
+    }
+  };
 
   const filteredInvoices = invoices.filter(
     (inv) =>
-      inv.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.party.toLowerCase().includes(searchQuery.toLowerCase())
+      inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (inv.parties?.name && inv.parties.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const getStatusBadge = (status: string) => {
-    const styles = {
+  const getStatusBadge = (status: string | null) => {
+    const styles: Record<string, string> = {
       paid: "bg-success/10 text-success",
       partial: "bg-warning/10 text-warning",
       unpaid: "bg-destructive/10 text-destructive",
     };
-    return styles[status as keyof typeof styles] || "";
+    return styles[status || "unpaid"] || "";
   };
+
+  // Calculate summary
+  const totalAmount = invoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const paidAmount = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+  const unpaidAmount = totalAmount - paidAmount;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -106,23 +129,20 @@ export default function SaleInvoices() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Total Invoices</p>
-          <p className="text-2xl font-bold mt-1">₹2,58,700</p>
-          <p className="text-xs text-muted-foreground mt-1">5 invoices</p>
+          <p className="text-2xl font-bold mt-1">₹{totalAmount.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground mt-1">{invoices.length} invoices</p>
         </div>
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Paid</p>
-          <p className="text-2xl font-bold text-success mt-1">₹2,37,500</p>
-          <p className="text-xs text-muted-foreground mt-1">3 invoices</p>
+          <p className="text-2xl font-bold text-success mt-1">₹{paidAmount.toLocaleString()}</p>
         </div>
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Unpaid</p>
-          <p className="text-2xl font-bold text-destructive mt-1">₹16,200</p>
-          <p className="text-xs text-muted-foreground mt-1">2 invoices</p>
+          <p className="text-2xl font-bold text-destructive mt-1">₹{unpaidAmount.toLocaleString()}</p>
         </div>
         <div className="metric-card">
-          <p className="text-sm text-muted-foreground">Overdue</p>
-          <p className="text-2xl font-bold text-warning mt-1">₹8,400</p>
-          <p className="text-xs text-muted-foreground mt-1">1 invoice</p>
+          <p className="text-sm text-muted-foreground">This Month</p>
+          <p className="text-2xl font-bold text-primary mt-1">₹{totalAmount.toLocaleString()}</p>
         </div>
       </div>
 
@@ -138,89 +158,108 @@ export default function SaleInvoices() {
       </div>
 
       {/* Invoices Table */}
-      <div className="metric-card overflow-hidden p-0">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Invoice</th>
-              <th>Date</th>
-              <th>Party</th>
-              <th className="text-right">Amount</th>
-              <th className="text-right">Paid</th>
-              <th className="text-right">Balance</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredInvoices.map((invoice) => (
-              <tr key={invoice.id} className="group">
-                <td>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-primary" />
-                    </div>
-                    <span className="font-medium">{invoice.number}</span>
-                  </div>
-                </td>
-                <td className="text-muted-foreground">{invoice.date}</td>
-                <td className="font-medium">{invoice.party}</td>
-                <td className="text-right font-medium">
-                  ₹{invoice.amount.toLocaleString()}
-                </td>
-                <td className="text-right text-muted-foreground">
-                  ₹{invoice.paid.toLocaleString()}
-                </td>
-                <td className="text-right font-medium">
-                  ₹{(invoice.amount - invoice.paid).toLocaleString()}
-                </td>
-                <td>
-                  <span
-                    className={cn(
-                      "px-2 py-1 text-xs font-medium rounded-full capitalize",
-                      getStatusBadge(invoice.status)
-                    )}
-                  >
-                    {invoice.status}
-                  </span>
-                </td>
-                <td>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Invoice
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Download className="w-4 h-4 mr-2" />
-                        Download PDF
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Send className="w-4 h-4 mr-2" />
-                        Send to Party
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>Record Payment</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Invoice</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
+      {filteredInvoices.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No invoices found</p>
+          <Button asChild className="mt-4">
+            <Link to="/sale/invoices/new">Create your first invoice</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="metric-card overflow-hidden p-0">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Invoice</th>
+                <th>Date</th>
+                <th>Party</th>
+                <th className="text-right">Amount</th>
+                <th className="text-right">Paid</th>
+                <th className="text-right">Balance</th>
+                <th>Status</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredInvoices.map((invoice) => {
+                const amount = invoice.total_amount || 0;
+                const paid = invoice.paid_amount || 0;
+                
+                return (
+                  <tr key={invoice.id} className="group">
+                    <td>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-primary" />
+                        </div>
+                        <span className="font-medium">{invoice.invoice_number}</span>
+                      </div>
+                    </td>
+                    <td className="text-muted-foreground">
+                      {format(new Date(invoice.invoice_date), "dd MMM yyyy")}
+                    </td>
+                    <td className="font-medium">{invoice.parties?.name || "-"}</td>
+                    <td className="text-right font-medium">
+                      ₹{amount.toLocaleString()}
+                    </td>
+                    <td className="text-right text-muted-foreground">
+                      ₹{paid.toLocaleString()}
+                    </td>
+                    <td className="text-right font-medium">
+                      ₹{(amount - paid).toLocaleString()}
+                    </td>
+                    <td>
+                      <span
+                        className={cn(
+                          "px-2 py-1 text-xs font-medium rounded-full capitalize",
+                          getStatusBadge(invoice.status)
+                        )}
+                      >
+                        {invoice.status || "unpaid"}
+                      </span>
+                    </td>
+                    <td>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Invoice
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Download className="w-4 h-4 mr-2" />
+                            Download PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Send className="w-4 h-4 mr-2" />
+                            Send to Party
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>Record Payment</DropdownMenuItem>
+                          <DropdownMenuItem>Edit Invoice</DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDelete(invoice.id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

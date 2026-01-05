@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, MoreHorizontal, Receipt } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Receipt, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,64 +10,87 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
-const expenses = [
-  {
-    id: 1,
-    number: "EXP-025",
-    date: "02 Jan 2026",
-    category: "Office Supplies",
-    description: "Stationery and printing materials",
-    amount: 2500,
-    paymentMode: "Cash",
-  },
-  {
-    id: 2,
-    number: "EXP-024",
-    date: "01 Jan 2026",
-    category: "Utilities",
-    description: "Electricity bill - December",
-    amount: 8500,
-    paymentMode: "Bank Transfer",
-  },
-  {
-    id: 3,
-    number: "EXP-023",
-    date: "30 Dec 2025",
-    category: "Rent",
-    description: "Office rent - January",
-    amount: 35000,
-    paymentMode: "Cheque",
-  },
-  {
-    id: 4,
-    number: "EXP-022",
-    date: "28 Dec 2025",
-    category: "Travel",
-    description: "Client meeting travel expenses",
-    amount: 4500,
-    paymentMode: "Cash",
-  },
-];
+interface Expense {
+  id: string;
+  expense_number: string;
+  expense_date: string;
+  category: string;
+  notes: string | null;
+  amount: number;
+  payment_mode: string | null;
+}
 
 const categoryColors: Record<string, string> = {
   "Office Supplies": "bg-blue-500/10 text-blue-500",
   "Utilities": "bg-yellow-500/10 text-yellow-500",
   "Rent": "bg-purple-500/10 text-purple-500",
   "Travel": "bg-green-500/10 text-green-500",
+  "Salary": "bg-pink-500/10 text-pink-500",
+  "Marketing": "bg-orange-500/10 text-orange-500",
 };
 
 export default function ExpensesList() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchExpenses();
+    }
+  }, [user]);
+
+  const fetchExpenses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setExpenses(data || []);
+    } catch (error: any) {
+      toast.error("Failed to fetch expenses: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this expense?")) return;
+    
+    try {
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Expense deleted successfully");
+      fetchExpenses();
+    } catch (error: any) {
+      toast.error("Failed to delete expense: " + error.message);
+    }
+  };
 
   const filteredExpenses = expenses.filter(
     (expense) =>
-      expense.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.expense_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (expense.notes && expense.notes.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -93,19 +116,16 @@ export default function ExpensesList() {
           <p className="text-xs text-muted-foreground mt-1">{expenses.length} entries</p>
         </div>
         <div className="metric-card">
-          <p className="text-sm text-muted-foreground">This Month</p>
-          <p className="text-2xl font-bold text-warning mt-1">₹11,000</p>
-          <p className="text-xs text-muted-foreground mt-1">2 expenses</p>
+          <p className="text-sm text-muted-foreground">Cash</p>
+          <p className="text-2xl font-bold mt-1">₹{expenses.filter(e => e.payment_mode === "cash").reduce((s, e) => s + e.amount, 0).toLocaleString()}</p>
         </div>
         <div className="metric-card">
-          <p className="text-sm text-muted-foreground">Top Category</p>
-          <p className="text-2xl font-bold text-primary mt-1">Rent</p>
-          <p className="text-xs text-muted-foreground mt-1">₹35,000</p>
+          <p className="text-sm text-muted-foreground">Bank</p>
+          <p className="text-2xl font-bold mt-1">₹{expenses.filter(e => e.payment_mode === "bank").reduce((s, e) => s + e.amount, 0).toLocaleString()}</p>
         </div>
         <div className="metric-card">
-          <p className="text-sm text-muted-foreground">Avg. Monthly</p>
-          <p className="text-2xl font-bold mt-1">₹42,500</p>
-          <p className="text-xs text-muted-foreground mt-1">Last 3 months</p>
+          <p className="text-sm text-muted-foreground">Categories</p>
+          <p className="text-2xl font-bold mt-1">{[...new Set(expenses.map(e => e.category))].length}</p>
         </div>
       </div>
 
@@ -121,67 +141,83 @@ export default function ExpensesList() {
       </div>
 
       {/* Expenses Table */}
-      <div className="metric-card overflow-hidden p-0">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Expense No.</th>
-              <th>Date</th>
-              <th>Category</th>
-              <th>Description</th>
-              <th>Payment Mode</th>
-              <th className="text-right">Amount</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredExpenses.map((expense) => (
-              <tr key={expense.id} className="group">
-                <td>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                      <Receipt className="w-5 h-5 text-destructive" />
-                    </div>
-                    <span className="font-medium">{expense.number}</span>
-                  </div>
-                </td>
-                <td className="text-muted-foreground">{expense.date}</td>
-                <td>
-                  <span
-                    className={cn(
-                      "px-2 py-1 text-xs font-medium rounded-full",
-                      categoryColors[expense.category] || "bg-muted"
-                    )}
-                  >
-                    {expense.category}
-                  </span>
-                </td>
-                <td className="text-muted-foreground">{expense.description}</td>
-                <td className="text-muted-foreground">{expense.paymentMode}</td>
-                <td className="text-right font-semibold">₹{expense.amount.toLocaleString()}</td>
-                <td>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
+      {filteredExpenses.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No expenses found</p>
+          <Button asChild className="mt-4">
+            <Link to="/purchase/expenses/new">Add your first expense</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="metric-card overflow-hidden p-0">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Expense No.</th>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Payment Mode</th>
+                <th className="text-right">Amount</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredExpenses.map((expense) => (
+                <tr key={expense.id} className="group">
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+                        <Receipt className="w-5 h-5 text-destructive" />
+                      </div>
+                      <span className="font-medium">{expense.expense_number}</span>
+                    </div>
+                  </td>
+                  <td className="text-muted-foreground">
+                    {format(new Date(expense.expense_date), "dd MMM yyyy")}
+                  </td>
+                  <td>
+                    <span
+                      className={cn(
+                        "px-2 py-1 text-xs font-medium rounded-full",
+                        categoryColors[expense.category] || "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {expense.category}
+                    </span>
+                  </td>
+                  <td className="text-muted-foreground">{expense.notes || "-"}</td>
+                  <td className="text-muted-foreground capitalize">{expense.payment_mode || "Cash"}</td>
+                  <td className="text-right font-semibold">₹{expense.amount.toLocaleString()}</td>
+                  <td>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleDelete(expense.id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
