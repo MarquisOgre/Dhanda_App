@@ -57,6 +57,7 @@ const navItems: NavItem[] = [
       { title: "All Items", href: "/items" },
       { title: "Add Item", href: "/items/add" },
       { title: "Categories", href: "/items/categories" },
+      { title: "Stock Register", href: "/items/stock-register" },
     ],
   },
   {
