@@ -74,6 +74,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { LicenseSettings } from "./LicenseSettings";
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
 
@@ -656,6 +657,10 @@ export default function Settings() {
           <TabsTrigger value="appearance" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
             <Palette className="w-4 h-4" />
             <span className="hidden md:inline">Theme</span>
+          </TabsTrigger>
+          <TabsTrigger value="license" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+            <Shield className="w-4 h-4" />
+            <span className="hidden md:inline">License</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1508,6 +1513,11 @@ export default function Settings() {
               </div>
             </div>
           </div>
+        </TabsContent>
+
+        {/* License Settings */}
+        <TabsContent value="license" className="space-y-6">
+          <LicenseSettings />
         </TabsContent>
       </Tabs>
     </div>
