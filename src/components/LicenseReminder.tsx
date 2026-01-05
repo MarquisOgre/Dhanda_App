@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
-import { X, AlertTriangle, Calendar, Mail, Phone } from "lucide-react";
+import { X, AlertTriangle, Calendar, Mail, Phone, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LICENSE_CONFIG, getDaysRemaining, formatExpiryDate, isLicenseValid } from "@/lib/license";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 
 const DISMISS_KEY = "license_reminder_dismissed";
 
 export function LicenseReminder() {
   const [isVisible, setIsVisible] = useState(false);
+  const { licenseSettings, isLoading, getDaysRemaining, formatExpiryDate, isLicenseValid } = useLicenseSettings();
   const daysRemaining = getDaysRemaining();
 
   useEffect(() => {
+    if (isLoading) return;
+    
     // Show reminder if license is valid but expiring within 7 days
     if (isLicenseValid() && daysRemaining <= 7 && daysRemaining > 0) {
       const dismissed = localStorage.getItem(DISMISS_KEY);
@@ -21,7 +24,7 @@ export function LicenseReminder() {
         setIsVisible(true);
       }
     }
-  }, [daysRemaining]);
+  }, [daysRemaining, isLoading, isLicenseValid]);
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY, new Date().toISOString());
@@ -68,22 +71,33 @@ export function LicenseReminder() {
 
           {/* Message */}
           <p className="text-center text-muted-foreground text-sm">
-            Your {LICENSE_CONFIG.licenseType} license is about to expire. 
+            Your {licenseSettings?.license_type || 'Professional'} license is about to expire. 
             Please contact the system administrator to renew and avoid any interruption.
           </p>
 
           {/* Contact Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <a href={`mailto:${LICENSE_CONFIG.supportEmail}`} className="block">
-              <Button variant="outline" className="w-full gap-2 text-xs">
+          <div className="grid grid-cols-3 gap-2">
+            <a href={`mailto:${licenseSettings?.support_email || 'support@dhandaapp.com'}`} className="block">
+              <Button variant="outline" className="w-full gap-1 text-xs px-2">
                 <Mail className="w-4 h-4" />
-                Email Support
+                Email
               </Button>
             </a>
-            <a href={`tel:${LICENSE_CONFIG.supportPhone.replace(/\s/g, "")}`} className="block">
-              <Button variant="outline" className="w-full gap-2 text-xs">
+            <a href={`tel:${(licenseSettings?.support_phone || '+919876543210').replace(/\s/g, "")}`} className="block">
+              <Button variant="outline" className="w-full gap-1 text-xs px-2">
                 <Phone className="w-4 h-4" />
-                Call Support
+                Call
+              </Button>
+            </a>
+            <a 
+              href={`https://wa.me/${(licenseSettings?.support_whatsapp || '+919876543210').replace(/[^0-9]/g, "")}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Button variant="outline" className="w-full gap-1 text-xs px-2 text-green-600 hover:text-green-700 hover:bg-green-50">
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp
               </Button>
             </a>
           </div>

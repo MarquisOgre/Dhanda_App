@@ -159,7 +159,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
+    <aside className="fixed left-0 top-0 h-[calc(100vh-3rem)] w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
       {/* Logo */}
       <div className="p-4 border-b border-sidebar-border">
         <Link to="/" className="flex justify-start">

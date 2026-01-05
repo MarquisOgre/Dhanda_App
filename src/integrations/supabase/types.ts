@@ -525,6 +525,42 @@ export type Database = {
           },
         ]
       }
+      license_settings: {
+        Row: {
+          created_at: string
+          expiry_date: string
+          id: string
+          license_type: string
+          licensed_to: string | null
+          support_email: string | null
+          support_phone: string | null
+          support_whatsapp: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          license_type?: string
+          licensed_to?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          support_whatsapp?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          license_type?: string
+          licensed_to?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          support_whatsapp?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
