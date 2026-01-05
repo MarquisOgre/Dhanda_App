@@ -62,6 +62,7 @@ export type Database = {
           business_name: string | null
           created_at: string
           email: string | null
+          financial_year_start: string | null
           gstin: string | null
           id: string
           invoice_prefix: string | null
@@ -77,6 +78,7 @@ export type Database = {
           business_name?: string | null
           created_at?: string
           email?: string | null
+          financial_year_start?: string | null
           gstin?: string | null
           id?: string
           invoice_prefix?: string | null
@@ -92,6 +94,7 @@ export type Database = {
           business_name?: string | null
           created_at?: string
           email?: string | null
+          financial_year_start?: string | null
           gstin?: string | null
           id?: string
           invoice_prefix?: string | null
