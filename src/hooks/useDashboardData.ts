@@ -1,0 +1,339 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+
+interface DashboardMetrics {
+  totalSales: number;
+  totalPurchase: number;
+  totalParties: number;
+  stockValue: number;
+  itemCount: number;
+  partiesThisMonth: number;
+  salesChange: number;
+  purchaseChange: number;
+}
+
+interface QuickStatsData {
+  totalReceivables: number;
+  receivablesParties: number;
+  totalPayables: number;
+  payablesParties: number;
+  overdueAmount: number;
+  overdueCount: number;
+  paidThisMonth: number;
+  paidCount: number;
+}
+
+interface Transaction {
+  id: string;
+  type: 'sale' | 'purchase';
+  party: string;
+  amount: number;
+  date: string;
+  invoice: string;
+}
+
+interface LowStockItem {
+  name: string;
+  stock: number;
+  minStock: number;
+}
+
+interface MonthlyData {
+  name: string;
+  sales: number;
+  purchase: number;
+}
+
+export function useDashboardData() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    totalSales: 0,
+    totalPurchase: 0,
+    totalParties: 0,
+    stockValue: 0,
+    itemCount: 0,
+    partiesThisMonth: 0,
+    salesChange: 0,
+    purchaseChange: 0,
+  });
+  const [quickStats, setQuickStats] = useState<QuickStatsData>({
+    totalReceivables: 0,
+    receivablesParties: 0,
+    totalPayables: 0,
+    payablesParties: 0,
+    overdueAmount: 0,
+    overdueCount: 0,
+    paidThisMonth: 0,
+    paidCount: 0,
+  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    setLoading(true);
+
+    try {
+      await Promise.all([
+        fetchMetrics(),
+        fetchQuickStats(),
+        fetchRecentTransactions(),
+        fetchLowStockItems(),
+        fetchMonthlyChartData(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMetrics = async () => {
+    const now = new Date();
+    const thisMonthStart = startOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+    // Fetch all invoices for calculations
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('invoice_type, total_amount, created_at')
+      .eq('is_deleted', false);
+
+    // Calculate totals
+    let totalSales = 0;
+    let totalPurchase = 0;
+    let salesThisMonth = 0;
+    let salesLastMonth = 0;
+    let purchaseThisMonth = 0;
+    let purchaseLastMonth = 0;
+
+    invoices?.forEach(inv => {
+      const amount = Number(inv.total_amount) || 0;
+      const createdAt = new Date(inv.created_at);
+      
+      if (inv.invoice_type === 'sale' || inv.invoice_type === 'sale_invoice') {
+        totalSales += amount;
+        if (createdAt >= thisMonthStart) salesThisMonth += amount;
+        if (createdAt >= lastMonthStart && createdAt <= lastMonthEnd) salesLastMonth += amount;
+      } else if (inv.invoice_type === 'purchase' || inv.invoice_type === 'purchase_bill') {
+        totalPurchase += amount;
+        if (createdAt >= thisMonthStart) purchaseThisMonth += amount;
+        if (createdAt >= lastMonthStart && createdAt <= lastMonthEnd) purchaseLastMonth += amount;
+      }
+    });
+
+    // Calculate percentage changes
+    const salesChange = salesLastMonth > 0 
+      ? ((salesThisMonth - salesLastMonth) / salesLastMonth) * 100 
+      : 0;
+    const purchaseChange = purchaseLastMonth > 0 
+      ? ((purchaseThisMonth - purchaseLastMonth) / purchaseLastMonth) * 100 
+      : 0;
+
+    // Fetch parties count
+    const { count: partiesCount } = await supabase
+      .from('parties')
+      .select('*', { count: 'exact', head: true });
+
+    const { count: partiesThisMonth } = await supabase
+      .from('parties')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', thisMonthStart.toISOString());
+
+    // Fetch items for stock value
+    const { data: items } = await supabase
+      .from('items')
+      .select('current_stock, purchase_price')
+      .eq('is_deleted', false);
+
+    let stockValue = 0;
+    items?.forEach(item => {
+      stockValue += (Number(item.current_stock) || 0) * (Number(item.purchase_price) || 0);
+    });
+
+    setMetrics({
+      totalSales,
+      totalPurchase,
+      totalParties: partiesCount || 0,
+      stockValue,
+      itemCount: items?.length || 0,
+      partiesThisMonth: partiesThisMonth || 0,
+      salesChange,
+      purchaseChange,
+    });
+  };
+
+  const fetchQuickStats = async () => {
+    const now = new Date();
+    const thisMonthStart = startOfMonth(now);
+
+    // Fetch unpaid sale invoices (receivables)
+    const { data: saleInvoices } = await supabase
+      .from('invoices')
+      .select('balance_due, party_id')
+      .in('invoice_type', ['sale', 'sale_invoice'])
+      .gt('balance_due', 0)
+      .eq('is_deleted', false);
+
+    const receivablesPartyIds = new Set(saleInvoices?.map(i => i.party_id).filter(Boolean));
+    const totalReceivables = saleInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
+
+    // Fetch unpaid purchase invoices (payables)
+    const { data: purchaseInvoices } = await supabase
+      .from('invoices')
+      .select('balance_due, party_id')
+      .in('invoice_type', ['purchase', 'purchase_bill'])
+      .gt('balance_due', 0)
+      .eq('is_deleted', false);
+
+    const payablesPartyIds = new Set(purchaseInvoices?.map(i => i.party_id).filter(Boolean));
+    const totalPayables = purchaseInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
+
+    // Fetch overdue invoices
+    const { data: overdueInvoices } = await supabase
+      .from('invoices')
+      .select('balance_due')
+      .lt('due_date', now.toISOString().split('T')[0])
+      .gt('balance_due', 0)
+      .eq('is_deleted', false);
+
+    const overdueAmount = overdueInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
+
+    // Fetch payments this month
+    const { data: paymentsThisMonth } = await supabase
+      .from('payments')
+      .select('amount')
+      .gte('payment_date', thisMonthStart.toISOString().split('T')[0]);
+
+    const paidThisMonth = paymentsThisMonth?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
+
+    setQuickStats({
+      totalReceivables,
+      receivablesParties: receivablesPartyIds.size,
+      totalPayables,
+      payablesParties: payablesPartyIds.size,
+      overdueAmount,
+      overdueCount: overdueInvoices?.length || 0,
+      paidThisMonth,
+      paidCount: paymentsThisMonth?.length || 0,
+    });
+  };
+
+  const fetchRecentTransactions = async () => {
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_type,
+        total_amount,
+        invoice_number,
+        created_at,
+        party_id,
+        parties(name)
+      `)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const formattedTransactions: Transaction[] = (invoices || []).map(inv => ({
+      id: inv.id,
+      type: (inv.invoice_type === 'sale' || inv.invoice_type === 'sale_invoice') ? 'sale' : 'purchase',
+      party: (inv.parties as any)?.name || 'Unknown Party',
+      amount: Number(inv.total_amount) || 0,
+      date: formatRelativeDate(new Date(inv.created_at)),
+      invoice: inv.invoice_number,
+    }));
+
+    setTransactions(formattedTransactions);
+  };
+
+  const fetchLowStockItems = async () => {
+    const { data: items } = await supabase
+      .from('items')
+      .select('name, current_stock, low_stock_alert')
+      .eq('is_deleted', false)
+      .order('current_stock', { ascending: true })
+      .limit(10);
+
+    const lowStock: LowStockItem[] = (items || [])
+      .filter(item => (Number(item.current_stock) || 0) <= (Number(item.low_stock_alert) || 10))
+      .slice(0, 4)
+      .map(item => ({
+        name: item.name,
+        stock: Number(item.current_stock) || 0,
+        minStock: Number(item.low_stock_alert) || 10,
+      }));
+
+    setLowStockItems(lowStock);
+  };
+
+  const fetchMonthlyChartData = async () => {
+    const months: MonthlyData[] = [];
+    const now = new Date();
+
+    for (let i = 8; i >= 0; i--) {
+      const monthDate = subMonths(now, i);
+      const monthStart = startOfMonth(monthDate);
+      const monthEnd = endOfMonth(monthDate);
+      const monthName = format(monthDate, 'MMM');
+
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select('invoice_type, total_amount')
+        .gte('created_at', monthStart.toISOString())
+        .lte('created_at', monthEnd.toISOString())
+        .eq('is_deleted', false);
+
+      let sales = 0;
+      let purchase = 0;
+
+      invoices?.forEach(inv => {
+        const amount = Number(inv.total_amount) || 0;
+        if (inv.invoice_type === 'sale' || inv.invoice_type === 'sale_invoice') {
+          sales += amount;
+        } else if (inv.invoice_type === 'purchase' || inv.invoice_type === 'purchase_bill') {
+          purchase += amount;
+        }
+      });
+
+      months.push({ name: monthName, sales, purchase });
+    }
+
+    setMonthlyData(months);
+  };
+
+  const formatRelativeDate = (date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return `Today, ${format(date, 'h:mm a')}`;
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else {
+      return `${diffDays} days ago`;
+    }
+  };
+
+  return {
+    loading,
+    metrics,
+    quickStats,
+    transactions,
+    lowStockItems,
+    monthlyData,
+    refetch: fetchDashboardData,
+  };
+}
