@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, FileText, CheckCircle, AlertCircle, Download, X } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, Download, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,32 +11,224 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+
+interface ImportedItem {
+  name: string;
+  category?: string;
+  unit?: string;
+  hsn_code?: string;
+  sale_price?: number;
+  purchase_price?: number;
+  opening_stock?: number;
+  low_stock_alert?: number;
+  tax_rate?: number;
+}
 
 export default function ImportItems() {
+  const { user } = useAuth();
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
   const [duplicateAction, setDuplicateAction] = useState("skip");
 
-  const handleImport = () => {
-    if (!uploadedFile) return;
+  const downloadTemplate = () => {
+    const headers = [
+      "Item Name",
+      "Category",
+      "Unit",
+      "HSN Code",
+      "Sale Price",
+      "Purchase Price",
+      "Opening Stock",
+      "Low Stock Alert",
+      "Tax Rate (%)"
+    ];
+    
+    const sampleData = [
+      ["Laptop Dell Inspiron", "Electronics", "PCS", "8471", "45000", "35000", "10", "5", "18"],
+      ["Wireless Mouse", "Accessories", "PCS", "8471", "500", "350", "50", "10", "18"],
+      ["USB Cable Type-C", "Accessories", "PCS", "8544", "150", "100", "100", "20", "18"],
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...sampleData.map(row => row.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "items_import_template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success("Template downloaded successfully!");
+  };
+
+  const parseCSV = (text: string): ImportedItem[] => {
+    const lines = text.split("\n").filter(line => line.trim());
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+    const items: ImportedItem[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(",").map(v => v.trim());
+      
+      const getCol = (possibleNames: string[]): string => {
+        const idx = headers.findIndex(h => possibleNames.some(n => h.includes(n)));
+        return idx >= 0 ? values[idx] || "" : "";
+      };
+
+      const name = getCol(["item name", "name", "item"]);
+      if (!name) continue;
+
+      items.push({
+        name,
+        category: getCol(["category", "cat"]) || undefined,
+        unit: getCol(["unit"]) || "PCS",
+        hsn_code: getCol(["hsn", "hsn code"]) || undefined,
+        sale_price: parseFloat(getCol(["sale price", "sale", "selling price"])) || 0,
+        purchase_price: parseFloat(getCol(["purchase price", "purchase", "cost price", "cost"])) || 0,
+        opening_stock: parseFloat(getCol(["opening stock", "stock", "qty", "quantity"])) || 0,
+        low_stock_alert: parseFloat(getCol(["low stock", "min stock", "alert"])) || 10,
+        tax_rate: parseFloat(getCol(["tax rate", "tax", "gst"])) || 0,
+      });
+    }
+
+    return items;
+  };
+
+  const handleImport = async () => {
+    if (!uploadedFile || !user) return;
     
     setIsImporting(true);
     setProgress(0);
     setImportResult(null);
-    
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsImporting(false);
-          setImportResult({ success: 145, failed: 3 });
-          return 100;
+
+    try {
+      const text = await uploadedFile.text();
+      const items = parseCSV(text);
+
+      if (items.length === 0) {
+        toast.error("No valid items found in the file");
+        setIsImporting(false);
+        return;
+      }
+
+      // Get existing items for duplicate check
+      const { data: existingItems } = await supabase
+        .from('items')
+        .select('name')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false);
+
+      const existingNames = new Set(existingItems?.map(i => i.name.toLowerCase()) || []);
+
+      // Get or create categories
+      const { data: existingCategories } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('user_id', user.id);
+
+      const categoryMap = new Map(existingCategories?.map(c => [c.name.toLowerCase(), c.id]) || []);
+
+      let success = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        setProgress(Math.round(((i + 1) / items.length) * 100));
+
+        const isDuplicate = existingNames.has(item.name.toLowerCase());
+
+        if (isDuplicate) {
+          if (duplicateAction === "skip") {
+            failed++;
+            errors.push(`Skipped duplicate: ${item.name}`);
+            continue;
+          } else if (duplicateAction === "update") {
+            // Update existing item
+            const { error } = await supabase
+              .from('items')
+              .update({
+                unit: item.unit,
+                hsn_code: item.hsn_code,
+                sale_price: item.sale_price,
+                purchase_price: item.purchase_price,
+                tax_rate: item.tax_rate,
+                low_stock_alert: item.low_stock_alert,
+              })
+              .eq('user_id', user.id)
+              .ilike('name', item.name);
+
+            if (error) {
+              failed++;
+              errors.push(`Failed to update: ${item.name}`);
+            } else {
+              success++;
+            }
+            continue;
+          }
+          // If "create", continue to create new item
         }
-        return prev + 10;
-      });
-    }, 300);
+
+        // Get or create category
+        let categoryId: string | null = null;
+        if (item.category) {
+          categoryId = categoryMap.get(item.category.toLowerCase()) || null;
+          if (!categoryId) {
+            const { data: newCat } = await supabase
+              .from('categories')
+              .insert({ name: item.category, user_id: user.id })
+              .select('id')
+              .single();
+            if (newCat) {
+              categoryId = newCat.id;
+              categoryMap.set(item.category.toLowerCase(), newCat.id);
+            }
+          }
+        }
+
+        const { error } = await supabase.from('items').insert({
+          user_id: user.id,
+          name: item.name,
+          category_id: categoryId,
+          unit: item.unit || "PCS",
+          hsn_code: item.hsn_code,
+          sale_price: item.sale_price || 0,
+          purchase_price: item.purchase_price || 0,
+          opening_stock: item.opening_stock || 0,
+          current_stock: item.opening_stock || 0,
+          low_stock_alert: item.low_stock_alert || 10,
+          tax_rate: item.tax_rate || 0,
+        });
+
+        if (error) {
+          failed++;
+          errors.push(`Failed: ${item.name} - ${error.message}`);
+        } else {
+          success++;
+          existingNames.add(item.name.toLowerCase());
+        }
+      }
+
+      setImportResult({ success, failed, errors });
+      if (success > 0) {
+        toast.success(`Successfully imported ${success} items`);
+      }
+    } catch (error: any) {
+      console.error("Import error:", error);
+      toast.error("Failed to import items: " + error.message);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (
@@ -46,7 +238,7 @@ export default function ImportItems() {
           <h1 className="text-2xl font-bold">Import Items</h1>
           <p className="text-muted-foreground">Import items from Excel or CSV file</p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2" onClick={downloadTemplate}>
           <Download className="w-4 h-4" />
           Download Template
         </Button>
@@ -58,9 +250,9 @@ export default function ImportItems() {
         <ul className="text-sm text-muted-foreground space-y-2">
           <li>• Download the sample template to see the required format</li>
           <li>• Fill in your item data in the template</li>
-          <li>• Required columns: Item Name, Category, Unit, Sale Price</li>
-          <li>• Optional columns: HSN Code, Purchase Price, Opening Stock, Min Stock</li>
-          <li>• Upload the completed file (Excel or CSV)</li>
+          <li>• Required columns: Item Name</li>
+          <li>• Optional columns: Category, Unit, HSN Code, Sale Price, Purchase Price, Opening Stock, Low Stock Alert, Tax Rate</li>
+          <li>• Upload the completed file (CSV format)</li>
         </ul>
       </div>
 
@@ -105,7 +297,7 @@ export default function ImportItems() {
               <Input
                 id="import-file"
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                accept=".csv"
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files?.[0]) {
@@ -123,7 +315,7 @@ export default function ImportItems() {
           </div>
 
           <p className="text-xs text-muted-foreground text-center mt-2">
-            Supported formats: .xlsx, .xls, .csv
+            Supported format: .csv
           </p>
         </div>
 
@@ -168,6 +360,16 @@ export default function ImportItems() {
                     <span className="font-medium text-destructive">{importResult.failed} items failed to import</span>
                   </div>
                 )}
+                {importResult.errors.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                    {importResult.errors.slice(0, 10).map((err, i) => (
+                      <p key={i}>{err}</p>
+                    ))}
+                    {importResult.errors.length > 10 && (
+                      <p>...and {importResult.errors.length - 10} more errors</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -176,8 +378,17 @@ export default function ImportItems() {
               onClick={handleImport}
               disabled={isImporting || !uploadedFile}
             >
-              <Upload className="w-4 h-4" />
-              {isImporting ? "Importing..." : "Import Items"}
+              {isImporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Import Items
+                </>
+              )}
             </Button>
           </div>
         </div>
