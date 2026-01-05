@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
   Search,
-  Filter,
   MoreHorizontal,
   Phone,
   Mail,
   MapPin,
   ArrowUpCircle,
   ArrowDownCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,75 +20,69 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
-const parties = [
-  {
-    id: 1,
-    name: "Rahul Electronics",
-    type: "customer",
-    phone: "+91 98765 43210",
-    email: "rahul@electronics.com",
-    balance: 45000,
-    balanceType: "receivable",
-    gstin: "27AADCR5678P1Z5",
-    address: "Mumbai, Maharashtra",
-  },
-  {
-    id: 2,
-    name: "Metro Suppliers",
-    type: "supplier",
-    phone: "+91 87654 32109",
-    email: "contact@metrosuppliers.com",
-    balance: 28500,
-    balanceType: "payable",
-    gstin: "29AABCS1234R1Z2",
-    address: "Bangalore, Karnataka",
-  },
-  {
-    id: 3,
-    name: "Sharma Traders",
-    type: "customer",
-    phone: "+91 76543 21098",
-    email: "sharma@traders.in",
-    balance: 12800,
-    balanceType: "receivable",
-    gstin: "09AADCT4567Q1Z3",
-    address: "Lucknow, Uttar Pradesh",
-  },
-  {
-    id: 4,
-    name: "ABC Wholesalers",
-    type: "supplier",
-    phone: "+91 65432 10987",
-    email: "info@abcwholesale.com",
-    balance: 0,
-    balanceType: "settled",
-    gstin: "33AABCW8901S1Z4",
-    address: "Chennai, Tamil Nadu",
-  },
-  {
-    id: 5,
-    name: "Quick Mart",
-    type: "customer",
-    phone: "+91 54321 09876",
-    email: "orders@quickmart.co",
-    balance: 8400,
-    balanceType: "receivable",
-    gstin: "06AADCQ2345T1Z6",
-    address: "Jaipur, Rajasthan",
-  },
-];
+interface Party {
+  id: string;
+  name: string;
+  party_type: string | null;
+  phone: string | null;
+  email: string | null;
+  opening_balance: number | null;
+  billing_address: string | null;
+  gstin: string | null;
+}
 
 export default function PartiesList() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "customer" | "supplier">("all");
+  const [parties, setParties] = useState<Party[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchParties();
+    }
+  }, [user]);
+
+  const fetchParties = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("parties")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setParties(data || []);
+    } catch (error: any) {
+      toast.error("Failed to fetch parties: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this party?")) return;
+    
+    try {
+      const { error } = await supabase.from("parties").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Party deleted successfully");
+      fetchParties();
+    } catch (error: any) {
+      toast.error("Failed to delete party: " + error.message);
+    }
+  };
 
   const filteredParties = parties.filter((party) => {
     const matchesSearch =
       party.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      party.phone.includes(searchQuery) ||
-      party.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filter === "all" || party.type === filter;
+      (party.phone && party.phone.includes(searchQuery)) ||
+      (party.email && party.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesFilter = filter === "all" || party.party_type === filter;
     return matchesSearch && matchesFilter;
   });
 
@@ -138,88 +132,111 @@ export default function PartiesList() {
       </div>
 
       {/* Parties Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredParties.map((party) => (
-          <div key={party.id} className="metric-card">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold",
-                    party.type === "customer"
-                      ? "bg-primary/10 text-primary"
-                      : "bg-accent/10 text-accent"
-                  )}
-                >
-                  {party.name.charAt(0)}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : filteredParties.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No parties found</p>
+          <Button asChild className="mt-4">
+            <Link to="/parties/add">Add your first party</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredParties.map((party) => {
+            const balance = party.opening_balance || 0;
+            const balanceType = balance > 0 ? "receivable" : balance < 0 ? "payable" : "settled";
+            
+            return (
+              <div key={party.id} className="metric-card">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold",
+                        party.party_type === "customer"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-accent/10 text-accent"
+                      )}
+                    >
+                      {party.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{party.name}</h3>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded-full capitalize",
+                          party.party_type === "customer"
+                            ? "bg-primary/10 text-primary"
+                            : "bg-accent/10 text-accent"
+                        )}
+                      >
+                        {party.party_type || "customer"}
+                      </span>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>View Details</DropdownMenuItem>
+                      <DropdownMenuItem>Edit Party</DropdownMenuItem>
+                      <DropdownMenuItem>View Transactions</DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDelete(party.id)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <div>
-                  <h3 className="font-semibold">{party.name}</h3>
-                  <span
-                    className={cn(
-                      "text-xs px-2 py-0.5 rounded-full",
-                      party.type === "customer"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-accent/10 text-accent"
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="w-4 h-4" />
+                    <span>{party.phone || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="w-4 h-4" />
+                    <span>{party.email || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span>{party.billing_address || "-"}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Balance</span>
+                  <div className="flex items-center gap-2">
+                    {balanceType === "receivable" && (
+                      <ArrowUpCircle className="w-4 h-4 text-success" />
                     )}
-                  >
-                    {party.type}
-                  </span>
+                    {balanceType === "payable" && (
+                      <ArrowDownCircle className="w-4 h-4 text-warning" />
+                    )}
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        balanceType === "receivable" && "text-success",
+                        balanceType === "payable" && "text-warning"
+                      )}
+                    >
+                      ₹{Math.abs(balance).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>View Details</DropdownMenuItem>
-                  <DropdownMenuItem>Edit Party</DropdownMenuItem>
-                  <DropdownMenuItem>View Transactions</DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="w-4 h-4" />
-                <span>{party.phone}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Mail className="w-4 h-4" />
-                <span>{party.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                <span>{party.address}</span>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Balance</span>
-              <div className="flex items-center gap-2">
-                {party.balanceType === "receivable" && (
-                  <ArrowUpCircle className="w-4 h-4 text-success" />
-                )}
-                {party.balanceType === "payable" && (
-                  <ArrowDownCircle className="w-4 h-4 text-warning" />
-                )}
-                <span
-                  className={cn(
-                    "font-semibold",
-                    party.balanceType === "receivable" && "text-success",
-                    party.balanceType === "payable" && "text-warning"
-                  )}
-                >
-                  ₹{party.balance.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
