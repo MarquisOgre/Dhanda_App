@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface InvoiceItem {
   id: number;
@@ -28,17 +30,36 @@ interface InvoiceItemsTableProps {
   onItemsChange: (items: InvoiceItem[]) => void;
 }
 
-const sampleItems = [
-  { id: "1", name: "Laptop Dell Inspiron 15", hsn: "8471", rate: 45000, unit: "pcs" },
-  { id: "2", name: "Wireless Mouse Logitech", hsn: "8471", rate: 850, unit: "pcs" },
-  { id: "3", name: "USB-C Hub 7-in-1", hsn: "8471", rate: 1200, unit: "pcs" },
-  { id: "4", name: "Keyboard Mechanical RGB", hsn: "8471", rate: 3500, unit: "pcs" },
-  { id: "5", name: "Monitor 24 inch LED", hsn: "8528", rate: 12000, unit: "pcs" },
-  { id: "6", name: "Printer Ink Cartridge", hsn: "8443", rate: 650, unit: "pcs" },
-  { id: "7", name: "External SSD 500GB", hsn: "8471", rate: 5500, unit: "pcs" },
-];
+interface DbItem {
+  id: string;
+  name: string;
+  hsn_code: string | null;
+  sale_price: number | null;
+  unit: string | null;
+  tax_rate: number | null;
+}
 
 export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTableProps) {
+  const { user } = useAuth();
+  const [dbItems, setDbItems] = useState<DbItem[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchItems();
+    }
+  }, [user]);
+
+  const fetchItems = async () => {
+    const { data } = await supabase
+      .from("items")
+      .select("id, name, hsn_code, sale_price, unit, tax_rate")
+      .eq("is_deleted", false)
+      .order("name");
+    if (data) {
+      setDbItems(data);
+    }
+  };
+
   const addItem = () => {
     const newItem: InvoiceItem = {
       id: Date.now(),
@@ -62,12 +83,13 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
         
         // If item selection changed, update related fields
         if (field === "itemId") {
-          const selectedItem = sampleItems.find((i) => i.id === value);
+          const selectedItem = dbItems.find((i) => i.id === value);
           if (selectedItem) {
             updatedItem.name = selectedItem.name;
-            updatedItem.hsn = selectedItem.hsn;
-            updatedItem.rate = selectedItem.rate;
-            updatedItem.unit = selectedItem.unit;
+            updatedItem.hsn = selectedItem.hsn_code || "";
+            updatedItem.rate = selectedItem.sale_price || 0;
+            updatedItem.unit = selectedItem.unit || "pcs";
+            updatedItem.taxRate = selectedItem.tax_rate || 18;
           }
         }
         
@@ -120,11 +142,16 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
                       <SelectValue placeholder="Select item" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sampleItems.map((si) => (
+                      {dbItems.map((si) => (
                         <SelectItem key={si.id} value={si.id}>
                           {si.name}
                         </SelectItem>
                       ))}
+                      {dbItems.length === 0 && (
+                        <div className="py-2 px-3 text-sm text-muted-foreground">
+                          No items found. Add items first.
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                 </td>

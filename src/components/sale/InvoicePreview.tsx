@@ -1,4 +1,5 @@
-import { FileText, Printer, Download, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { FileText, Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,8 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { InvoiceItem } from "./InvoiceItemsTable";
-import { sampleParties } from "./PartySelector";
 import { calculateTotals } from "./TaxSummary";
+import { supabase } from "@/integrations/supabase/client";
 
 interface InvoicePreviewProps {
   open: boolean;
@@ -22,6 +23,14 @@ interface InvoicePreviewProps {
   notes?: string;
 }
 
+interface Party {
+  id: string;
+  name: string;
+  gstin: string | null;
+  phone: string | null;
+  billing_address: string | null;
+}
+
 export function InvoicePreview({
   open,
   onOpenChange,
@@ -33,8 +42,23 @@ export function InvoicePreview({
   items,
   notes,
 }: InvoicePreviewProps) {
-  const party = sampleParties.find((p) => p.id === partyId);
+  const [party, setParty] = useState<Party | null>(null);
   const { subtotal, totalTax, grandTotal } = calculateTotals(items);
+
+  useEffect(() => {
+    if (partyId && open) {
+      fetchParty();
+    }
+  }, [partyId, open]);
+
+  const fetchParty = async () => {
+    const { data } = await supabase
+      .from("parties")
+      .select("id, name, gstin, phone, billing_address")
+      .eq("id", partyId)
+      .maybeSingle();
+    if (data) setParty(data);
+  };
 
   const totalDiscount = items.reduce((acc, item) => {
     const itemSubtotal = item.quantity * item.rate;
@@ -60,9 +84,7 @@ export function InvoicePreview({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Invoice Document */}
         <div className="bg-white border border-border rounded-lg p-8 text-foreground">
-          {/* Header */}
           <div className="flex justify-between items-start mb-8">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -73,12 +95,6 @@ export function InvoicePreview({
                   <h1 className="text-2xl font-bold">AccuBooks</h1>
                   <p className="text-sm text-muted-foreground">Accounting Software</p>
                 </div>
-              </div>
-              <div className="text-sm text-muted-foreground mt-4">
-                <p>123 Business Street</p>
-                <p>Mumbai, Maharashtra - 400001</p>
-                <p>GSTIN: 27AABCU9603R1ZM</p>
-                <p>Phone: +91 98765 43210</p>
               </div>
             </div>
             <div className="text-right">
@@ -91,28 +107,26 @@ export function InvoicePreview({
             </div>
           </div>
 
-          {/* Bill To */}
           <div className="mb-8 p-4 bg-muted/30 rounded-lg">
             <p className="text-sm font-medium text-muted-foreground mb-2">Bill To:</p>
             {party ? (
               <div>
                 <p className="font-bold text-lg">{party.name}</p>
-                <p className="text-sm text-muted-foreground">{party.address}</p>
-                <p className="text-sm text-muted-foreground">GSTIN: {party.gstin}</p>
-                <p className="text-sm text-muted-foreground">Phone: {party.phone}</p>
+                <p className="text-sm text-muted-foreground">{party.billing_address || "N/A"}</p>
+                <p className="text-sm text-muted-foreground">GSTIN: {party.gstin || "N/A"}</p>
+                <p className="text-sm text-muted-foreground">Phone: {party.phone || "N/A"}</p>
               </div>
             ) : (
               <p className="text-muted-foreground">No party selected</p>
             )}
           </div>
 
-          {/* Items Table */}
           <div className="mb-8 border border-border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr>
                   <th className="text-left py-3 px-4 font-medium">#</th>
-                  <th className="text-left py-3 px-4 font-medium">Item Description</th>
+                  <th className="text-left py-3 px-4 font-medium">Item</th>
                   <th className="text-left py-3 px-4 font-medium">HSN</th>
                   <th className="text-center py-3 px-4 font-medium">Qty</th>
                   <th className="text-right py-3 px-4 font-medium">Rate</th>
@@ -136,7 +150,6 @@ export function InvoicePreview({
             </table>
           </div>
 
-          {/* Summary */}
           <div className="flex justify-end">
             <div className="w-80 space-y-2">
               <div className="flex justify-between text-sm">
@@ -160,7 +173,6 @@ export function InvoicePreview({
             </div>
           </div>
 
-          {/* Notes */}
           {notes && (
             <div className="mt-8 pt-4 border-t border-border">
               <p className="text-sm font-medium text-muted-foreground mb-1">Notes:</p>
@@ -168,7 +180,6 @@ export function InvoicePreview({
             </div>
           )}
 
-          {/* Footer */}
           <div className="mt-12 pt-4 border-t border-border flex justify-between">
             <div className="text-sm text-muted-foreground">
               <p>Terms & Conditions Apply</p>

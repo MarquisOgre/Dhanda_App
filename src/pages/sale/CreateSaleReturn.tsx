@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Eye, Calendar, RotateCcw } from "lucide-react";
+import { ArrowLeft, Save, Eye, Calendar, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,21 +13,14 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import { useToast } from "@/hooks/use-toast";
-
-const originalInvoices = [
-  { id: "INV-001", date: "02 Jan 2026", party: "Rahul Electronics", amount: 45000 },
-  { id: "INV-004", date: "30 Dec 2025", party: "Global Systems", amount: 125000 },
-  { id: "INV-005", date: "28 Dec 2025", party: "Tech Solutions", amount: 67500 },
-];
+import { useInvoiceSave } from "@/hooks/useInvoiceSave";
 
 export default function CreateSaleReturn() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { saveInvoice, loading } = useInvoiceSave();
   
   const [creditNoteNumber, setCreditNoteNumber] = useState("CN-001");
   const [creditNoteDate, setCreditNoteDate] = useState<Date>(new Date());
-  const [originalInvoice, setOriginalInvoice] = useState("");
   const [returnReason, setReturnReason] = useState("");
   const [selectedParty, setSelectedParty] = useState("");
   const [notes, setNotes] = useState("");
@@ -37,17 +30,19 @@ export default function CreateSaleReturn() {
     { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
   ]);
 
-  const handleSave = () => {
-    if (!selectedParty) {
-      toast({ title: "Error", description: "Please select a party", variant: "destructive" });
-      return;
+  const handleSave = async () => {
+    const result = await saveInvoice({
+      invoiceType: "credit_note",
+      invoiceNumber: creditNoteNumber,
+      invoiceDate: creditNoteDate,
+      partyId: selectedParty,
+      items,
+      notes: `${notes}\nReturn Reason: ${returnReason}`,
+    });
+
+    if (result) {
+      navigate("/sale/return");
     }
-    if (items.filter((i) => i.itemId).length === 0) {
-      toast({ title: "Error", description: "Please add at least one item", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Success", description: "Credit Note created successfully!" });
-    navigate("/sale/return");
   };
 
   return (
@@ -69,8 +64,9 @@ export default function CreateSaleReturn() {
           <Button variant="outline" onClick={() => setShowPreview(true)} className="gap-2">
             <Eye className="w-4 h-4" />Preview
           </Button>
-          <Button onClick={handleSave} className="btn-gradient gap-2">
-            <Save className="w-4 h-4" />Save Credit Note
+          <Button onClick={handleSave} className="btn-gradient gap-2" disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Credit Note
           </Button>
         </div>
       </div>
@@ -79,7 +75,7 @@ export default function CreateSaleReturn() {
         <div className="lg:col-span-2 space-y-6">
           <div className="metric-card">
             <h2 className="text-lg font-semibold mb-4">Credit Note Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Credit Note Number</Label>
                 <Input value={creditNoteNumber} onChange={(e) => setCreditNoteNumber(e.target.value)} />
@@ -96,19 +92,6 @@ export default function CreateSaleReturn() {
                     <CalendarComponent mode="single" selected={creditNoteDate} onSelect={(d) => d && setCreditNoteDate(d)} initialFocus />
                   </PopoverContent>
                 </Popover>
-              </div>
-              <div className="space-y-2">
-                <Label>Original Invoice</Label>
-                <Select value={originalInvoice} onValueChange={setOriginalInvoice}>
-                  <SelectTrigger><SelectValue placeholder="Select invoice" /></SelectTrigger>
-                  <SelectContent>
-                    {originalInvoices.map((inv) => (
-                      <SelectItem key={inv.id} value={inv.id}>
-                        {inv.id} - {inv.party}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>

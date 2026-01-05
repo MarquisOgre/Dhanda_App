@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,28 +13,60 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AddParty() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     type: "customer",
     phone: "",
     email: "",
     gstin: "",
-    pan: "",
     billingAddress: "",
     shippingAddress: "",
     openingBalance: "",
-    balanceType: "receivable",
     creditLimit: "",
-    creditDays: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Party added successfully!");
-    navigate("/parties");
+    if (!user) {
+      toast.error("Please login to add a party");
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      toast.error("Party name is required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("parties").insert({
+        user_id: user.id,
+        name: formData.name.trim(),
+        party_type: formData.type,
+        phone: formData.phone || null,
+        email: formData.email || null,
+        gstin: formData.gstin || null,
+        billing_address: formData.billingAddress || null,
+        shipping_address: formData.shippingAddress || null,
+        opening_balance: formData.openingBalance ? parseFloat(formData.openingBalance) : 0,
+        credit_limit: formData.creditLimit ? parseFloat(formData.creditLimit) : null,
+      });
+
+      if (error) throw error;
+      toast.success("Party added successfully!");
+      navigate("/parties");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add party");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -123,15 +155,6 @@ export default function AddParty() {
                   placeholder="22AAAAA0000A1Z5"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="pan">PAN</Label>
-                <Input
-                  id="pan"
-                  value={formData.pan}
-                  onChange={(e) => handleChange("pan", e.target.value)}
-                  placeholder="AAAAA0000A"
-                />
-              </div>
             </div>
           </div>
 
@@ -165,7 +188,7 @@ export default function AddParty() {
           {/* Balance & Credit */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Balance & Credit</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="openingBalance">Opening Balance</Label>
                 <Input
@@ -177,21 +200,6 @@ export default function AddParty() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="balanceType">Balance Type</Label>
-                <Select
-                  value={formData.balanceType}
-                  onValueChange={(value) => handleChange("balanceType", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="receivable">To Receive</SelectItem>
-                    <SelectItem value="payable">To Pay</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="creditLimit">Credit Limit</Label>
                 <Input
                   id="creditLimit"
@@ -201,23 +209,13 @@ export default function AddParty() {
                   placeholder="₹0"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="creditDays">Credit Days</Label>
-                <Input
-                  id="creditDays"
-                  type="number"
-                  value={formData.creditDays}
-                  onChange={(e) => handleChange("creditDays", e.target.value)}
-                  placeholder="0"
-                />
-              </div>
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-4 pt-4 border-t border-border">
-            <Button type="submit" className="btn-gradient gap-2">
-              <Save className="w-4 h-4" />
+            <Button type="submit" className="btn-gradient gap-2" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Party
             </Button>
             <Button type="button" variant="outline" asChild>

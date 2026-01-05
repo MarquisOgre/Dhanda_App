@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Select,
   SelectContent,
@@ -6,15 +7,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Party {
   id: string;
   name: string;
   gstin?: string;
   phone?: string;
-  address?: string;
-  type: "customer" | "supplier";
-  balance: number;
+  billing_address?: string;
+  party_type: "customer" | "supplier";
+  opening_balance: number;
 }
 
 interface PartySelectorProps {
@@ -24,32 +27,46 @@ interface PartySelectorProps {
   label?: string;
 }
 
-const sampleParties: Party[] = [
-  { id: "1", name: "Rahul Electronics", gstin: "27AABCU9603R1ZM", phone: "9876543210", address: "Mumbai, Maharashtra", type: "customer", balance: 15000 },
-  { id: "2", name: "Sharma Traders", gstin: "27AABCU9603R1ZN", phone: "9876543211", address: "Delhi", type: "customer", balance: 7800 },
-  { id: "3", name: "Quick Mart", gstin: "27AABCU9603R1ZO", phone: "9876543212", address: "Pune, Maharashtra", type: "customer", balance: 8400 },
-  { id: "4", name: "Global Systems", gstin: "27AABCU9603R1ZP", phone: "9876543213", address: "Bangalore, Karnataka", type: "customer", balance: 0 },
-  { id: "5", name: "Tech Solutions", gstin: "27AABCU9603R1ZQ", phone: "9876543214", address: "Hyderabad, Telangana", type: "customer", balance: -5000 },
-  { id: "6", name: "ABC Suppliers", gstin: "27AABCU9603R1ZR", phone: "9876543215", address: "Chennai, Tamil Nadu", type: "supplier", balance: -25000 },
-  { id: "7", name: "XYZ Distributors", gstin: "27AABCU9603R1ZS", phone: "9876543216", address: "Kolkata, West Bengal", type: "supplier", balance: -12000 },
-];
-
 export function PartySelector({ value, onChange, partyType = "all", label = "Select Party" }: PartySelectorProps) {
-  const filteredParties = partyType === "all" 
-    ? sampleParties 
-    : sampleParties.filter(p => p.type === partyType);
+  const { user } = useAuth();
+  const [parties, setParties] = useState<Party[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const selectedParty = sampleParties.find(p => p.id === value);
+  useEffect(() => {
+    if (user) {
+      fetchParties();
+    }
+  }, [user, partyType]);
+
+  const fetchParties = async () => {
+    setLoading(true);
+    let query = supabase
+      .from("parties")
+      .select("id, name, gstin, phone, billing_address, party_type, opening_balance")
+      .order("name");
+
+    if (partyType !== "all") {
+      query = query.eq("party_type", partyType);
+    }
+
+    const { data } = await query;
+    if (data) {
+      setParties(data as Party[]);
+    }
+    setLoading(false);
+  };
+
+  const selectedParty = parties.find(p => p.id === value);
 
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger>
-          <SelectValue placeholder="Search or select party..." />
+          <SelectValue placeholder={loading ? "Loading..." : "Search or select party..."} />
         </SelectTrigger>
         <SelectContent>
-          {filteredParties.map((party) => (
+          {parties.map((party) => (
             <SelectItem key={party.id} value={party.id}>
               <div className="flex flex-col">
                 <span className="font-medium">{party.name}</span>
@@ -57,6 +74,11 @@ export function PartySelector({ value, onChange, partyType = "all", label = "Sel
               </div>
             </SelectItem>
           ))}
+          {parties.length === 0 && !loading && (
+            <div className="py-2 px-3 text-sm text-muted-foreground">
+              No parties found. Add a party first.
+            </div>
+          )}
         </SelectContent>
       </Select>
       
@@ -64,11 +86,11 @@ export function PartySelector({ value, onChange, partyType = "all", label = "Sel
         <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg space-y-1">
           <p><span className="font-medium">GSTIN:</span> {selectedParty.gstin || "N/A"}</p>
           <p><span className="font-medium">Phone:</span> {selectedParty.phone || "N/A"}</p>
-          <p><span className="font-medium">Address:</span> {selectedParty.address || "N/A"}</p>
+          <p><span className="font-medium">Address:</span> {selectedParty.billing_address || "N/A"}</p>
           <p>
-            <span className="font-medium">Balance:</span>{" "}
-            <span className={selectedParty.balance >= 0 ? "text-success" : "text-destructive"}>
-              ₹{Math.abs(selectedParty.balance).toLocaleString("en-IN")} {selectedParty.balance >= 0 ? "receivable" : "payable"}
+            <span className="font-medium">Opening Balance:</span>{" "}
+            <span className={selectedParty.opening_balance >= 0 ? "text-success" : "text-destructive"}>
+              ₹{Math.abs(selectedParty.opening_balance || 0).toLocaleString("en-IN")}
             </span>
           </p>
         </div>
@@ -76,5 +98,3 @@ export function PartySelector({ value, onChange, partyType = "all", label = "Sel
     </div>
   );
 }
-
-export { sampleParties };

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Eye, Calendar } from "lucide-react";
+import { ArrowLeft, Save, Eye, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +13,11 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
-import { useToast } from "@/hooks/use-toast";
+import { useInvoiceSave } from "@/hooks/useInvoiceSave";
 
 export default function CreateSaleInvoice() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { saveInvoice, loading } = useInvoiceSave();
   
   const [invoiceNumber, setInvoiceNumber] = useState("INV-006");
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
@@ -41,31 +41,20 @@ export default function CreateSaleInvoice() {
     },
   ]);
 
-  const handleSave = () => {
-    if (!selectedParty) {
-      toast({
-        title: "Error",
-        description: "Please select a party",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const validItems = items.filter((item) => item.itemId);
-    if (validItems.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please add at least one item",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: "Sale invoice created successfully!",
+  const handleSave = async () => {
+    const result = await saveInvoice({
+      invoiceType: "sale_invoice",
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      partyId: selectedParty,
+      items,
+      notes,
     });
-    navigate("/sale/invoices");
+
+    if (result) {
+      navigate("/sale/invoices");
+    }
   };
 
   return (
@@ -88,8 +77,8 @@ export default function CreateSaleInvoice() {
             <Eye className="w-4 h-4" />
             Preview
           </Button>
-          <Button onClick={handleSave} className="btn-gradient gap-2">
-            <Save className="w-4 h-4" />
+          <Button onClick={handleSave} className="btn-gradient gap-2" disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Invoice
           </Button>
         </div>

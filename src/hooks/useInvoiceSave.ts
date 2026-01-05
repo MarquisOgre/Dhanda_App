@@ -1,0 +1,129 @@
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { InvoiceItem } from "@/components/sale/InvoiceItemsTable";
+
+interface SaveInvoiceParams {
+  invoiceType: string;
+  invoiceNumber: string;
+  invoiceDate: Date;
+  dueDate?: Date;
+  partyId: string;
+  items: InvoiceItem[];
+  notes?: string;
+}
+
+export function useInvoiceSave() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const saveInvoice = async ({
+    invoiceType,
+    invoiceNumber,
+    invoiceDate,
+    dueDate,
+    partyId,
+    items,
+    notes,
+  }: SaveInvoiceParams) => {
+    if (!user) {
+      toast.error("Please login to save");
+      return null;
+    }
+
+    if (!partyId) {
+      toast.error("Please select a party");
+      return null;
+    }
+
+    const validItems = items.filter((item) => item.itemId);
+    if (validItems.length === 0) {
+      toast.error("Please add at least one item");
+      return null;
+    }
+
+    setLoading(true);
+    try {
+      // Calculate totals
+      let subtotal = 0;
+      let taxAmount = 0;
+      let discountAmount = 0;
+
+      validItems.forEach((item) => {
+        const itemSubtotal = item.quantity * item.rate;
+        const itemDiscount = (itemSubtotal * item.discount) / 100;
+        const taxableAmount = itemSubtotal - itemDiscount;
+        const itemTax = (taxableAmount * item.taxRate) / 100;
+        
+        subtotal += itemSubtotal;
+        discountAmount += itemDiscount;
+        taxAmount += itemTax;
+      });
+
+      const totalAmount = subtotal - discountAmount + taxAmount;
+
+      // Insert invoice
+      const { data: invoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .insert({
+          user_id: user.id,
+          invoice_type: invoiceType,
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate.toISOString().split("T")[0],
+          due_date: dueDate ? dueDate.toISOString().split("T")[0] : null,
+          party_id: partyId,
+          subtotal,
+          tax_amount: taxAmount,
+          discount_amount: discountAmount,
+          total_amount: totalAmount,
+          balance_due: totalAmount,
+          notes: notes || null,
+          status: "unpaid",
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Insert invoice items
+      const invoiceItems = validItems.map((item) => {
+        const itemSubtotal = item.quantity * item.rate;
+        const itemDiscount = (itemSubtotal * item.discount) / 100;
+        const taxableAmount = itemSubtotal - itemDiscount;
+        const itemTax = (taxableAmount * item.taxRate) / 100;
+
+        return {
+          invoice_id: invoice.id,
+          item_id: item.itemId,
+          item_name: item.name,
+          hsn_code: item.hsn || null,
+          quantity: item.quantity,
+          unit: item.unit,
+          rate: item.rate,
+          discount_percent: item.discount,
+          discount_amount: itemDiscount,
+          tax_rate: item.taxRate,
+          tax_amount: itemTax,
+          total: taxableAmount + itemTax,
+        };
+      });
+
+      const { error: itemsError } = await supabase
+        .from("invoice_items")
+        .insert(invoiceItems);
+
+      if (itemsError) throw itemsError;
+
+      toast.success(`${invoiceType} saved successfully!`);
+      return invoice;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { saveInvoice, loading };
+}

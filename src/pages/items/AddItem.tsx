@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -13,37 +12,78 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-
-const categories = [
-  "Electronics",
-  "Mobiles",
-  "Computers",
-  "Accessories",
-  "Printers",
-  "Home Appliances",
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AddItem() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [formData, setFormData] = useState({
     name: "",
-    sku: "",
-    category: "",
-    description: "",
+    categoryId: "",
     salePrice: "",
     purchasePrice: "",
-    unit: "Pcs",
+    unit: "PCS",
     openingStock: "",
     minStock: "",
     hsn: "",
     gst: "18",
-    cess: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      fetchCategories();
+    }
+  }, [user]);
+
+  const fetchCategories = async () => {
+    const { data } = await supabase
+      .from("categories")
+      .select("id, name")
+      .order("name");
+    if (data) setCategories(data);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Item added successfully!");
-    navigate("/items");
+    if (!user) {
+      toast.error("Please login to add an item");
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      toast.error("Item name is required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const openingStock = formData.openingStock ? parseFloat(formData.openingStock) : 0;
+      
+      const { error } = await supabase.from("items").insert({
+        user_id: user.id,
+        name: formData.name.trim(),
+        category_id: formData.categoryId || null,
+        sale_price: formData.salePrice ? parseFloat(formData.salePrice) : 0,
+        purchase_price: formData.purchasePrice ? parseFloat(formData.purchasePrice) : 0,
+        unit: formData.unit,
+        opening_stock: openingStock,
+        current_stock: openingStock,
+        low_stock_alert: formData.minStock ? parseFloat(formData.minStock) : 10,
+        hsn_code: formData.hsn || null,
+        tax_rate: parseFloat(formData.gst),
+      });
+
+      if (error) throw error;
+      toast.success("Item added successfully!");
+      navigate("/items");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add item");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -83,27 +123,18 @@ export default function AddItem() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sku">SKU / Item Code</Label>
-                <Input
-                  id="sku"
-                  value={formData.sku}
-                  onChange={(e) => handleChange("sku", e.target.value)}
-                  placeholder="e.g., SAM-TV-43"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select
-                  value={formData.category}
-                  onValueChange={(value) => handleChange("category", value)}
+                  value={formData.categoryId}
+                  onValueChange={(value) => handleChange("categoryId", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -119,24 +150,14 @@ export default function AddItem() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Pcs">Pieces (Pcs)</SelectItem>
-                    <SelectItem value="Kg">Kilograms (Kg)</SelectItem>
-                    <SelectItem value="Ltr">Liters (Ltr)</SelectItem>
-                    <SelectItem value="Mtr">Meters (Mtr)</SelectItem>
-                    <SelectItem value="Box">Box</SelectItem>
-                    <SelectItem value="Dozen">Dozen</SelectItem>
+                    <SelectItem value="PCS">Pieces (Pcs)</SelectItem>
+                    <SelectItem value="KG">Kilograms (Kg)</SelectItem>
+                    <SelectItem value="LTR">Liters (Ltr)</SelectItem>
+                    <SelectItem value="MTR">Meters (Mtr)</SelectItem>
+                    <SelectItem value="BOX">Box</SelectItem>
+                    <SelectItem value="DOZEN">Dozen</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
-                  placeholder="Enter item description"
-                  rows={3}
-                />
               </div>
             </div>
           </div>
@@ -153,7 +174,6 @@ export default function AddItem() {
                   value={formData.salePrice}
                   onChange={(e) => handleChange("salePrice", e.target.value)}
                   placeholder="₹0"
-                  required
                 />
               </div>
               <div className="space-y-2">
@@ -199,7 +219,7 @@ export default function AddItem() {
           {/* Tax Info */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Tax Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="hsn">HSN/SAC Code</Label>
                 <Input
@@ -227,23 +247,13 @@ export default function AddItem() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cess">Cess (%)</Label>
-                <Input
-                  id="cess"
-                  type="number"
-                  value={formData.cess}
-                  onChange={(e) => handleChange("cess", e.target.value)}
-                  placeholder="0"
-                />
-              </div>
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-4 pt-4 border-t border-border">
-            <Button type="submit" className="btn-gradient gap-2">
-              <Save className="w-4 h-4" />
+            <Button type="submit" className="btn-gradient gap-2" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Item
             </Button>
             <Button type="button" variant="outline" asChild>

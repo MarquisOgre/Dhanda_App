@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Banknote, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Banknote, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,23 +18,114 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
 
-const cashTransactions = [
-  { id: 1, type: "in", desc: "Cash sale to Rahul Electronics", amount: 15000, date: "02 Jan 2026", time: "10:30 AM" },
-  { id: 2, type: "out", desc: "Office supplies purchase", amount: 2500, date: "02 Jan 2026", time: "09:15 AM" },
-  { id: 3, type: "in", desc: "Payment from Sharma Traders", amount: 8000, date: "01 Jan 2026", time: "04:45 PM" },
-  { id: 4, type: "out", desc: "Petty cash - Staff lunch", amount: 1200, date: "01 Jan 2026", time: "01:30 PM" },
-  { id: 5, type: "in", desc: "Cash sale to Walk-in Customer", amount: 5500, date: "01 Jan 2026", time: "11:00 AM" },
-  { id: 6, type: "out", desc: "Courier charges", amount: 350, date: "31 Dec 2025", time: "05:00 PM" },
-];
+interface CashTransaction {
+  id: string;
+  transaction_type: string;
+  description: string | null;
+  amount: number;
+  transaction_date: string;
+  created_at: string;
+}
 
 export default function CashInHand() {
+  const { user } = useAuth();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [transactions, setTransactions] = useState<CashTransaction[]>([]);
+  
+  const [formData, setFormData] = useState({
+    transactionType: "",
+    amount: "",
+    description: "",
+    date: new Date().toISOString().split("T")[0],
+  });
 
-  const currentBalance = 45650;
-  const todayIn = 15000;
-  const todayOut = 2500;
+  useEffect(() => {
+    if (user) {
+      fetchTransactions();
+    }
+  }, [user]);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("cash_transactions")
+      .select("*")
+      .order("transaction_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(20);
+    
+    if (data) {
+      setTransactions(data);
+    }
+    setLoading(false);
+  };
+
+  const handleAddTransaction = async () => {
+    if (!user) {
+      toast.error("Please login first");
+      return;
+    }
+    if (!formData.transactionType) {
+      toast.error("Please select transaction type");
+      return;
+    }
+    if (!formData.amount || Number(formData.amount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("cash_transactions").insert({
+        user_id: user.id,
+        transaction_type: formData.transactionType,
+        amount: parseFloat(formData.amount),
+        description: formData.description || null,
+        transaction_date: formData.date,
+      });
+
+      if (error) throw error;
+      
+      toast.success("Transaction added successfully!");
+      setIsAddOpen(false);
+      setFormData({
+        transactionType: "",
+        amount: "",
+        description: "",
+        date: new Date().toISOString().split("T")[0],
+      });
+      fetchTransactions();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add transaction");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Calculate balances
+  const cashIn = transactions
+    .filter(t => t.transaction_type === "in")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const cashOut = transactions
+    .filter(t => t.transaction_type === "out")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const currentBalance = cashIn - cashOut;
+
+  // Today's transactions
+  const today = new Date().toISOString().split("T")[0];
+  const todayIn = transactions
+    .filter(t => t.transaction_date === today && t.transaction_type === "in")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const todayOut = transactions
+    .filter(t => t.transaction_date === today && t.transaction_type === "out")
+    .reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -57,8 +148,11 @@ export default function CashInHand() {
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label>Transaction Type</Label>
-                <Select value={transactionType} onValueChange={setTransactionType}>
+                <Label>Transaction Type *</Label>
+                <Select 
+                  value={formData.transactionType} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, transactionType: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -69,22 +163,41 @@ export default function CashInHand() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input id="amount" type="number" placeholder="₹0.00" />
+                <Label htmlFor="amount">Amount *</Label>
+                <Input 
+                  id="amount" 
+                  type="number" 
+                  placeholder="₹0.00" 
+                  value={formData.amount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
-                <Input id="description" placeholder="Enter description" />
+                <Input 
+                  id="description" 
+                  placeholder="Enter description" 
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
-                <Input id="date" type="date" defaultValue={new Date().toISOString().split("T")[0]} />
+                <Input 
+                  id="date" 
+                  type="date" 
+                  value={formData.date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                />
               </div>
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                   Cancel
                 </Button>
-                <Button className="btn-gradient">Save Transaction</Button>
+                <Button className="btn-gradient" onClick={handleAddTransaction} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Save Transaction
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -133,63 +246,59 @@ export default function CashInHand() {
       <div className="metric-card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-lg">Recent Transactions</h3>
-          <Button variant="outline" size="sm">View All</Button>
         </div>
-        <div className="space-y-3">
-          {cashTransactions.map((txn) => (
-            <div
-              key={txn.id}
-              className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : transactions.length === 0 ? (
+          <div className="text-center py-8">
+            <Banknote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No transactions yet</p>
+            <p className="text-sm text-muted-foreground">Add your first cash transaction</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {transactions.map((txn) => (
+              <div
+                key={txn.id}
+                className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "p-3 rounded-xl",
+                      txn.transaction_type === "in"
+                        ? "bg-success/10 text-success"
+                        : "bg-destructive/10 text-destructive"
+                    )}
+                  >
+                    {txn.transaction_type === "in" ? (
+                      <TrendingUp className="w-5 h-5" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">{txn.description || (txn.transaction_type === "in" ? "Cash In" : "Cash Out")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(txn.transaction_date), "dd MMM yyyy")}
+                    </p>
+                  </div>
+                </div>
+                <p
                   className={cn(
-                    "p-3 rounded-xl",
-                    txn.type === "in"
-                      ? "bg-success/10 text-success"
-                      : "bg-destructive/10 text-destructive"
+                    "font-bold text-lg",
+                    txn.transaction_type === "in" ? "text-success" : "text-destructive"
                   )}
                 >
-                  {txn.type === "in" ? (
-                    <TrendingUp className="w-5 h-5" />
-                  ) : (
-                    <TrendingDown className="w-5 h-5" />
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium">{txn.desc}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {txn.date} at {txn.time}
-                  </p>
-                </div>
+                  {txn.transaction_type === "in" ? "+" : "-"}₹{txn.amount.toLocaleString()}
+                </p>
               </div>
-              <p
-                className={cn(
-                  "font-bold text-lg",
-                  txn.type === "in" ? "text-success" : "text-destructive"
-                )}
-              >
-                {txn.type === "in" ? "+" : "-"}₹{txn.amount.toLocaleString()}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Button variant="outline" className="h-20 flex-col gap-2">
-          <ArrowUpRight className="w-6 h-6 text-success" />
-          <span>Record Cash In</span>
-        </Button>
-        <Button variant="outline" className="h-20 flex-col gap-2">
-          <ArrowDownRight className="w-6 h-6 text-destructive" />
-          <span>Record Cash Out</span>
-        </Button>
-        <Button variant="outline" className="h-20 flex-col gap-2">
-          <Banknote className="w-6 h-6 text-primary" />
-          <span>Transfer to Bank</span>
-        </Button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
