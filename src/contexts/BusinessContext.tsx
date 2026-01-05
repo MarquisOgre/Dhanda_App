@@ -12,12 +12,23 @@ interface BusinessSettings {
   invoice_prefix: string | null;
   invoice_terms: string | null;
   logo_url: string | null;
+  financial_year_start: string | null;
+  next_invoice_number: number | null;
+  estimation_prefix: string | null;
+  purchase_prefix: string | null;
+  default_payment_terms: number | null;
+  gst_registration_type: string | null;
+  state_code: string | null;
+  default_tax_rate: number | null;
+  enable_tcs: boolean | null;
+  enable_tds: boolean | null;
 }
 
 interface BusinessContextType {
   businessSettings: BusinessSettings | null;
   loading: boolean;
   refetch: () => Promise<void>;
+  getCurrentFinancialYear: () => string;
 }
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
@@ -38,14 +49,14 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         .from('business_settings')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching business settings:', error);
       }
 
       if (data) {
-        setBusinessSettings(data);
+        setBusinessSettings(data as BusinessSettings);
       }
     } catch (error) {
       console.error('Error fetching business settings:', error);
@@ -62,8 +73,26 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     await fetchSettings();
   };
 
+  const getCurrentFinancialYear = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const fyStart = businessSettings?.financial_year_start || 'april';
+    
+    if (fyStart === 'april') {
+      if (month >= 3) { // April onwards (0-indexed, so 3 = April)
+        return `${year}-${(year + 1).toString().slice(-2)}`;
+      } else {
+        return `${year - 1}-${year.toString().slice(-2)}`;
+      }
+    } else {
+      // January start - calendar year
+      return `${year}`;
+    }
+  };
+
   return (
-    <BusinessContext.Provider value={{ businessSettings, loading, refetch }}>
+    <BusinessContext.Provider value={{ businessSettings, loading, refetch, getCurrentFinancialYear }}>
       {children}
     </BusinessContext.Provider>
   );

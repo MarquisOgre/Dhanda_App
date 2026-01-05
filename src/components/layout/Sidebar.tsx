@@ -133,7 +133,7 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Sale"]);
-  const { businessSettings } = useBusinessSettings();
+  const { businessSettings, getCurrentFinancialYear } = useBusinessSettings();
 
   const toggleExpand = (title: string) => {
     setExpandedItems((prev) =>
@@ -236,7 +236,7 @@ export function Sidebar() {
             <p className="text-sm font-medium truncate">
               {businessSettings?.business_name || 'My Business'}
             </p>
-            <p className="text-xs text-sidebar-foreground/60">FY 2024-25</p>
+            <p className="text-xs text-sidebar-foreground/60">FY {getCurrentFinancialYear()}</p>
           </div>
         </div>
       </div>

@@ -58,50 +58,95 @@ export type Database = {
       }
       business_settings: {
         Row: {
+          auto_print_on_save: boolean | null
           business_address: string | null
           business_name: string | null
           created_at: string
+          default_payment_terms: number | null
+          default_tax_rate: number | null
           email: string | null
+          enable_tcs: boolean | null
+          enable_tds: boolean | null
+          estimation_prefix: string | null
           financial_year_start: string | null
+          gst_registration_type: string | null
           gstin: string | null
           id: string
           invoice_prefix: string | null
+          invoice_template: string | null
           invoice_terms: string | null
           logo_url: string | null
+          next_invoice_number: number | null
           pan: string | null
+          paper_size: string | null
           phone: string | null
+          purchase_prefix: string | null
+          show_bank_details: boolean | null
+          show_logo_on_invoice: boolean | null
+          show_qr_code: boolean | null
+          state_code: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          auto_print_on_save?: boolean | null
           business_address?: string | null
           business_name?: string | null
           created_at?: string
+          default_payment_terms?: number | null
+          default_tax_rate?: number | null
           email?: string | null
+          enable_tcs?: boolean | null
+          enable_tds?: boolean | null
+          estimation_prefix?: string | null
           financial_year_start?: string | null
+          gst_registration_type?: string | null
           gstin?: string | null
           id?: string
           invoice_prefix?: string | null
+          invoice_template?: string | null
           invoice_terms?: string | null
           logo_url?: string | null
+          next_invoice_number?: number | null
           pan?: string | null
+          paper_size?: string | null
           phone?: string | null
+          purchase_prefix?: string | null
+          show_bank_details?: boolean | null
+          show_logo_on_invoice?: boolean | null
+          show_qr_code?: boolean | null
+          state_code?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          auto_print_on_save?: boolean | null
           business_address?: string | null
           business_name?: string | null
           created_at?: string
+          default_payment_terms?: number | null
+          default_tax_rate?: number | null
           email?: string | null
+          enable_tcs?: boolean | null
+          enable_tds?: boolean | null
+          estimation_prefix?: string | null
           financial_year_start?: string | null
+          gst_registration_type?: string | null
           gstin?: string | null
           id?: string
           invoice_prefix?: string | null
+          invoice_template?: string | null
           invoice_terms?: string | null
           logo_url?: string | null
+          next_invoice_number?: number | null
           pan?: string | null
+          paper_size?: string | null
           phone?: string | null
+          purchase_prefix?: string | null
+          show_bank_details?: boolean | null
+          show_logo_on_invoice?: boolean | null
+          show_qr_code?: boolean | null
+          state_code?: string | null
           updated_at?: string
           user_id?: string
         }
