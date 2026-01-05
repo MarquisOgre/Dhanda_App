@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Filter, TrendingUp, TrendingDown, IndianRupee, Package } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Filter, TrendingUp, TrendingDown, IndianRupee, Package, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,20 +12,80 @@ import {
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const purchaseData = [
-  { id: 1, bill: "PUR-041", date: "02 Jan 2026", party: "ABC Suppliers", items: 10, amount: 125000, paid: 100000 },
-  { id: 2, bill: "PUR-040", date: "01 Jan 2026", party: "XYZ Distributors", items: 5, amount: 45000, paid: 45000 },
-  { id: 3, bill: "PUR-039", date: "30 Dec 2025", party: "Metro Wholesale", items: 15, amount: 85000, paid: 50000 },
-  { id: 4, bill: "PUR-038", date: "28 Dec 2025", party: "Tech Components", items: 8, amount: 62000, paid: 62000 },
-  { id: 5, bill: "PUR-037", date: "25 Dec 2025", party: "Global Parts", items: 20, amount: 98000, paid: 75000 },
-];
+interface PurchaseData {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  party_name: string;
+  items_count: number;
+  total_amount: number;
+  paid_amount: number;
+}
 
 export default function PurchaseReport() {
   const [dateRange, setDateRange] = useState("this-month");
-  
-  const totalPurchase = purchaseData.reduce((sum, p) => sum + p.amount, 0);
-  const totalPaid = purchaseData.reduce((sum, p) => sum + p.paid, 0);
+  const [purchaseData, setPurchaseData] = useState<PurchaseData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPurchaseData();
+  }, []);
+
+  const fetchPurchaseData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: invoices, error } = await supabase
+        .from('invoices')
+        .select(`
+          id,
+          invoice_number,
+          invoice_date,
+          total_amount,
+          paid_amount,
+          party_id,
+          parties (name)
+        `)
+        .eq('user_id', user.id)
+        .eq('invoice_type', 'purchase')
+        .eq('is_deleted', false)
+        .order('invoice_date', { ascending: false });
+
+      if (error) throw error;
+
+      const purchasesWithItems = await Promise.all(
+        (invoices || []).map(async (inv) => {
+          const { count } = await supabase
+            .from('invoice_items')
+            .select('*', { count: 'exact', head: true })
+            .eq('invoice_id', inv.id);
+
+          return {
+            id: inv.id,
+            invoice_number: inv.invoice_number,
+            invoice_date: inv.invoice_date,
+            party_name: (inv.parties as any)?.name || 'Unknown Supplier',
+            items_count: count || 0,
+            total_amount: inv.total_amount || 0,
+            paid_amount: inv.paid_amount || 0,
+          };
+        })
+      );
+
+      setPurchaseData(purchasesWithItems);
+    } catch (error) {
+      console.error('Error fetching purchases:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalPurchase = purchaseData.reduce((sum, p) => sum + p.total_amount, 0);
+  const totalPaid = purchaseData.reduce((sum, p) => sum + p.paid_amount, 0);
   const totalPending = totalPurchase - totalPaid;
 
   const handlePrint = () => {
@@ -34,13 +94,13 @@ export default function PurchaseReport() {
       subtitle: "This Month",
       columns: ["Bill No.", "Date", "Supplier", "Items", "Amount", "Paid", "Balance"],
       rows: purchaseData.map(p => [
-        p.bill,
-        p.date,
-        p.party,
-        p.items,
-        `₹${p.amount.toLocaleString()}`,
-        `₹${p.paid.toLocaleString()}`,
-        `₹${(p.amount - p.paid).toLocaleString()}`
+        p.invoice_number,
+        format(new Date(p.invoice_date), 'dd MMM yyyy'),
+        p.party_name,
+        p.items_count,
+        `₹${p.total_amount.toLocaleString()}`,
+        `₹${p.paid_amount.toLocaleString()}`,
+        `₹${(p.total_amount - p.paid_amount).toLocaleString()}`
       ]),
       summary: [
         { label: "Total Purchase", value: `₹${totalPurchase.toLocaleString()}` },
@@ -57,13 +117,13 @@ export default function PurchaseReport() {
       dateRange: "This Month",
       columns: ["Bill No.", "Date", "Supplier", "Items", "Amount", "Paid", "Balance"],
       rows: purchaseData.map(p => [
-        p.bill,
-        p.date,
-        p.party,
-        p.items,
-        `₹${p.amount.toLocaleString()}`,
-        `₹${p.paid.toLocaleString()}`,
-        `₹${(p.amount - p.paid).toLocaleString()}`
+        p.invoice_number,
+        format(new Date(p.invoice_date), 'dd MMM yyyy'),
+        p.party_name,
+        p.items_count,
+        `₹${p.total_amount.toLocaleString()}`,
+        `₹${p.paid_amount.toLocaleString()}`,
+        `₹${(p.total_amount - p.paid_amount).toLocaleString()}`
       ]),
       summary: [
         { label: "Total Purchase", value: `₹${totalPurchase.toLocaleString()}` },
@@ -73,6 +133,14 @@ export default function PurchaseReport() {
     });
     downloadPDF(doc, `purchase-report-${new Date().toISOString().split('T')[0]}`);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -92,9 +160,6 @@ export default function PurchaseReport() {
             <IndianRupee className="w-4 h-4 text-primary" />
           </div>
           <p className="text-2xl font-bold mt-2">₹{totalPurchase.toLocaleString()}</p>
-          <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> +8.3% from last month
-          </p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -102,7 +167,9 @@ export default function PurchaseReport() {
             <TrendingDown className="w-4 h-4 text-success" />
           </div>
           <p className="text-2xl font-bold mt-2 text-success">₹{totalPaid.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-1">{((totalPaid / totalPurchase) * 100).toFixed(1)}% of total</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {totalPurchase > 0 ? ((totalPaid / totalPurchase) * 100).toFixed(1) : 0}% of total
+          </p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -110,7 +177,6 @@ export default function PurchaseReport() {
             <IndianRupee className="w-4 h-4 text-warning" />
           </div>
           <p className="text-2xl font-bold mt-2 text-warning">₹{totalPending.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-1">{((totalPending / totalPurchase) * 100).toFixed(1)}% pending</p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -118,7 +184,6 @@ export default function PurchaseReport() {
             <Package className="w-4 h-4 text-muted-foreground" />
           </div>
           <p className="text-2xl font-bold mt-2">{purchaseData.length}</p>
-          <p className="text-xs text-muted-foreground mt-1">This period</p>
         </div>
       </div>
 
@@ -159,26 +224,40 @@ export default function PurchaseReport() {
             </tr>
           </thead>
           <tbody>
-            {purchaseData.map((purchase) => (
-              <tr key={purchase.id}>
-                <td className="font-medium">{purchase.bill}</td>
-                <td className="text-muted-foreground">{purchase.date}</td>
-                <td>{purchase.party}</td>
-                <td className="text-center">{purchase.items}</td>
-                <td className="text-right font-medium">₹{purchase.amount.toLocaleString()}</td>
-                <td className="text-right text-success">₹{purchase.paid.toLocaleString()}</td>
-                <td className="text-right text-warning">₹{(purchase.amount - purchase.paid).toLocaleString()}</td>
+            {purchaseData.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                  No purchases found
+                </td>
               </tr>
-            ))}
+            ) : (
+              purchaseData.map((purchase) => (
+                <tr key={purchase.id}>
+                  <td className="font-medium">{purchase.invoice_number}</td>
+                  <td className="text-muted-foreground">
+                    {format(new Date(purchase.invoice_date), 'dd MMM yyyy')}
+                  </td>
+                  <td>{purchase.party_name}</td>
+                  <td className="text-center">{purchase.items_count}</td>
+                  <td className="text-right font-medium">₹{purchase.total_amount.toLocaleString()}</td>
+                  <td className="text-right text-success">₹{purchase.paid_amount.toLocaleString()}</td>
+                  <td className="text-right text-warning">
+                    ₹{(purchase.total_amount - purchase.paid_amount).toLocaleString()}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
-          <tfoot>
-            <tr className="bg-muted/50 font-semibold">
-              <td colSpan={4}>Total</td>
-              <td className="text-right">₹{totalPurchase.toLocaleString()}</td>
-              <td className="text-right text-success">₹{totalPaid.toLocaleString()}</td>
-              <td className="text-right text-warning">₹{totalPending.toLocaleString()}</td>
-            </tr>
-          </tfoot>
+          {purchaseData.length > 0 && (
+            <tfoot>
+              <tr className="bg-muted/50 font-semibold">
+                <td colSpan={4}>Total</td>
+                <td className="text-right">₹{totalPurchase.toLocaleString()}</td>
+                <td className="text-right text-success">₹{totalPaid.toLocaleString()}</td>
+                <td className="text-right text-warning">₹{totalPending.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

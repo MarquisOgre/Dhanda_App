@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Download, Search, TrendingUp, TrendingDown, Package } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, Search, TrendingUp, TrendingDown, Package, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,20 +10,100 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
-const itemPnLData = [
-  { id: 1, name: "Laptop Dell Inspiron 15", sold: 45, revenue: 2025000, cost: 1575000, profit: 450000, margin: 22.2 },
-  { id: 2, name: "Wireless Mouse Logitech", sold: 320, revenue: 272000, cost: 192000, profit: 80000, margin: 29.4 },
-  { id: 3, name: "USB-C Hub 7-in-1", sold: 180, revenue: 216000, cost: 162000, profit: 54000, margin: 25.0 },
-  { id: 4, name: "Keyboard Mechanical RGB", sold: 95, revenue: 332500, cost: 237500, profit: 95000, margin: 28.6 },
-  { id: 5, name: "Monitor 24 inch LED", sold: 28, revenue: 336000, cost: 280000, profit: 56000, margin: 16.7 },
-  { id: 6, name: "Printer Ink Cartridge", sold: 450, revenue: 292500, cost: 247500, profit: 45000, margin: 15.4 },
-  { id: 7, name: "External SSD 500GB", sold: 65, revenue: 357500, cost: 292500, profit: 65000, margin: 18.2 },
-];
+interface ItemPnL {
+  id: string;
+  name: string;
+  sold: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin: number;
+}
 
 export default function ItemWisePnL() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("profit");
+  const [itemPnLData, setItemPnLData] = useState<ItemPnL[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchItemPnL();
+  }, []);
+
+  const fetchItemPnL = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get all sale invoice items
+      const { data: invoiceItems, error } = await supabase
+        .from('invoice_items')
+        .select(`
+          item_name,
+          quantity,
+          rate,
+          total,
+          invoices (
+            invoice_type,
+            user_id
+          )
+        `);
+
+      if (error) throw error;
+
+      // Filter only sales for this user
+      const salesItems = (invoiceItems || []).filter(
+        item => (item.invoices as any)?.user_id === user.id && 
+                (item.invoices as any)?.invoice_type === 'sale'
+      );
+
+      // Get items with purchase prices
+      const { data: items } = await supabase
+        .from('items')
+        .select('name, purchase_price')
+        .eq('user_id', user.id);
+
+      const itemPrices: { [key: string]: number } = {};
+      (items || []).forEach(item => {
+        itemPrices[item.name] = item.purchase_price || 0;
+      });
+
+      // Aggregate by item
+      const itemAggregates: { [key: string]: { sold: number; revenue: number; cost: number } } = {};
+      
+      salesItems.forEach(item => {
+        const name = item.item_name;
+        if (!itemAggregates[name]) {
+          itemAggregates[name] = { sold: 0, revenue: 0, cost: 0 };
+        }
+        itemAggregates[name].sold += item.quantity;
+        itemAggregates[name].revenue += item.total;
+        itemAggregates[name].cost += item.quantity * (itemPrices[name] || item.rate * 0.7);
+      });
+
+      const pnlData = Object.entries(itemAggregates).map(([name, data], idx) => {
+        const profit = data.revenue - data.cost;
+        const margin = data.revenue > 0 ? (profit / data.revenue) * 100 : 0;
+        return {
+          id: `item-${idx}`,
+          name,
+          sold: data.sold,
+          revenue: data.revenue,
+          cost: data.cost,
+          profit,
+          margin,
+        };
+      });
+
+      setItemPnLData(pnlData);
+    } catch (error) {
+      console.error('Error fetching item P&L:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = itemPnLData
     .filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -38,7 +118,15 @@ export default function ItemWisePnL() {
   const totalRevenue = filtered.reduce((sum, i) => sum + i.revenue, 0);
   const totalCost = filtered.reduce((sum, i) => sum + i.cost, 0);
   const totalProfit = filtered.reduce((sum, i) => sum + i.profit, 0);
-  const avgMargin = (totalProfit / totalRevenue) * 100;
+  const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -123,29 +211,39 @@ export default function ItemWisePnL() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((item) => (
-              <tr key={item.id}>
-                <td className="font-medium">{item.name}</td>
-                <td className="text-center">{item.sold}</td>
-                <td className="text-right">₹{item.revenue.toLocaleString()}</td>
-                <td className="text-right text-muted-foreground">₹{item.cost.toLocaleString()}</td>
-                <td className="text-right text-success font-medium">₹{item.profit.toLocaleString()}</td>
-                <td className={cn("text-right", item.margin >= 20 ? "text-success" : item.margin >= 15 ? "text-warning" : "text-destructive")}>
-                  {item.margin.toFixed(1)}%
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                  No item data found
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((item) => (
+                <tr key={item.id}>
+                  <td className="font-medium">{item.name}</td>
+                  <td className="text-center">{item.sold}</td>
+                  <td className="text-right">₹{item.revenue.toLocaleString()}</td>
+                  <td className="text-right text-muted-foreground">₹{item.cost.toLocaleString()}</td>
+                  <td className="text-right text-success font-medium">₹{item.profit.toLocaleString()}</td>
+                  <td className={cn("text-right", item.margin >= 20 ? "text-success" : item.margin >= 15 ? "text-warning" : "text-destructive")}>
+                    {item.margin.toFixed(1)}%
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
-          <tfoot>
-            <tr className="bg-muted/50 font-semibold">
-              <td>Total</td>
-              <td className="text-center">{filtered.reduce((sum, i) => sum + i.sold, 0)}</td>
-              <td className="text-right">₹{totalRevenue.toLocaleString()}</td>
-              <td className="text-right">₹{totalCost.toLocaleString()}</td>
-              <td className="text-right text-success">₹{totalProfit.toLocaleString()}</td>
-              <td className="text-right">{avgMargin.toFixed(1)}%</td>
-            </tr>
-          </tfoot>
+          {filtered.length > 0 && (
+            <tfoot>
+              <tr className="bg-muted/50 font-semibold">
+                <td>Total</td>
+                <td className="text-center">{filtered.reduce((sum, i) => sum + i.sold, 0)}</td>
+                <td className="text-right">₹{totalRevenue.toLocaleString()}</td>
+                <td className="text-right">₹{totalCost.toLocaleString()}</td>
+                <td className="text-right text-success">₹{totalProfit.toLocaleString()}</td>
+                <td className="text-right">{avgMargin.toFixed(1)}%</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

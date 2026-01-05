@@ -1,7 +1,6 @@
-import { useState } from "react";
-import { Download, Filter, IndianRupee, FileText, Calculator } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, IndianRupee, FileText, Calculator, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -15,27 +14,119 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const gstData = [
-  { id: 1, period: "Jan 2026", taxableValue: 485000, cgst: 43650, sgst: 43650, igst: 0, total: 87300 },
-  { id: 2, period: "Dec 2025", taxableValue: 620000, cgst: 55800, sgst: 55800, igst: 0, total: 111600 },
-  { id: 3, period: "Nov 2025", taxableValue: 540000, cgst: 48600, sgst: 48600, igst: 0, total: 97200 },
-  { id: 4, period: "Oct 2025", taxableValue: 580000, cgst: 52200, sgst: 52200, igst: 0, total: 104400 },
-];
+interface TaxSummary {
+  period: string;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+}
 
-const tcsData = [
-  { id: 1, date: "02 Jan 2026", party: "Rahul Electronics", invoice: "INV-001", amount: 45000, tcsRate: 0.1, tcsAmount: 45 },
-  { id: 2, date: "01 Jan 2026", party: "Quick Mart", invoice: "INV-003", amount: 78000, tcsRate: 0.1, tcsAmount: 78 },
-  { id: 3, date: "30 Dec 2025", party: "Tech Solutions", invoice: "INV-005", amount: 35600, tcsRate: 0.1, tcsAmount: 35.6 },
-  { id: 4, date: "28 Dec 2025", party: "Global Systems", invoice: "INV-004", amount: 25000, tcsRate: 0.1, tcsAmount: 25 },
-];
+interface TCSDetail {
+  id: string;
+  date: string;
+  party: string;
+  invoice: string;
+  amount: number;
+  tcsRate: number;
+  tcsAmount: number;
+}
 
 export default function TaxesReport() {
   const [period, setPeriod] = useState("this-quarter");
+  const [gstData, setGstData] = useState<TaxSummary[]>([]);
+  const [tcsData, setTcsData] = useState<TCSDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTaxData();
+  }, []);
+
+  const fetchTaxData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get invoices with tax info
+      const { data: invoices, error } = await supabase
+        .from('invoices')
+        .select(`
+          id,
+          invoice_number,
+          invoice_date,
+          subtotal,
+          tax_amount,
+          total_amount,
+          party_id,
+          parties (name)
+        `)
+        .eq('user_id', user.id)
+        .eq('invoice_type', 'sale')
+        .eq('is_deleted', false)
+        .order('invoice_date', { ascending: false });
+
+      if (error) throw error;
+
+      // Group by month for GST summary
+      const monthlyTotals: { [key: string]: TaxSummary } = {};
+      
+      (invoices || []).forEach(inv => {
+        const monthKey = format(new Date(inv.invoice_date), 'MMM yyyy');
+        if (!monthlyTotals[monthKey]) {
+          monthlyTotals[monthKey] = {
+            period: monthKey,
+            taxableValue: 0,
+            cgst: 0,
+            sgst: 0,
+            igst: 0,
+            total: 0,
+          };
+        }
+        const taxAmount = inv.tax_amount || 0;
+        monthlyTotals[monthKey].taxableValue += inv.subtotal || 0;
+        monthlyTotals[monthKey].cgst += taxAmount / 2;
+        monthlyTotals[monthKey].sgst += taxAmount / 2;
+        monthlyTotals[monthKey].total += taxAmount;
+      });
+
+      setGstData(Object.values(monthlyTotals));
+
+      // TCS data (0.1% on sales > 50L - simplified for demo)
+      const tcsDetails = (invoices || [])
+        .filter(inv => (inv.total_amount || 0) >= 50000)
+        .map(inv => ({
+          id: inv.id,
+          date: inv.invoice_date,
+          party: (inv.parties as any)?.name || 'Unknown',
+          invoice: inv.invoice_number,
+          amount: inv.total_amount || 0,
+          tcsRate: 0.1,
+          tcsAmount: ((inv.total_amount || 0) * 0.1) / 100,
+        }));
+
+      setTcsData(tcsDetails);
+    } catch (error) {
+      console.error('Error fetching tax data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalTaxable = gstData.reduce((sum, g) => sum + g.taxableValue, 0);
   const totalGST = gstData.reduce((sum, g) => sum + g.total, 0);
   const totalTCS = tcsData.reduce((sum, t) => sum + t.tcsAmount, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -114,27 +205,37 @@ export default function TaxesReport() {
                 </tr>
               </thead>
               <tbody>
-                {gstData.map((gst) => (
-                  <tr key={gst.id}>
-                    <td className="font-medium">{gst.period}</td>
-                    <td className="text-right">₹{gst.taxableValue.toLocaleString()}</td>
-                    <td className="text-right">₹{gst.cgst.toLocaleString()}</td>
-                    <td className="text-right">₹{gst.sgst.toLocaleString()}</td>
-                    <td className="text-right">₹{gst.igst.toLocaleString()}</td>
-                    <td className="text-right font-medium text-success">₹{gst.total.toLocaleString()}</td>
+                {gstData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No GST data found
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  gstData.map((gst, idx) => (
+                    <tr key={idx}>
+                      <td className="font-medium">{gst.period}</td>
+                      <td className="text-right">₹{gst.taxableValue.toLocaleString()}</td>
+                      <td className="text-right">₹{gst.cgst.toLocaleString()}</td>
+                      <td className="text-right">₹{gst.sgst.toLocaleString()}</td>
+                      <td className="text-right">₹{gst.igst.toLocaleString()}</td>
+                      <td className="text-right font-medium text-success">₹{gst.total.toLocaleString()}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
-              <tfoot>
-                <tr className="bg-muted/50 font-semibold">
-                  <td>Total</td>
-                  <td className="text-right">₹{totalTaxable.toLocaleString()}</td>
-                  <td className="text-right">₹{gstData.reduce((s, g) => s + g.cgst, 0).toLocaleString()}</td>
-                  <td className="text-right">₹{gstData.reduce((s, g) => s + g.sgst, 0).toLocaleString()}</td>
-                  <td className="text-right">₹0</td>
-                  <td className="text-right text-success">₹{totalGST.toLocaleString()}</td>
-                </tr>
-              </tfoot>
+              {gstData.length > 0 && (
+                <tfoot>
+                  <tr className="bg-muted/50 font-semibold">
+                    <td>Total</td>
+                    <td className="text-right">₹{totalTaxable.toLocaleString()}</td>
+                    <td className="text-right">₹{gstData.reduce((s, g) => s + g.cgst, 0).toLocaleString()}</td>
+                    <td className="text-right">₹{gstData.reduce((s, g) => s + g.sgst, 0).toLocaleString()}</td>
+                    <td className="text-right">₹0</td>
+                    <td className="text-right text-success">₹{totalGST.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </TabsContent>
@@ -153,23 +254,35 @@ export default function TaxesReport() {
                 </tr>
               </thead>
               <tbody>
-                {tcsData.map((tcs) => (
-                  <tr key={tcs.id}>
-                    <td className="text-muted-foreground">{tcs.date}</td>
-                    <td className="font-medium">{tcs.party}</td>
-                    <td>{tcs.invoice}</td>
-                    <td className="text-right">₹{tcs.amount.toLocaleString()}</td>
-                    <td className="text-center">{tcs.tcsRate}%</td>
-                    <td className="text-right font-medium text-warning">₹{tcs.tcsAmount.toLocaleString()}</td>
+                {tcsData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No TCS data found
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  tcsData.map((tcs) => (
+                    <tr key={tcs.id}>
+                      <td className="text-muted-foreground">
+                        {format(new Date(tcs.date), 'dd MMM yyyy')}
+                      </td>
+                      <td className="font-medium">{tcs.party}</td>
+                      <td>{tcs.invoice}</td>
+                      <td className="text-right">₹{tcs.amount.toLocaleString()}</td>
+                      <td className="text-center">{tcs.tcsRate}%</td>
+                      <td className="text-right font-medium text-warning">₹{tcs.tcsAmount.toLocaleString()}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
-              <tfoot>
-                <tr className="bg-muted/50 font-semibold">
-                  <td colSpan={5}>Total TCS Collected</td>
-                  <td className="text-right text-warning">₹{totalTCS.toLocaleString()}</td>
-                </tr>
-              </tfoot>
+              {tcsData.length > 0 && (
+                <tfoot>
+                  <tr className="bg-muted/50 font-semibold">
+                    <td colSpan={5}>Total TCS Collected</td>
+                    <td className="text-right text-warning">₹{totalTCS.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </TabsContent>

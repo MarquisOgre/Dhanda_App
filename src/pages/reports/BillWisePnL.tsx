@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Download, Filter, TrendingUp, TrendingDown, Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, Filter, TrendingUp, TrendingDown, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,20 +10,78 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const billData = [
-  { id: 1, invoice: "INV-001", date: "02 Jan 2026", party: "Rahul Electronics", sale: 45000, cost: 36500, profit: 8500, margin: 18.9 },
-  { id: 2, invoice: "INV-002", date: "02 Jan 2026", party: "Sharma Traders", sale: 12500, cost: 10400, profit: 2100, margin: 16.8 },
-  { id: 3, invoice: "INV-003", date: "01 Jan 2026", party: "Quick Mart", sale: 78000, cost: 65600, profit: 12400, margin: 15.9 },
-  { id: 4, invoice: "INV-004", date: "31 Dec 2025", party: "Global Systems", sale: 25000, cost: 20500, profit: 4500, margin: 18.0 },
-  { id: 5, invoice: "INV-005", date: "30 Dec 2025", party: "Tech Solutions", sale: 35600, cost: 29400, profit: 6200, margin: 17.4 },
-  { id: 6, invoice: "INV-006", date: "28 Dec 2025", party: "Star Enterprises", sale: 52000, cost: 48100, profit: 3900, margin: 7.5 },
-  { id: 7, invoice: "INV-007", date: "27 Dec 2025", party: "Prime Retail", sale: 18500, cost: 19200, profit: -700, margin: -3.8 },
-];
+interface BillData {
+  id: string;
+  invoice: string;
+  date: string;
+  party: string;
+  sale: number;
+  cost: number;
+  profit: number;
+  margin: number;
+}
 
 export default function BillWisePnL() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState("this-month");
+  const [billData, setBillData] = useState<BillData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBillData();
+  }, []);
+
+  const fetchBillData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: invoices, error } = await supabase
+        .from('invoices')
+        .select(`
+          id,
+          invoice_number,
+          invoice_date,
+          total_amount,
+          subtotal,
+          party_id,
+          parties (name)
+        `)
+        .eq('user_id', user.id)
+        .eq('invoice_type', 'sale')
+        .eq('is_deleted', false)
+        .order('invoice_date', { ascending: false });
+
+      if (error) throw error;
+
+      const bills = (invoices || []).map(inv => {
+        const sale = inv.total_amount || 0;
+        const cost = inv.subtotal || 0;
+        const profit = sale - cost;
+        const margin = sale > 0 ? (profit / sale) * 100 : 0;
+
+        return {
+          id: inv.id,
+          invoice: inv.invoice_number,
+          date: inv.invoice_date,
+          party: (inv.parties as any)?.name || 'Walk-in Customer',
+          sale,
+          cost,
+          profit,
+          margin,
+        };
+      });
+
+      setBillData(bills);
+    } catch (error) {
+      console.error('Error fetching bill data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = billData.filter(
     (b) => b.invoice.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -33,7 +91,15 @@ export default function BillWisePnL() {
   const totalSale = filtered.reduce((sum, b) => sum + b.sale, 0);
   const totalCost = filtered.reduce((sum, b) => sum + b.cost, 0);
   const totalProfit = filtered.reduce((sum, b) => sum + b.profit, 0);
-  const avgMargin = (totalProfit / totalSale) * 100;
+  const avgMargin = totalSale > 0 ? (totalProfit / totalSale) * 100 : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -115,38 +181,50 @@ export default function BillWisePnL() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((bill) => (
-              <tr key={bill.id}>
-                <td className="font-medium">{bill.invoice}</td>
-                <td className="text-muted-foreground">{bill.date}</td>
-                <td>{bill.party}</td>
-                <td className="text-right">₹{bill.sale.toLocaleString()}</td>
-                <td className="text-right">₹{bill.cost.toLocaleString()}</td>
-                <td className={cn("text-right font-medium", bill.profit >= 0 ? "text-success" : "text-destructive")}>
-                  <div className="flex items-center justify-end gap-1">
-                    {bill.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    ₹{Math.abs(bill.profit).toLocaleString()}
-                  </div>
-                </td>
-                <td className={cn("text-right", bill.margin >= 0 ? "text-success" : "text-destructive")}>
-                  {bill.margin.toFixed(1)}%
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                  No invoices found
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((bill) => (
+                <tr key={bill.id}>
+                  <td className="font-medium">{bill.invoice}</td>
+                  <td className="text-muted-foreground">
+                    {format(new Date(bill.date), 'dd MMM yyyy')}
+                  </td>
+                  <td>{bill.party}</td>
+                  <td className="text-right">₹{bill.sale.toLocaleString()}</td>
+                  <td className="text-right">₹{bill.cost.toLocaleString()}</td>
+                  <td className={cn("text-right font-medium", bill.profit >= 0 ? "text-success" : "text-destructive")}>
+                    <div className="flex items-center justify-end gap-1">
+                      {bill.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                      ₹{Math.abs(bill.profit).toLocaleString()}
+                    </div>
+                  </td>
+                  <td className={cn("text-right", bill.margin >= 0 ? "text-success" : "text-destructive")}>
+                    {bill.margin.toFixed(1)}%
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
-          <tfoot>
-            <tr className="bg-muted/50 font-semibold">
-              <td colSpan={3}>Total</td>
-              <td className="text-right">₹{totalSale.toLocaleString()}</td>
-              <td className="text-right">₹{totalCost.toLocaleString()}</td>
-              <td className={cn("text-right", totalProfit >= 0 ? "text-success" : "text-destructive")}>
-                ₹{Math.abs(totalProfit).toLocaleString()}
-              </td>
-              <td className={cn("text-right", avgMargin >= 0 ? "text-success" : "text-destructive")}>
-                {avgMargin.toFixed(1)}%
-              </td>
-            </tr>
-          </tfoot>
+          {filtered.length > 0 && (
+            <tfoot>
+              <tr className="bg-muted/50 font-semibold">
+                <td colSpan={3}>Total</td>
+                <td className="text-right">₹{totalSale.toLocaleString()}</td>
+                <td className="text-right">₹{totalCost.toLocaleString()}</td>
+                <td className={cn("text-right", totalProfit >= 0 ? "text-success" : "text-destructive")}>
+                  ₹{Math.abs(totalProfit).toLocaleString()}
+                </td>
+                <td className={cn("text-right", avgMargin >= 0 ? "text-success" : "text-destructive")}>
+                  {avgMargin.toFixed(1)}%
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

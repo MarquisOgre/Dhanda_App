@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Download, Search, ArrowUpCircle, ArrowDownCircle, Package } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, Search, ArrowUpCircle, ArrowDownCircle, Package, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,22 +10,72 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const stockMovements = [
-  { id: 1, date: "02 Jan 2026", item: "Laptop Dell Inspiron 15", type: "sale", qty: 2, balance: 25, reference: "INV-001" },
-  { id: 2, date: "02 Jan 2026", item: "Wireless Mouse Logitech", type: "sale", qty: 5, balance: 150, reference: "INV-001" },
-  { id: 3, date: "01 Jan 2026", item: "Laptop Dell Inspiron 15", type: "purchase", qty: 10, balance: 27, reference: "PUR-041" },
-  { id: 4, date: "01 Jan 2026", item: "USB-C Hub 7-in-1", type: "sale", qty: 3, balance: 8, reference: "INV-002" },
-  { id: 5, date: "31 Dec 2025", item: "Keyboard Mechanical RGB", type: "purchase", qty: 20, balance: 45, reference: "PUR-040" },
-  { id: 6, date: "30 Dec 2025", item: "Monitor 24 inch LED", type: "sale", qty: 5, balance: 0, reference: "INV-003" },
-  { id: 7, date: "30 Dec 2025", item: "External SSD 500GB", type: "purchase", qty: 15, balance: 30, reference: "PUR-039" },
-  { id: 8, date: "28 Dec 2025", item: "Printer Ink Cartridge", type: "sale", qty: 12, balance: 3, reference: "INV-004" },
-];
+interface StockMovement {
+  id: string;
+  date: string;
+  item: string;
+  type: string;
+  qty: number;
+  reference: string;
+}
 
 export default function StockDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateRange, setDateRange] = useState("this-month");
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStockMovements();
+  }, []);
+
+  const fetchStockMovements = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get invoice items with their invoices
+      const { data: invoiceItems, error } = await supabase
+        .from('invoice_items')
+        .select(`
+          id,
+          item_name,
+          quantity,
+          invoice_id,
+          invoices (
+            invoice_number,
+            invoice_date,
+            invoice_type,
+            user_id
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      const movements = (invoiceItems || [])
+        .filter(item => (item.invoices as any)?.user_id === user.id)
+        .map(item => ({
+          id: item.id,
+          date: (item.invoices as any)?.invoice_date || '',
+          item: item.item_name,
+          type: (item.invoices as any)?.invoice_type === 'purchase' ? 'purchase' : 'sale',
+          qty: item.quantity,
+          reference: (item.invoices as any)?.invoice_number || '',
+        }));
+
+      setStockMovements(movements);
+    } catch (error) {
+      console.error('Error fetching stock movements:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = stockMovements.filter((m) => {
     const matchesSearch = m.item.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -36,6 +86,14 @@ export default function StockDetail() {
 
   const totalIn = filtered.filter((m) => m.type === "purchase").reduce((sum, m) => sum + m.qty, 0);
   const totalOut = filtered.filter((m) => m.type === "sale").reduce((sum, m) => sum + m.qty, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -122,30 +180,38 @@ export default function StockDetail() {
               <th>Type</th>
               <th>Reference</th>
               <th className="text-center">Quantity</th>
-              <th className="text-center">Balance</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((movement) => (
-              <tr key={movement.id}>
-                <td className="text-muted-foreground">{movement.date}</td>
-                <td className="font-medium">{movement.item}</td>
-                <td>
-                  <span className={cn(
-                    "inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full",
-                    movement.type === "purchase" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                  )}>
-                    {movement.type === "purchase" ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
-                    {movement.type === "purchase" ? "Stock In" : "Stock Out"}
-                  </span>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                  No stock movements found
                 </td>
-                <td className="font-medium">{movement.reference}</td>
-                <td className={cn("text-center font-medium", movement.type === "purchase" ? "text-success" : "text-destructive")}>
-                  {movement.type === "purchase" ? "+" : "-"}{movement.qty}
-                </td>
-                <td className="text-center">{movement.balance}</td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((movement) => (
+                <tr key={movement.id}>
+                  <td className="text-muted-foreground">
+                    {movement.date ? format(new Date(movement.date), 'dd MMM yyyy') : '-'}
+                  </td>
+                  <td className="font-medium">{movement.item}</td>
+                  <td>
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full",
+                      movement.type === "purchase" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                    )}>
+                      {movement.type === "purchase" ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
+                      {movement.type === "purchase" ? "Stock In" : "Stock Out"}
+                    </span>
+                  </td>
+                  <td className="font-medium">{movement.reference}</td>
+                  <td className={cn("text-center font-medium", movement.type === "purchase" ? "text-success" : "text-destructive")}>
+                    {movement.type === "purchase" ? "+" : "-"}{movement.qty}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

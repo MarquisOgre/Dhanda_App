@@ -1,4 +1,5 @@
-import { Building2, Wallet, TrendingUp, TrendingDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Building2, Wallet, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -6,58 +7,114 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function BalanceSheet() {
   const [asOnDate, setAsOnDate] = useState("today");
+  const [loading, setLoading] = useState(true);
+  const [cashInHand, setCashInHand] = useState(0);
+  const [bankBalance, setBankBalance] = useState(0);
+  const [receivables, setReceivables] = useState(0);
+  const [inventory, setInventory] = useState(0);
+  const [payables, setPayables] = useState(0);
+
+  useEffect(() => {
+    fetchBalanceSheetData();
+  }, []);
+
+  const fetchBalanceSheetData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get cash transactions
+      const { data: cashTxns } = await supabase
+        .from('cash_transactions')
+        .select('amount, transaction_type')
+        .eq('user_id', user.id);
+
+      let cash = 0;
+      (cashTxns || []).forEach(txn => {
+        if (txn.transaction_type === 'in') {
+          cash += txn.amount;
+        } else {
+          cash -= txn.amount;
+        }
+      });
+      setCashInHand(cash);
+
+      // Get bank accounts balance
+      const { data: bankAccounts } = await supabase
+        .from('bank_accounts')
+        .select('current_balance')
+        .eq('user_id', user.id);
+
+      const bankTotal = (bankAccounts || []).reduce((sum, acc) => sum + (acc.current_balance || 0), 0);
+      setBankBalance(bankTotal);
+
+      // Get receivables (unpaid sales)
+      const { data: salesInvoices } = await supabase
+        .from('invoices')
+        .select('balance_due')
+        .eq('user_id', user.id)
+        .eq('invoice_type', 'sale')
+        .eq('is_deleted', false);
+
+      const totalReceivables = (salesInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+      setReceivables(totalReceivables);
+
+      // Get payables (unpaid purchases)
+      const { data: purchaseInvoices } = await supabase
+        .from('invoices')
+        .select('balance_due')
+        .eq('user_id', user.id)
+        .eq('invoice_type', 'purchase')
+        .eq('is_deleted', false);
+
+      const totalPayables = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+      setPayables(totalPayables);
+
+      // Get inventory value
+      const { data: items } = await supabase
+        .from('items')
+        .select('current_stock, purchase_price')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false);
+
+      const inventoryValue = (items || []).reduce((sum, item) => 
+        sum + ((item.current_stock || 0) * (item.purchase_price || 0)), 0);
+      setInventory(inventoryValue);
+
+    } catch (error) {
+      console.error('Error fetching balance sheet:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const assets = {
     current: [
-      { name: "Cash in Hand", amount: 125000 },
-      { name: "Bank Accounts", amount: 845000 },
-      { name: "Accounts Receivable", amount: 425000 },
-      { name: "Inventory", amount: 680000 },
-      { name: "Prepaid Expenses", amount: 35000 },
-    ],
-    fixed: [
-      { name: "Furniture & Fixtures", amount: 150000 },
-      { name: "Equipment", amount: 280000 },
-      { name: "Vehicles", amount: 450000 },
-      { name: "Less: Accumulated Depreciation", amount: -185000 },
+      { name: "Cash in Hand", amount: cashInHand },
+      { name: "Bank Accounts", amount: bankBalance },
+      { name: "Accounts Receivable", amount: receivables },
+      { name: "Inventory", amount: inventory },
     ],
   };
 
   const liabilities = {
     current: [
-      { name: "Accounts Payable", amount: 325000 },
-      { name: "Short-term Loans", amount: 100000 },
-      { name: "Accrued Expenses", amount: 45000 },
-      { name: "Taxes Payable", amount: 85000 },
-    ],
-    longTerm: [
-      { name: "Bank Loan", amount: 500000 },
-      { name: "Other Long-term Liabilities", amount: 75000 },
+      { name: "Accounts Payable", amount: payables },
     ],
   };
 
-  const equity = [
-    { name: "Capital", amount: 1000000 },
-    { name: "Retained Earnings", amount: 450000 },
-    { name: "Current Year Profit", amount: 225000 },
-  ];
-
   const totalCurrentAssets = assets.current.reduce((sum, a) => sum + a.amount, 0);
-  const totalFixedAssets = assets.fixed.reduce((sum, a) => sum + a.amount, 0);
-  const totalAssets = totalCurrentAssets + totalFixedAssets;
-
+  const totalAssets = totalCurrentAssets;
   const totalCurrentLiabilities = liabilities.current.reduce((sum, l) => sum + l.amount, 0);
-  const totalLongTermLiabilities = liabilities.longTerm.reduce((sum, l) => sum + l.amount, 0);
-  const totalLiabilities = totalCurrentLiabilities + totalLongTermLiabilities;
-
-  const totalEquity = equity.reduce((sum, e) => sum + e.amount, 0);
+  const totalLiabilities = totalCurrentLiabilities;
+  const totalEquity = totalAssets - totalLiabilities;
 
   const handlePrint = () => {
     const allRows = [
@@ -65,22 +122,15 @@ export default function BalanceSheet() {
       ["Current Assets", "", ""],
       ...assets.current.map(a => ["", a.name, `₹${a.amount.toLocaleString()}`]),
       ["", "Total Current Assets", `₹${totalCurrentAssets.toLocaleString()}`],
-      ["Fixed Assets", "", ""],
-      ...assets.fixed.map(a => ["", a.name, `${a.amount < 0 ? '-' : ''}₹${Math.abs(a.amount).toLocaleString()}`]),
-      ["", "Total Fixed Assets", `₹${totalFixedAssets.toLocaleString()}`],
       ["", "TOTAL ASSETS", `₹${totalAssets.toLocaleString()}`],
       ["", "", ""],
       ["LIABILITIES & EQUITY", "", ""],
       ["Current Liabilities", "", ""],
       ...liabilities.current.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
-      ["", "Total Current Liabilities", `₹${totalCurrentLiabilities.toLocaleString()}`],
-      ["Long-term Liabilities", "", ""],
-      ...liabilities.longTerm.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
-      ["", "Total Long-term Liabilities", `₹${totalLongTermLiabilities.toLocaleString()}`],
+      ["", "Total Liabilities", `₹${totalLiabilities.toLocaleString()}`],
       ["Owner's Equity", "", ""],
-      ...equity.map(e => ["", e.name, `₹${e.amount.toLocaleString()}`]),
-      ["", "Total Equity", `₹${totalEquity.toLocaleString()}`],
-      ["", "TOTAL LIABILITIES + EQUITY", `₹${(totalLiabilities + totalEquity).toLocaleString()}`],
+      ["", "Net Worth", `₹${totalEquity.toLocaleString()}`],
+      ["", "TOTAL LIABILITIES + EQUITY", `₹${totalAssets.toLocaleString()}`],
     ];
 
     printTable({
@@ -97,22 +147,15 @@ export default function BalanceSheet() {
       ["Current Assets", "", ""],
       ...assets.current.map(a => ["", a.name, `₹${a.amount.toLocaleString()}`]),
       ["", "Total Current Assets", `₹${totalCurrentAssets.toLocaleString()}`],
-      ["Fixed Assets", "", ""],
-      ...assets.fixed.map(a => ["", a.name, `${a.amount < 0 ? '-' : ''}₹${Math.abs(a.amount).toLocaleString()}`]),
-      ["", "Total Fixed Assets", `₹${totalFixedAssets.toLocaleString()}`],
       ["", "TOTAL ASSETS", `₹${totalAssets.toLocaleString()}`],
       ["", "", ""],
       ["LIABILITIES & EQUITY", "", ""],
       ["Current Liabilities", "", ""],
       ...liabilities.current.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
-      ["", "Total Current Liabilities", `₹${totalCurrentLiabilities.toLocaleString()}`],
-      ["Long-term Liabilities", "", ""],
-      ...liabilities.longTerm.map(l => ["", l.name, `₹${l.amount.toLocaleString()}`]),
-      ["", "Total Long-term Liabilities", `₹${totalLongTermLiabilities.toLocaleString()}`],
+      ["", "Total Liabilities", `₹${totalLiabilities.toLocaleString()}`],
       ["Owner's Equity", "", ""],
-      ...equity.map(e => ["", e.name, `₹${e.amount.toLocaleString()}`]),
-      ["", "Total Equity", `₹${totalEquity.toLocaleString()}`],
-      ["", "TOTAL LIABILITIES + EQUITY", `₹${(totalLiabilities + totalEquity).toLocaleString()}`],
+      ["", "Net Worth", `₹${totalEquity.toLocaleString()}`],
+      ["", "TOTAL LIABILITIES + EQUITY", `₹${totalAssets.toLocaleString()}`],
     ];
 
     const doc = generateReportPDF({
@@ -124,6 +167,14 @@ export default function BalanceSheet() {
     });
     downloadPDF(doc, `balance-sheet-${new Date().toISOString().split('T')[0]}`);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -166,10 +217,12 @@ export default function BalanceSheet() {
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Owner's Equity</p>
+            <p className="text-sm text-muted-foreground">Net Worth</p>
             <Wallet className="w-4 h-4 text-success" />
           </div>
-          <p className="text-2xl font-bold mt-2 text-success">₹{totalEquity.toLocaleString()}</p>
+          <p className={`text-2xl font-bold mt-2 ${totalEquity >= 0 ? 'text-success' : 'text-destructive'}`}>
+            ₹{totalEquity.toLocaleString()}
+          </p>
         </div>
       </div>
 
@@ -193,22 +246,6 @@ export default function BalanceSheet() {
               <div className="flex justify-between py-2 bg-muted/50 px-2 rounded mt-2">
                 <span className="font-medium">Total Current Assets</span>
                 <span className="font-bold">₹{totalCurrentAssets.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-medium text-sm text-muted-foreground mb-2">Fixed Assets</h4>
-              {assets.fixed.map((item, idx) => (
-                <div key={idx} className="flex justify-between py-2 border-b border-border">
-                  <span>{item.name}</span>
-                  <span className={`font-medium ${item.amount < 0 ? 'text-destructive' : ''}`}>
-                    {item.amount < 0 ? '-' : ''}₹{Math.abs(item.amount).toLocaleString()}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between py-2 bg-muted/50 px-2 rounded mt-2">
-                <span className="font-medium">Total Fixed Assets</span>
-                <span className="font-bold">₹{totalFixedAssets.toLocaleString()}</span>
               </div>
             </div>
 
@@ -236,42 +273,24 @@ export default function BalanceSheet() {
                 </div>
               ))}
               <div className="flex justify-between py-2 bg-muted/50 px-2 rounded mt-2">
-                <span className="font-medium">Total Current Liabilities</span>
-                <span className="font-bold">₹{totalCurrentLiabilities.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-medium text-sm text-muted-foreground mb-2">Long-term Liabilities</h4>
-              {liabilities.longTerm.map((item, idx) => (
-                <div key={idx} className="flex justify-between py-2 border-b border-border">
-                  <span>{item.name}</span>
-                  <span className="font-medium">₹{item.amount.toLocaleString()}</span>
-                </div>
-              ))}
-              <div className="flex justify-between py-2 bg-muted/50 px-2 rounded mt-2">
-                <span className="font-medium">Total Long-term Liabilities</span>
-                <span className="font-bold">₹{totalLongTermLiabilities.toLocaleString()}</span>
+                <span className="font-medium">Total Liabilities</span>
+                <span className="font-bold">₹{totalLiabilities.toLocaleString()}</span>
               </div>
             </div>
 
             <div>
               <h4 className="font-medium text-sm text-muted-foreground mb-2">Owner's Equity</h4>
-              {equity.map((item, idx) => (
-                <div key={idx} className="flex justify-between py-2 border-b border-border">
-                  <span>{item.name}</span>
-                  <span className="font-medium text-success">₹{item.amount.toLocaleString()}</span>
-                </div>
-              ))}
-              <div className="flex justify-between py-2 bg-success/10 px-2 rounded mt-2">
-                <span className="font-medium">Total Equity</span>
-                <span className="font-bold text-success">₹{totalEquity.toLocaleString()}</span>
+              <div className="flex justify-between py-2 border-b border-border">
+                <span>Net Worth</span>
+                <span className={`font-medium ${totalEquity >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  ₹{totalEquity.toLocaleString()}
+                </span>
               </div>
             </div>
 
             <div className="flex justify-between py-3 bg-primary/10 px-3 rounded-lg">
               <span className="font-semibold">Total Liabilities + Equity</span>
-              <span className="font-bold text-primary">₹{(totalLiabilities + totalEquity).toLocaleString()}</span>
+              <span className="font-bold text-primary">₹{totalAssets.toLocaleString()}</span>
             </div>
           </div>
         </div>
