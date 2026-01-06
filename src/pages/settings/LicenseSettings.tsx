@@ -9,7 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export function LicenseSettings() {
   const { licenseSettings, isLoading, updateLicenseSettings, getDaysRemaining, formatExpiryDate, isLicenseValid } = useLicenseSettings();
-  const { isAdmin } = useAuth();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.email === 'marquisogre@gmail.com';
+  
   const [formData, setFormData] = useState({
     expiry_date: "",
     license_type: "",
@@ -64,7 +66,7 @@ export function LicenseSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* License Status */}
+        {/* License Status - Visible to all users */}
         <div className={`p-4 rounded-lg border ${valid ? (daysRemaining <= 30 ? 'bg-warning/10 border-warning/30' : 'bg-success/10 border-success/30') : 'bg-destructive/10 border-destructive/30'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -91,9 +93,9 @@ export function LicenseSettings() {
           </div>
         </div>
 
-        {isAdmin ? (
+        {/* Editable Fields - Only visible to super admin */}
+        {isSuperAdmin && (
           <>
-            {/* Editable Fields */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="expiry_date" className="flex items-center gap-2">
@@ -174,10 +176,6 @@ export function LicenseSettings() {
               {updateLicenseSettings.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </>
-        ) : (
-          <div className="text-center py-4 text-muted-foreground">
-            <p>Only administrators can modify license settings.</p>
-          </div>
         )}
       </CardContent>
     </Card>
