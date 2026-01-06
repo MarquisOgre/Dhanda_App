@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Download, Filter, Calendar, TrendingUp, IndianRupee, Loader2 } from "lucide-react";
+import { Filter, Calendar, TrendingUp, IndianRupee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,7 +40,7 @@ export default function SaleReport() {
       if (!user) return;
 
       const { data: invoices, error } = await supabase
-        .from('invoices')
+        .from('sale_invoices')
         .select(`
           id,
           invoice_number,
@@ -51,7 +51,6 @@ export default function SaleReport() {
           parties (name)
         `)
         .eq('user_id', user.id)
-        .eq('invoice_type', 'sale')
         .eq('is_deleted', false)
         .order('invoice_date', { ascending: false });
 
@@ -59,17 +58,17 @@ export default function SaleReport() {
 
       // Get item counts for each invoice
       const salesWithItems = await Promise.all(
-        (invoices || []).map(async (inv) => {
+        (invoices || []).map(async (inv: any) => {
           const { count } = await supabase
             .from('invoice_items')
             .select('*', { count: 'exact', head: true })
-            .eq('invoice_id', inv.id);
+            .eq('sale_invoice_id', inv.id);
 
           return {
             id: inv.id,
             invoice_number: inv.invoice_number,
             invoice_date: inv.invoice_date,
-            party_name: (inv.parties as any)?.name || 'Walk-in Customer',
+            party_name: inv.parties?.name || 'Walk-in Customer',
             items_count: count || 0,
             total_amount: inv.total_amount || 0,
             subtotal: inv.subtotal || 0,

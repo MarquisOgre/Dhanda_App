@@ -247,7 +247,7 @@ export default function SaleInvoices() {
                             const { data: items } = await supabase
                               .from("invoice_items")
                               .select("*")
-                              .eq("invoice_id", invoice.id);
+                              .eq("sale_invoice_id", invoice.id);
                             
                             const { data: partyData } = await supabase
                               .from("parties")

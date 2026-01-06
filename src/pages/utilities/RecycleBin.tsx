@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, RotateCcw, Search, FileText, Users, Package, AlertTriangle, Loader2 } from "lucide-react";
+import { Trash2, RotateCcw, Search, FileText, Package, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +29,7 @@ import { format, differenceInDays } from "date-fns";
 interface DeletedItem {
   id: string;
   name: string;
-  type: 'item' | 'invoice';
+  type: 'item' | 'sale_invoice' | 'purchase_invoice';
   deletedOn: string;
   daysLeft: number;
   table: string;
@@ -77,24 +77,46 @@ export default function RecycleBin() {
         }
       });
 
-      // Fetch deleted invoices
-      const { data: deletedInvoices } = await supabase
-        .from('invoices')
+      // Fetch deleted sale invoices
+      const { data: deletedSaleInvoices } = await supabase
+        .from('sale_invoices')
         .select('id, invoice_number, invoice_type, deleted_at')
         .eq('is_deleted', true)
         .not('deleted_at', 'is', null);
 
-      deletedInvoices?.forEach(invoice => {
+      deletedSaleInvoices?.forEach(invoice => {
         const deletedAt = new Date(invoice.deleted_at!);
         const daysLeft = 30 - differenceInDays(now, deletedAt);
         if (daysLeft > 0) {
           deletedItems.push({
             id: invoice.id,
             name: `${invoice.invoice_number} (${invoice.invoice_type})`,
-            type: 'invoice',
+            type: 'sale_invoice',
             deletedOn: format(deletedAt, 'dd MMM yyyy'),
             daysLeft,
-            table: 'invoices',
+            table: 'sale_invoices',
+          });
+        }
+      });
+
+      // Fetch deleted purchase invoices
+      const { data: deletedPurchaseInvoices } = await supabase
+        .from('purchase_invoices')
+        .select('id, invoice_number, invoice_type, deleted_at')
+        .eq('is_deleted', true)
+        .not('deleted_at', 'is', null);
+
+      deletedPurchaseInvoices?.forEach(invoice => {
+        const deletedAt = new Date(invoice.deleted_at!);
+        const daysLeft = 30 - differenceInDays(now, deletedAt);
+        if (daysLeft > 0) {
+          deletedItems.push({
+            id: invoice.id,
+            name: `${invoice.invoice_number} (${invoice.invoice_type})`,
+            type: 'purchase_invoice',
+            deletedOn: format(deletedAt, 'dd MMM yyyy'),
+            daysLeft,
+            table: 'purchase_invoices',
           });
         }
       });
@@ -112,7 +134,8 @@ export default function RecycleBin() {
 
   const filtered = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = typeFilter === "all" || item.type === typeFilter;
+    const matchesType = typeFilter === "all" || item.type === typeFilter || 
+      (typeFilter === "invoice" && (item.type === "sale_invoice" || item.type === "purchase_invoice"));
     return matchesSearch && matchesType;
   });
 
@@ -120,8 +143,6 @@ export default function RecycleBin() {
     switch (type) {
       case "item":
         return <Package className="w-4 h-4" />;
-      case "invoice":
-        return <FileText className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
     }
@@ -131,10 +152,8 @@ export default function RecycleBin() {
     switch (type) {
       case "item":
         return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "invoice":
-        return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
       default:
-        return "bg-muted text-muted-foreground";
+        return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
     }
   };
 
@@ -142,7 +161,7 @@ export default function RecycleBin() {
     setActionLoading(item.id);
     try {
       const { error } = await supabase
-        .from(item.table as 'items' | 'invoices')
+        .from(item.table as 'items' | 'sale_invoices' | 'purchase_invoices')
         .update({ is_deleted: false, deleted_at: null })
         .eq('id', item.id);
 
@@ -162,15 +181,20 @@ export default function RecycleBin() {
     setActionLoading(item.id);
     try {
       // For invoices, first delete invoice_items
-      if (item.table === 'invoices') {
+      if (item.table === 'sale_invoices') {
         await supabase
           .from('invoice_items')
           .delete()
-          .eq('invoice_id', item.id);
+          .eq('sale_invoice_id', item.id);
+      } else if (item.table === 'purchase_invoices') {
+        await supabase
+          .from('invoice_items')
+          .delete()
+          .eq('purchase_invoice_id', item.id);
       }
 
       const { error } = await supabase
-        .from(item.table as 'items' | 'invoices')
+        .from(item.table as 'items' | 'sale_invoices' | 'purchase_invoices')
         .delete()
         .eq('id', item.id);
 
@@ -189,18 +213,32 @@ export default function RecycleBin() {
   const emptyRecycleBin = async () => {
     setActionLoading('all');
     try {
-      // Delete all invoice items for deleted invoices
-      const invoiceIds = items.filter(i => i.table === 'invoices').map(i => i.id);
-      if (invoiceIds.length > 0) {
+      // Delete all invoice items for deleted sale invoices
+      const saleInvoiceIds = items.filter(i => i.table === 'sale_invoices').map(i => i.id);
+      if (saleInvoiceIds.length > 0) {
         await supabase
           .from('invoice_items')
           .delete()
-          .in('invoice_id', invoiceIds);
+          .in('sale_invoice_id', saleInvoiceIds);
 
         await supabase
-          .from('invoices')
+          .from('sale_invoices')
           .delete()
-          .in('id', invoiceIds);
+          .in('id', saleInvoiceIds);
+      }
+
+      // Delete all invoice items for deleted purchase invoices
+      const purchaseInvoiceIds = items.filter(i => i.table === 'purchase_invoices').map(i => i.id);
+      if (purchaseInvoiceIds.length > 0) {
+        await supabase
+          .from('invoice_items')
+          .delete()
+          .in('purchase_invoice_id', purchaseInvoiceIds);
+
+        await supabase
+          .from('purchase_invoices')
+          .delete()
+          .in('id', purchaseInvoiceIds);
       }
 
       // Delete all items
@@ -335,7 +373,7 @@ export default function RecycleBin() {
                   </td>
                   <td>
                     <span className={cn("px-2 py-1 text-xs font-medium rounded-full capitalize", getTypeBadgeColor(item.type))}>
-                      {item.type}
+                      {item.type.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="text-muted-foreground">{item.deletedOn}</td>

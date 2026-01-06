@@ -50,7 +50,6 @@ export default function ResetDatabase() {
       
       if (invoiceItemsError) {
         console.error('Invoice items deletion error:', invoiceItemsError);
-        // Continue anyway - might be RLS related
       }
       addProgress("✓ Invoice items deleted");
 
@@ -64,17 +63,27 @@ export default function ResetDatabase() {
       if (paymentsError) console.error('Payments deletion error:', paymentsError);
       addProgress("✓ Payments deleted");
 
-      // 3. Delete invoices
-      addProgress("Deleting invoices...");
-      const { error: invoicesError } = await supabase
-        .from('invoices')
+      // 3. Delete sale invoices
+      addProgress("Deleting sale invoices...");
+      const { error: saleInvoicesError } = await supabase
+        .from('sale_invoices')
         .delete()
         .eq('user_id', user.id);
       
-      if (invoicesError) console.error('Invoices deletion error:', invoicesError);
-      addProgress("✓ Invoices deleted");
+      if (saleInvoicesError) console.error('Sale invoices deletion error:', saleInvoicesError);
+      addProgress("✓ Sale invoices deleted");
 
-      // 4. Delete expenses
+      // 4. Delete purchase invoices
+      addProgress("Deleting purchase invoices...");
+      const { error: purchaseInvoicesError } = await supabase
+        .from('purchase_invoices')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (purchaseInvoicesError) console.error('Purchase invoices deletion error:', purchaseInvoicesError);
+      addProgress("✓ Purchase invoices deleted");
+
+      // 5. Delete expenses
       addProgress("Deleting expenses...");
       const { error: expensesError } = await supabase
         .from('expenses')
@@ -84,7 +93,7 @@ export default function ResetDatabase() {
       if (expensesError) console.error('Expenses deletion error:', expensesError);
       addProgress("✓ Expenses deleted");
 
-      // 5. Delete cash transactions
+      // 6. Delete cash transactions
       addProgress("Deleting cash transactions...");
       const { error: cashError } = await supabase
         .from('cash_transactions')
@@ -94,7 +103,7 @@ export default function ResetDatabase() {
       if (cashError) console.error('Cash transactions deletion error:', cashError);
       addProgress("✓ Cash transactions deleted");
 
-      // 6. Delete items
+      // 7. Delete items
       addProgress("Deleting items...");
       const { error: itemsError } = await supabase
         .from('items')
@@ -104,7 +113,7 @@ export default function ResetDatabase() {
       if (itemsError) console.error('Items deletion error:', itemsError);
       addProgress("✓ Items deleted");
 
-      // 7. Delete categories
+      // 8. Delete categories
       addProgress("Deleting categories...");
       const { error: categoriesError } = await supabase
         .from('categories')
@@ -114,7 +123,7 @@ export default function ResetDatabase() {
       if (categoriesError) console.error('Categories deletion error:', categoriesError);
       addProgress("✓ Categories deleted");
 
-      // 8. Delete parties
+      // 9. Delete parties
       addProgress("Deleting parties...");
       const { error: partiesError } = await supabase
         .from('parties')
@@ -124,7 +133,7 @@ export default function ResetDatabase() {
       if (partiesError) console.error('Parties deletion error:', partiesError);
       addProgress("✓ Parties deleted");
 
-      // 9. Delete bank accounts
+      // 10. Delete bank accounts
       addProgress("Deleting bank accounts...");
       const { error: bankError } = await supabase
         .from('bank_accounts')

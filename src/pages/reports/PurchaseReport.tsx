@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Filter, TrendingUp, TrendingDown, IndianRupee, Package, Loader2 } from "lucide-react";
+import { Filter, TrendingDown, IndianRupee, Package, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,7 +40,7 @@ export default function PurchaseReport() {
       if (!user) return;
 
       const { data: invoices, error } = await supabase
-        .from('invoices')
+        .from('purchase_invoices')
         .select(`
           id,
           invoice_number,
@@ -51,24 +51,23 @@ export default function PurchaseReport() {
           parties (name)
         `)
         .eq('user_id', user.id)
-        .eq('invoice_type', 'purchase')
         .eq('is_deleted', false)
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
 
       const purchasesWithItems = await Promise.all(
-        (invoices || []).map(async (inv) => {
+        (invoices || []).map(async (inv: any) => {
           const { count } = await supabase
             .from('invoice_items')
             .select('*', { count: 'exact', head: true })
-            .eq('invoice_id', inv.id);
+            .eq('purchase_invoice_id', inv.id);
 
           return {
             id: inv.id,
             invoice_number: inv.invoice_number,
             invoice_date: inv.invoice_date,
-            party_name: (inv.parties as any)?.name || 'Unknown Supplier',
+            party_name: inv.parties?.name || 'Unknown Supplier',
             items_count: count || 0,
             total_amount: inv.total_amount || 0,
             paid_amount: inv.paid_amount || 0,

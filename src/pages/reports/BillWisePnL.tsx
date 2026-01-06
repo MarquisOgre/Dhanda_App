@@ -40,7 +40,7 @@ export default function BillWisePnL() {
       if (!user) return;
 
       const { data: invoices, error } = await supabase
-        .from('invoices')
+        .from('sale_invoices')
         .select(`
           id,
           invoice_number,
@@ -51,13 +51,12 @@ export default function BillWisePnL() {
           parties (name)
         `)
         .eq('user_id', user.id)
-        .eq('invoice_type', 'sale')
         .eq('is_deleted', false)
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
 
-      const bills = (invoices || []).map(inv => {
+      const bills = (invoices || []).map((inv: any) => {
         const sale = inv.total_amount || 0;
         const cost = inv.subtotal || 0;
         const profit = sale - cost;
@@ -67,7 +66,7 @@ export default function BillWisePnL() {
           id: inv.id,
           invoice: inv.invoice_number,
           date: inv.invoice_date,
-          party: (inv.parties as any)?.name || 'Walk-in Customer',
+          party: inv.parties?.name || 'Walk-in Customer',
           sale,
           cost,
           profit,

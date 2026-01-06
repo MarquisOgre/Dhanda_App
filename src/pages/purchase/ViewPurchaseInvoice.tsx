@@ -71,28 +71,11 @@ export default function ViewPurchaseInvoice() {
       if (invoiceError) throw invoiceError;
       setInvoice(invoiceData as unknown as Invoice);
 
-      // First try to get items from purchase_invoices id
-      let { data: itemsData } = await supabase
+      // Fetch items linked to this purchase invoice
+      const { data: itemsData } = await supabase
         .from("invoice_items")
         .select("*")
-        .eq("invoice_id", id);
-
-      // If no items found, try looking up from old invoices table by invoice_number
-      if (!itemsData || itemsData.length === 0) {
-        const { data: oldInvoice } = await supabase
-          .from("invoices")
-          .select("id")
-          .eq("invoice_number", invoiceData.invoice_number)
-          .maybeSingle();
-        
-        if (oldInvoice) {
-          const { data: oldItems } = await supabase
-            .from("invoice_items")
-            .select("*")
-            .eq("invoice_id", oldInvoice.id);
-          itemsData = oldItems;
-        }
-      }
+        .eq("purchase_invoice_id", id);
 
       setItems(itemsData || []);
     } catch (error: any) {

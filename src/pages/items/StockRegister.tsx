@@ -133,14 +133,35 @@ const StockRegister = () => {
       ];
 
       let invoiceItems: any[] = [];
-      if (allInvoiceIds.length > 0) {
-        const { data: itemsData, error: itemsDataError } = await supabase
+      
+      // Fetch items from purchase invoices
+      const purchaseIds = [...(purchaseInvoices?.map(i => i.id) || []), ...(beforePurchaseInvoices?.map(i => i.id) || [])];
+      
+      if (purchaseIds.length > 0) {
+        const { data: purchaseItemsData } = await supabase
           .from("invoice_items")
-          .select("invoice_id, item_id, quantity, rate, total")
-          .in("invoice_id", allInvoiceIds);
-
-        if (itemsDataError) throw itemsDataError;
-        invoiceItems = itemsData || [];
+          .select("purchase_invoice_id, item_id, quantity, rate, total")
+          .in("purchase_invoice_id", purchaseIds);
+        
+        invoiceItems.push(...(purchaseItemsData || []).map(item => ({
+          ...item,
+          invoice_id: item.purchase_invoice_id,
+        })));
+      }
+      
+      // Fetch items from sale invoices
+      const saleIds = [...(saleInvoices?.map(i => i.id) || []), ...(beforeSaleInvoices?.map(i => i.id) || [])];
+      
+      if (saleIds.length > 0) {
+        const { data: saleItemsData } = await supabase
+          .from("invoice_items")
+          .select("sale_invoice_id, item_id, quantity, rate, total")
+          .in("sale_invoice_id", saleIds);
+        
+        invoiceItems.push(...(saleItemsData || []).map(item => ({
+          ...item,
+          invoice_id: item.sale_invoice_id,
+        })));
       }
 
       // Create lookup maps

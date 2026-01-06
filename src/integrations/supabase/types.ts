@@ -324,11 +324,12 @@ export type Database = {
           discount_percent: number | null
           hsn_code: string | null
           id: string
-          invoice_id: string
           item_id: string | null
           item_name: string
+          purchase_invoice_id: string | null
           quantity: number
           rate: number
+          sale_invoice_id: string | null
           tax_amount: number | null
           tax_rate: number | null
           total: number
@@ -340,11 +341,12 @@ export type Database = {
           discount_percent?: number | null
           hsn_code?: string | null
           id?: string
-          invoice_id: string
           item_id?: string | null
           item_name: string
+          purchase_invoice_id?: string | null
           quantity?: number
           rate?: number
+          sale_invoice_id?: string | null
           tax_amount?: number | null
           tax_rate?: number | null
           total?: number
@@ -356,11 +358,12 @@ export type Database = {
           discount_percent?: number | null
           hsn_code?: string | null
           id?: string
-          invoice_id?: string
           item_id?: string | null
           item_name?: string
+          purchase_invoice_id?: string | null
           quantity?: number
           rate?: number
+          sale_invoice_id?: string | null
           tax_amount?: number | null
           tax_rate?: number | null
           total?: number
@@ -368,94 +371,24 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "invoice_items_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "invoice_items_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      invoices: {
-        Row: {
-          balance_due: number | null
-          created_at: string
-          deleted_at: string | null
-          discount_amount: number | null
-          due_date: string | null
-          id: string
-          invoice_date: string
-          invoice_number: string
-          invoice_type: string
-          is_deleted: boolean | null
-          notes: string | null
-          paid_amount: number | null
-          party_id: string | null
-          status: string | null
-          subtotal: number | null
-          tax_amount: number | null
-          terms: string | null
-          total_amount: number | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          balance_due?: number | null
-          created_at?: string
-          deleted_at?: string | null
-          discount_amount?: number | null
-          due_date?: string | null
-          id?: string
-          invoice_date?: string
-          invoice_number: string
-          invoice_type: string
-          is_deleted?: boolean | null
-          notes?: string | null
-          paid_amount?: number | null
-          party_id?: string | null
-          status?: string | null
-          subtotal?: number | null
-          tax_amount?: number | null
-          terms?: string | null
-          total_amount?: number | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          balance_due?: number | null
-          created_at?: string
-          deleted_at?: string | null
-          discount_amount?: number | null
-          due_date?: string | null
-          id?: string
-          invoice_date?: string
-          invoice_number?: string
-          invoice_type?: string
-          is_deleted?: boolean | null
-          notes?: string | null
-          paid_amount?: number | null
-          party_id?: string | null
-          status?: string | null
-          subtotal?: number | null
-          tax_amount?: number | null
-          terms?: string | null
-          total_amount?: number | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "invoices_party_id_fkey"
-            columns: ["party_id"]
+            foreignKeyName: "invoice_items_purchase_invoice_id_fkey"
+            columns: ["purchase_invoice_id"]
             isOneToOne: false
-            referencedRelation: "parties"
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_sale_invoice_id_fkey"
+            columns: ["sale_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sale_invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -644,57 +577,67 @@ export type Database = {
           amount: number
           created_at: string
           id: string
-          invoice_id: string | null
           notes: string | null
           party_id: string | null
           payment_date: string
           payment_mode: string | null
           payment_number: string
           payment_type: string
+          purchase_invoice_id: string | null
           reference_number: string | null
+          sale_invoice_id: string | null
           user_id: string
         }
         Insert: {
           amount?: number
           created_at?: string
           id?: string
-          invoice_id?: string | null
           notes?: string | null
           party_id?: string | null
           payment_date?: string
           payment_mode?: string | null
           payment_number: string
           payment_type: string
+          purchase_invoice_id?: string | null
           reference_number?: string | null
+          sale_invoice_id?: string | null
           user_id: string
         }
         Update: {
           amount?: number
           created_at?: string
           id?: string
-          invoice_id?: string | null
           notes?: string | null
           party_id?: string | null
           payment_date?: string
           payment_mode?: string | null
           payment_number?: string
           payment_type?: string
+          purchase_invoice_id?: string | null
           reference_number?: string | null
+          sale_invoice_id?: string | null
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "payments_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "payments_party_id_fkey"
             columns: ["party_id"]
             isOneToOne: false
             referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_purchase_invoice_id_fkey"
+            columns: ["purchase_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_sale_invoice_id_fkey"
+            columns: ["sale_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sale_invoices"
             referencedColumns: ["id"]
           },
         ]

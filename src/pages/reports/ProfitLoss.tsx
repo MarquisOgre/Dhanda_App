@@ -27,23 +27,21 @@ export default function ProfitLoss() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get sales revenue
+      // Get sales revenue from sale_invoices
       const { data: salesInvoices } = await supabase
-        .from('invoices')
+        .from('sale_invoices')
         .select('total_amount, subtotal')
         .eq('user_id', user.id)
-        .eq('invoice_type', 'sale')
         .eq('is_deleted', false);
 
       const salesRevenue = (salesInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
       const costOfGoods = (salesInvoices || []).reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
 
-      // Get purchase costs
+      // Get purchase costs from purchase_invoices
       const { data: purchaseInvoices } = await supabase
-        .from('invoices')
+        .from('purchase_invoices')
         .select('total_amount')
         .eq('user_id', user.id)
-        .eq('invoice_type', 'purchase')
         .eq('is_deleted', false);
 
       const purchaseCost = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
