@@ -16,6 +16,7 @@ import PartiesList from "./pages/parties/PartiesList";
 import AddParty from "./pages/parties/AddParty";
 import ItemsList from "./pages/items/ItemsList";
 import AddItem from "./pages/items/AddItem";
+import EditItem from "./pages/items/EditItem";
 import Categories from "./pages/items/Categories";
 import StockRegister from "./pages/items/StockRegister";
 import SaleInvoices from "./pages/sale/SaleInvoices";
@@ -102,6 +103,7 @@ const AppRoutes = () => {
       {/* Items */}
       <Route path="/items" element={<ProtectedRoute><ItemsList /></ProtectedRoute>} />
       <Route path="/items/add" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
+      <Route path="/items/edit/:id" element={<ProtectedRoute><EditItem /></ProtectedRoute>} />
       <Route path="/items/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
       <Route path="/items/stock-register" element={<ProtectedRoute><StockRegister /></ProtectedRoute>} />
       {/* Sale */}
