@@ -50,9 +50,9 @@ export default function SaleInvoices() {
   const fetchInvoices = async () => {
     try {
       const { data, error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .select("*, parties(name)")
-        .eq("invoice_type", "sale")
+        .in("invoice_type", ["sale", "sale_invoice"])
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
@@ -70,7 +70,7 @@ export default function SaleInvoices() {
     
     try {
       const { error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
