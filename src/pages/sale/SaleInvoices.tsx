@@ -6,7 +6,6 @@ import {
   MoreHorizontal,
   FileText,
   Download,
-  Send,
   Eye,
   Loader2,
 } from "lucide-react";
@@ -21,22 +20,31 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { generateInvoicePDF } from "@/lib/invoicePdf";
 
 interface Invoice {
   id: string;
   invoice_number: string;
   invoice_date: string;
+  due_date: string | null;
   total_amount: number | null;
   paid_amount: number | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  discount_amount: number | null;
   status: string | null;
+  notes: string | null;
+  terms: string | null;
   party_id: string | null;
   parties?: { name: string } | null;
 }
 
 export default function SaleInvoices() {
   const { user } = useAuth();
+  const { businessSettings } = useBusinessSettings();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -235,13 +243,27 @@ export default function SaleInvoices() {
                             <Eye className="w-4 h-4 mr-2" />
                             View Invoice
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => toast.info("PDF download coming soon")}>
+                          <DropdownMenuItem onSelect={async () => {
+                            const { data: items } = await supabase
+                              .from("invoice_items")
+                              .select("*")
+                              .eq("invoice_id", invoice.id);
+                            
+                            const { data: partyData } = await supabase
+                              .from("parties")
+                              .select("name, phone, email, billing_address, gstin")
+                              .eq("id", invoice.party_id)
+                              .single();
+                            
+                            generateInvoicePDF({
+                              invoice: { ...invoice, parties: partyData },
+                              items: items || [],
+                              settings: businessSettings,
+                              type: "sale",
+                            });
+                          }}>
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => toast.info("Send to party coming soon")}>
-                            <Send className="w-4 h-4 mr-2" />
-                            Send to Party
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in?invoice=${invoice.id}`)}>
                             Record Payment
