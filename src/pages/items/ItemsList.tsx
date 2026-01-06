@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -7,6 +7,7 @@ import {
   Package,
   AlertTriangle,
   Loader2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,9 +51,14 @@ interface Item {
 
 export default function ItemsList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showAdjustStock, setShowAdjustStock] = useState(false);
+  const [stockAdjustment, setStockAdjustment] = useState({ type: "add", quantity: 0, notes: "" });
 
   useEffect(() => {
     if (user) {
@@ -76,6 +96,31 @@ export default function ItemsList() {
       fetchItems();
     } catch (error: any) {
       toast.error("Failed to delete item: " + error.message);
+    }
+  };
+
+  const handleAdjustStock = async () => {
+    if (!selectedItem) return;
+    
+    const adjustment = stockAdjustment.type === "add" 
+      ? stockAdjustment.quantity 
+      : -stockAdjustment.quantity;
+    
+    const newStock = (selectedItem.current_stock || 0) + adjustment;
+    
+    try {
+      const { error } = await supabase
+        .from("items")
+        .update({ current_stock: newStock })
+        .eq("id", selectedItem.id);
+      
+      if (error) throw error;
+      toast.success("Stock adjusted successfully");
+      setShowAdjustStock(false);
+      setStockAdjustment({ type: "add", quantity: 0, notes: "" });
+      fetchItems();
+    } catch (error: any) {
+      toast.error("Failed to adjust stock: " + error.message);
     }
   };
 
@@ -201,9 +246,21 @@ export default function ItemsList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Item</DropdownMenuItem>
-                          <DropdownMenuItem>Adjust Stock</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedItem(item);
+                            setShowDetails(true);
+                          }}>
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/items/edit/${item.id}`)}>
+                            Edit Item
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedItem(item);
+                            setShowAdjustStock(true);
+                          }}>
+                            Adjust Stock
+                          </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-destructive"
                             onClick={() => handleDelete(item.id)}
@@ -220,6 +277,137 @@ export default function ItemsList() {
           </table>
         </div>
       )}
+
+      {/* View Details Dialog */}
+      <Dialog open={showDetails} onOpenChange={setShowDetails}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Item Details</DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+                  <Package className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">{selectedItem.name}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedItem.unit || "PCS"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">HSN Code</p>
+                  <p className="font-medium">{selectedItem.hsn_code || "N/A"}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">GST Rate</p>
+                  <p className="font-medium">{selectedItem.tax_rate || 0}%</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Sale Price</p>
+                  <p className="font-medium text-success">₹{(selectedItem.sale_price || 0).toLocaleString()}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Purchase Price</p>
+                  <p className="font-medium">₹{(selectedItem.purchase_price || 0).toLocaleString()}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Current Stock</p>
+                  <p className={cn(
+                    "font-medium",
+                    (selectedItem.current_stock || 0) <= (selectedItem.low_stock_alert || 10) && "text-warning"
+                  )}>
+                    {selectedItem.current_stock || 0} {selectedItem.unit || "PCS"}
+                  </p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Low Stock Alert</p>
+                  <p className="font-medium">{selectedItem.low_stock_alert || 10} {selectedItem.unit || "PCS"}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" className="flex-1" onClick={() => setShowDetails(false)}>
+                  Close
+                </Button>
+                <Button className="flex-1" onClick={() => {
+                  setShowDetails(false);
+                  navigate(`/items/edit/${selectedItem.id}`);
+                }}>
+                  Edit Item
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Stock Dialog */}
+      <Dialog open={showAdjustStock} onOpenChange={setShowAdjustStock}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Stock - {selectedItem?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Current Stock</p>
+              <p className="text-xl font-semibold">{selectedItem?.current_stock || 0} {selectedItem?.unit || "PCS"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Adjustment Type</Label>
+              <Select 
+                value={stockAdjustment.type} 
+                onValueChange={(value) => setStockAdjustment(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="add">Add Stock</SelectItem>
+                  <SelectItem value="remove">Remove Stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                min="0"
+                value={stockAdjustment.quantity}
+                onChange={(e) => setStockAdjustment(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Input
+                placeholder="Reason for adjustment..."
+                value={stockAdjustment.notes}
+                onChange={(e) => setStockAdjustment(prev => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">New Stock</p>
+              <p className="text-xl font-semibold">
+                {stockAdjustment.type === "add" 
+                  ? (selectedItem?.current_stock || 0) + stockAdjustment.quantity
+                  : (selectedItem?.current_stock || 0) - stockAdjustment.quantity
+                } {selectedItem?.unit || "PCS"}
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => {
+                setShowAdjustStock(false);
+                setStockAdjustment({ type: "add", quantity: 0, notes: "" });
+              }}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={handleAdjustStock}>
+                Save Adjustment
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
