@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search, MoreHorizontal, ArrowDownCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ interface Payment {
 
 export default function PaymentOutList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,9 +182,9 @@ export default function PaymentOutList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Receipt</DropdownMenuItem>
-                        <DropdownMenuItem>Print</DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem onClick={() => navigate(`/purchase/payment-out/${payment.id}`)}>View Receipt</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/purchase/payment-out/${payment.id}`)}>Print</DropdownMenuItem>
+                        <DropdownMenuItem
                           className="text-destructive"
                           onClick={() => handleDelete(payment.id)}
                         >

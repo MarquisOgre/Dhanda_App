@@ -29,6 +29,7 @@ import ProformaList from "./pages/sale/ProformaList";
 import CreateProformaInvoice from "./pages/sale/CreateProformaInvoice";
 import PaymentInList from "./pages/sale/PaymentInList";
 import PaymentIn from "./pages/sale/PaymentIn";
+import ViewPaymentIn from "./pages/sale/ViewPaymentIn";
 import SaleOrderList from "./pages/sale/SaleOrderList";
 import CreateSaleOrder from "./pages/sale/CreateSaleOrder";
 import DeliveryChallanList from "./pages/sale/DeliveryChallanList";
@@ -41,6 +42,7 @@ import ViewPurchaseInvoice from "./pages/purchase/ViewPurchaseInvoice";
 import EditPurchaseInvoice from "./pages/purchase/EditPurchaseInvoice";
 import PaymentOutList from "./pages/purchase/PaymentOutList";
 import PaymentOut from "./pages/purchase/PaymentOut";
+import ViewPaymentOut from "./pages/purchase/ViewPaymentOut";
 import ExpensesList from "./pages/purchase/ExpensesList";
 import CreateExpense from "./pages/purchase/CreateExpense";
 import PurchaseOrderList from "./pages/purchase/PurchaseOrderList";
@@ -121,6 +123,7 @@ const AppRoutes = () => {
       <Route path="/sale/proforma/new" element={<ProtectedRoute><CreateProformaInvoice /></ProtectedRoute>} />
       <Route path="/sale/payment-in" element={<ProtectedRoute><PaymentInList /></ProtectedRoute>} />
       <Route path="/sale/payment-in/new" element={<ProtectedRoute><PaymentIn /></ProtectedRoute>} />
+      <Route path="/sale/payment-in/:id" element={<ProtectedRoute><ViewPaymentIn /></ProtectedRoute>} />
       <Route path="/sale/order" element={<ProtectedRoute><SaleOrderList /></ProtectedRoute>} />
       <Route path="/sale/order/new" element={<ProtectedRoute><CreateSaleOrder /></ProtectedRoute>} />
       <Route path="/sale/dc" element={<ProtectedRoute><DeliveryChallanList /></ProtectedRoute>} />
@@ -134,6 +137,7 @@ const AppRoutes = () => {
       <Route path="/purchase/bills/:id/edit" element={<ProtectedRoute><EditPurchaseInvoice /></ProtectedRoute>} />
       <Route path="/purchase/payment-out" element={<ProtectedRoute><PaymentOutList /></ProtectedRoute>} />
       <Route path="/purchase/payment-out/new" element={<ProtectedRoute><PaymentOut /></ProtectedRoute>} />
+      <Route path="/purchase/payment-out/:id" element={<ProtectedRoute><ViewPaymentOut /></ProtectedRoute>} />
       <Route path="/purchase/expenses" element={<ProtectedRoute><ExpensesList /></ProtectedRoute>} />
       <Route path="/purchase/expenses/new" element={<ProtectedRoute><CreateExpense /></ProtectedRoute>} />
       <Route path="/purchase/order" element={<ProtectedRoute><PurchaseOrderList /></ProtectedRoute>} />

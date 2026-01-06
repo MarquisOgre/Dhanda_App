@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,17 +14,64 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface LinkedInvoice {
+  id: string;
+  invoice_number: string;
+  balance_due: number;
+  party_id: string;
+}
+
 export default function PaymentIn() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invoiceId = searchParams.get("invoice");
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoice | null>(null);
   
-  const [receiptNumber, setReceiptNumber] = useState("REC-001");
+  const [receiptNumber, setReceiptNumber] = useState("");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [selectedParty, setSelectedParty] = useState("");
   const [paymentMode, setPaymentMode] = useState("cash");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    generateReceiptNumber();
+    if (invoiceId) {
+      fetchLinkedInvoice();
+    }
+  }, [invoiceId]);
+
+  const generateReceiptNumber = async () => {
+    try {
+      const { count } = await supabase
+        .from("payments")
+        .select("*", { count: "exact", head: true })
+        .eq("payment_type", "in");
+      setReceiptNumber(`REC-${String((count || 0) + 1).padStart(3, "0")}`);
+    } catch {
+      setReceiptNumber("REC-001");
+    }
+  };
+
+  const fetchLinkedInvoice = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("sale_invoices")
+        .select("id, invoice_number, balance_due, party_id")
+        .eq("id", invoiceId)
+        .single();
+
+      if (error) throw error;
+      setLinkedInvoice(data);
+      setSelectedParty(data.party_id || "");
+      setAmount(String(data.balance_due || 0));
+      setNotes(`Payment for invoice ${data.invoice_number}`);
+    } catch (error: any) {
+      console.error("Failed to fetch linked invoice:", error);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) {
@@ -45,15 +92,31 @@ export default function PaymentIn() {
       const { error } = await supabase.from("payments").insert({
         user_id: user.id,
         payment_number: receiptNumber,
-        payment_type: "payment_in",
+        payment_type: "in",
         payment_date: paymentDate.toISOString().split("T")[0],
         party_id: selectedParty,
         payment_mode: paymentMode,
         amount: parseFloat(amount),
         notes: notes || null,
+        sale_invoice_id: linkedInvoice?.id || null,
       });
 
       if (error) throw error;
+
+      // Update invoice balance if linked
+      if (linkedInvoice) {
+        const newPaidAmount = (linkedInvoice.balance_due || 0) - parseFloat(amount);
+        const newBalance = Math.max(0, newPaidAmount);
+        await supabase
+          .from("sale_invoices")
+          .update({
+            paid_amount: supabase.rpc ? parseFloat(amount) : parseFloat(amount),
+            balance_due: newBalance,
+            status: newBalance <= 0 ? "paid" : "partial",
+          })
+          .eq("id", linkedInvoice.id);
+      }
+
       toast.success("Payment recorded successfully!");
       navigate("/sale/payment-in");
     } catch (error: any) {
@@ -72,7 +135,12 @@ export default function PaymentIn() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Record Payment In</h1>
-            <p className="text-muted-foreground">Record payment received from customer</p>
+            <p className="text-muted-foreground">
+              {linkedInvoice 
+                ? `Payment for ${linkedInvoice.invoice_number}`
+                : "Record payment received from customer"
+              }
+            </p>
           </div>
         </div>
         <Button onClick={handleSave} className="btn-gradient gap-2" disabled={loading}>
@@ -83,6 +151,17 @@ export default function PaymentIn() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Linked Invoice Alert */}
+          {linkedInvoice && (
+            <div className="metric-card border-primary/50 bg-primary/5">
+              <h2 className="text-lg font-semibold mb-2">Linked Invoice</h2>
+              <p className="text-sm text-muted-foreground">
+                Recording payment for invoice <span className="font-medium text-foreground">{linkedInvoice.invoice_number}</span>
+              </p>
+              <p className="text-sm mt-1">Balance Due: <span className="font-bold text-primary">₹{linkedInvoice.balance_due?.toLocaleString()}</span></p>
+            </div>
+          )}
+
           {/* Payment Details */}
           <div className="metric-card">
             <h2 className="text-lg font-semibold mb-4">Payment Details</h2>
@@ -123,7 +202,12 @@ export default function PaymentIn() {
           {/* Party Selection */}
           <div className="metric-card">
             <h2 className="text-lg font-semibold mb-4">Customer</h2>
-            <PartySelector value={selectedParty} onChange={setSelectedParty} partyType="customer" />
+            <PartySelector 
+              value={selectedParty} 
+              onChange={setSelectedParty} 
+              partyType="customer" 
+              disabled={!!linkedInvoice}
+            />
           </div>
 
           {/* Amount */}
@@ -166,11 +250,17 @@ export default function PaymentIn() {
                   <span className="text-muted-foreground">Mode</span>
                   <span className="capitalize">{paymentMode}</span>
                 </div>
+                {linkedInvoice && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Invoice</span>
+                    <span className="font-medium">{linkedInvoice.invoice_number}</span>
+                  </div>
+                )}
               </div>
               <div className="pt-4 border-t border-border">
                 <div className="flex justify-between text-lg font-bold">
                   <span>Amount</span>
-                  <span className="text-primary">₹{Number(amount || 0).toLocaleString()}</span>
+                  <span className="text-success">₹{Number(amount || 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>

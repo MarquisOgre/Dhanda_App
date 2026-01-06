@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search, Wallet, MoreHorizontal, Eye, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ interface Payment {
 
 export default function PaymentInList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,8 +134,8 @@ export default function PaymentInList() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem><Eye className="w-4 h-4 mr-2" />View Receipt</DropdownMenuItem>
-                        <DropdownMenuItem><Download className="w-4 h-4 mr-2" />Download PDF</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/sale/payment-in/${pay.id}`)}><Eye className="w-4 h-4 mr-2" />View Receipt</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/sale/payment-in/${pay.id}`)}><Download className="w-4 h-4 mr-2" />Download PDF</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(pay.id)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

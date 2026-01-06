@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Save, Loader2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -16,18 +18,66 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
+
+interface LinkedInvoice {
+  id: string;
+  invoice_number: string;
+  balance_due: number;
+  party_id: string;
+}
 
 export default function PaymentOut() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invoiceId = searchParams.get("invoice");
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoice | null>(null);
   
-  const [receiptNumber, setReceiptNumber] = useState("PAY-OUT-015");
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [receiptNumber, setReceiptNumber] = useState("");
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [selectedParty, setSelectedParty] = useState("");
-  const [paymentMode, setPaymentMode] = useState("");
+  const [paymentMode, setPaymentMode] = useState("cash");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    generateReceiptNumber();
+    if (invoiceId) {
+      fetchLinkedInvoice();
+    }
+  }, [invoiceId]);
+
+  const generateReceiptNumber = async () => {
+    try {
+      const { count } = await supabase
+        .from("payments")
+        .select("*", { count: "exact", head: true })
+        .eq("payment_type", "out");
+      setReceiptNumber(`PAY-OUT-${String((count || 0) + 1).padStart(3, "0")}`);
+    } catch {
+      setReceiptNumber("PAY-OUT-001");
+    }
+  };
+
+  const fetchLinkedInvoice = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("purchase_invoices")
+        .select("id, invoice_number, balance_due, party_id")
+        .eq("id", invoiceId)
+        .single();
+
+      if (error) throw error;
+      setLinkedInvoice(data);
+      setSelectedParty(data.party_id || "");
+      setAmount(String(data.balance_due || 0));
+      setNotes(`Payment for invoice ${data.invoice_number}`);
+    } catch (error: any) {
+      console.error("Failed to fetch linked invoice:", error);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) {
@@ -52,15 +102,30 @@ export default function PaymentOut() {
       const { error } = await supabase.from("payments").insert({
         user_id: user.id,
         payment_number: receiptNumber,
-        payment_type: "payment_out",
-        payment_date: paymentDate,
+        payment_type: "out",
+        payment_date: paymentDate.toISOString().split("T")[0],
         party_id: selectedParty,
         payment_mode: paymentMode,
         amount: parseFloat(amount),
         notes: notes || null,
+        purchase_invoice_id: linkedInvoice?.id || null,
       });
 
       if (error) throw error;
+
+      // Update invoice balance if linked
+      if (linkedInvoice) {
+        const newBalance = Math.max(0, (linkedInvoice.balance_due || 0) - parseFloat(amount));
+        await supabase
+          .from("purchase_invoices")
+          .update({
+            paid_amount: parseFloat(amount),
+            balance_due: newBalance,
+            status: newBalance <= 0 ? "paid" : "partial",
+          })
+          .eq("id", linkedInvoice.id);
+      }
+
       toast.success("Payment recorded successfully!");
       navigate("/purchase/payment-out");
     } catch (error: any) {
@@ -82,7 +147,12 @@ export default function PaymentOut() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Payment Out</h1>
-            <p className="text-muted-foreground">Record payment to supplier</p>
+            <p className="text-muted-foreground">
+              {linkedInvoice 
+                ? `Payment for ${linkedInvoice.invoice_number}`
+                : "Record payment to supplier"
+              }
+            </p>
           </div>
         </div>
         <Button className="btn-gradient gap-2" onClick={handleSave} disabled={loading}>
@@ -94,22 +164,49 @@ export default function PaymentOut() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Form */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Linked Invoice Alert */}
+          {linkedInvoice && (
+            <div className="metric-card border-warning/50 bg-warning/5">
+              <h2 className="text-lg font-semibold mb-2">Linked Invoice</h2>
+              <p className="text-sm text-muted-foreground">
+                Recording payment for invoice <span className="font-medium text-foreground">{linkedInvoice.invoice_number}</span>
+              </p>
+              <p className="text-sm mt-1">Balance Due: <span className="font-bold text-warning">₹{linkedInvoice.balance_due?.toLocaleString()}</span></p>
+            </div>
+          )}
+
           {/* Payment Details */}
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Payment Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="receiptNo">Receipt Number</Label>
                 <Input id="receiptNo" value={receiptNumber} onChange={(e) => setReceiptNumber(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="paymentDate">Payment Date</Label>
-                <Input
-                  id="paymentDate"
-                  type="date"
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                />
+                <Label>Payment Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Calendar className="mr-2 h-4 w-4" />{format(paymentDate, "dd MMM yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={paymentDate} onSelect={(d) => d && setPaymentDate(d)} initialFocus />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Mode</Label>
+                <Select value={paymentMode} onValueChange={setPaymentMode}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -122,37 +219,23 @@ export default function PaymentOut() {
               onChange={setSelectedParty}
               partyType="supplier"
               label="Select Supplier"
+              disabled={!!linkedInvoice}
             />
           </div>
 
-          {/* Payment Mode */}
+          {/* Payment Amount */}
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">Payment Mode</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Payment Method</Label>
-                <Select value={paymentMode} onValueChange={setPaymentMode}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="bank">Bank Transfer</SelectItem>
-                    <SelectItem value="upi">UPI</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  placeholder="₹0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
+            <h3 className="font-semibold mb-4">Payment Amount</h3>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount (₹)</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="Enter amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="text-2xl font-bold h-14"
+              />
             </div>
           </div>
 
@@ -170,19 +253,33 @@ export default function PaymentOut() {
 
         {/* Summary Sidebar */}
         <div className="space-y-6">
-          <div className="metric-card">
+          <div className="metric-card sticky top-6">
             <h3 className="font-semibold mb-4">Payment Summary</h3>
             <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Payment Mode</span>
-                <span className="font-medium capitalize">{paymentMode || "-"}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Receipt No</span>
+                  <span className="font-medium">{receiptNumber}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Date</span>
+                  <span>{format(paymentDate, "dd MMM yyyy")}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mode</span>
+                  <span className="capitalize">{paymentMode || "-"}</span>
+                </div>
+                {linkedInvoice && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Invoice</span>
+                    <span className="font-medium">{linkedInvoice.invoice_number}</span>
+                  </div>
+                )}
               </div>
-              <div className="border-t border-border pt-4">
-                <div className="flex justify-between">
-                  <span className="font-semibold">Payment Amount</span>
-                  <span className="font-bold text-lg">
-                    ₹{Number(amount || 0).toLocaleString()}
-                  </span>
+              <div className="pt-4 border-t border-border">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Payment Amount</span>
+                  <span className="text-warning">₹{Number(amount || 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>
