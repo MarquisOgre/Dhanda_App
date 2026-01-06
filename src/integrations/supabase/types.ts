@@ -732,6 +732,144 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_invoices: {
+        Row: {
+          balance_due: number | null
+          created_at: string
+          deleted_at: string | null
+          discount_amount: number | null
+          due_date: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          invoice_type: string
+          is_deleted: boolean | null
+          notes: string | null
+          paid_amount: number | null
+          party_id: string | null
+          status: string | null
+          subtotal: number | null
+          tax_amount: number | null
+          terms: string | null
+          total_amount: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_due?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          invoice_type?: string
+          is_deleted?: boolean | null
+          notes?: string | null
+          paid_amount?: number | null
+          party_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          terms?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_due?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          invoice_type?: string
+          is_deleted?: boolean | null
+          notes?: string | null
+          paid_amount?: number | null
+          party_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          terms?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sale_invoices: {
+        Row: {
+          balance_due: number | null
+          created_at: string
+          deleted_at: string | null
+          discount_amount: number | null
+          due_date: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          invoice_type: string
+          is_deleted: boolean | null
+          notes: string | null
+          paid_amount: number | null
+          party_id: string | null
+          status: string | null
+          subtotal: number | null
+          tax_amount: number | null
+          terms: string | null
+          total_amount: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_due?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          invoice_type?: string
+          is_deleted?: boolean | null
+          notes?: string | null
+          paid_amount?: number | null
+          party_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          terms?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_due?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          invoice_type?: string
+          is_deleted?: boolean | null
+          notes?: string | null
+          paid_amount?: number | null
+          party_id?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          terms?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

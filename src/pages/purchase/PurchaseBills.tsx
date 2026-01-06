@@ -40,34 +40,34 @@ export default function PurchaseBills() {
   const fetchBills = async () => {
     try {
       const { data, error } = await supabase
-        .from("invoices")
+        .from("purchase_invoices")
         .select("*, parties(name)")
-        .eq("invoice_type", "purchase")
+        .in("invoice_type", ["purchase", "purchase_bill", "purchase_invoice"])
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       setBills(data || []);
     } catch (error: any) {
-      toast.error("Failed to fetch purchase bills: " + error.message);
+      toast.error("Failed to fetch purchase invoices: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this bill?")) return;
+    if (!confirm("Are you sure you want to delete this invoice?")) return;
     
     try {
       const { error } = await supabase
-        .from("invoices")
+        .from("purchase_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
-      toast.success("Bill deleted successfully");
+      toast.success("Purchase invoice deleted successfully");
       fetchBills();
     } catch (error: any) {
-      toast.error("Failed to delete bill: " + error.message);
+      toast.error("Failed to delete purchase invoice: " + error.message);
     }
   };
 
@@ -103,13 +103,13 @@ export default function PurchaseBills() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Purchase Bills</h1>
+          <h1 className="text-2xl font-bold">Purchase Invoices</h1>
           <p className="text-muted-foreground">Manage your purchase transactions</p>
         </div>
         <Button asChild className="btn-gradient gap-2">
           <Link to="/purchase/bills/new">
             <Plus className="w-4 h-4" />
-            New Purchase Bill
+            New Purchase Invoice
           </Link>
         </Button>
       </div>
