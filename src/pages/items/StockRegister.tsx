@@ -83,11 +83,10 @@ const StockRegister = () => {
 
       if (itemsError) throw itemsError;
 
-      // Fetch purchase invoices for the period
+      // Fetch purchase invoices for the period (no filter by invoice_type since all are valid)
       const { data: purchaseInvoices, error: purchaseError } = await supabase
         .from("purchase_invoices")
         .select("id, invoice_date")
-        .in("invoice_type", ["purchase", "purchase_bill", "purchase_invoice"])
         .eq("is_deleted", false)
         .gte("invoice_date", format(periodStart, "yyyy-MM-dd"))
         .lte("invoice_date", format(periodEnd, "yyyy-MM-dd"));
@@ -98,7 +97,6 @@ const StockRegister = () => {
       const { data: saleInvoices, error: saleError } = await supabase
         .from("sale_invoices")
         .select("id, invoice_date")
-        .in("invoice_type", ["sale", "sale_invoice"])
         .eq("is_deleted", false)
         .gte("invoice_date", format(periodStart, "yyyy-MM-dd"))
         .lte("invoice_date", format(periodEnd, "yyyy-MM-dd"));
@@ -109,7 +107,6 @@ const StockRegister = () => {
       const { data: beforePurchaseInvoices, error: beforePurchaseError } = await supabase
         .from("purchase_invoices")
         .select("id")
-        .in("invoice_type", ["purchase", "purchase_bill", "purchase_invoice"])
         .eq("is_deleted", false)
         .lt("invoice_date", format(beforePeriodStart, "yyyy-MM-dd"));
 
@@ -118,7 +115,6 @@ const StockRegister = () => {
       const { data: beforeSaleInvoices, error: beforeSaleError } = await supabase
         .from("sale_invoices")
         .select("id")
-        .in("invoice_type", ["sale", "sale_invoice"])
         .eq("is_deleted", false)
         .lt("invoice_date", format(beforePeriodStart, "yyyy-MM-dd"));
 
