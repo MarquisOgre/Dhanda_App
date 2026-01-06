@@ -19,7 +19,6 @@ import {
   Check,
   Sun,
   Moon,
-  Monitor,
   Eye,
   EyeOff
 } from "lucide-react";
@@ -1442,7 +1441,7 @@ export default function Settings() {
         <TabsContent value="appearance" className="space-y-6">
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Theme</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div 
                 className={`border rounded-lg p-4 text-center cursor-pointer transition-all ${theme === 'light' ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary'}`}
                 onClick={() => setTheme('light')}
@@ -1462,16 +1461,6 @@ export default function Settings() {
                 </div>
                 <p className="text-sm font-medium">Dark</p>
                 {theme === 'dark' && <Check className="w-4 h-4 text-primary mx-auto mt-1" />}
-              </div>
-              <div 
-                className={`border rounded-lg p-4 text-center cursor-pointer transition-all ${theme === 'system' ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary'}`}
-                onClick={() => setTheme('system')}
-              >
-                <div className="w-full h-16 bg-gradient-to-r from-white to-gray-900 rounded mb-2 flex items-center justify-center">
-                  <Monitor className="w-6 h-6 text-gray-500" />
-                </div>
-                <p className="text-sm font-medium">System</p>
-                {theme === 'system' && <Check className="w-4 h-4 text-primary mx-auto mt-1" />}
               </div>
             </div>
           </div>

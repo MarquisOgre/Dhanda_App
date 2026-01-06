@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { z } from "zod";
+import { useTheme } from "next-themes";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -17,6 +18,7 @@ const passwordSchema = z.string().min(6, "Password must be at least 6 characters
 export default function Auth() {
   const navigate = useNavigate();
   const { user, signIn, signUp, loading } = useAuth();
+  const { resolvedTheme } = useTheme();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -150,7 +152,11 @@ export default function Auth() {
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center space-y-2">
             <div className="flex justify-center mb-4">
-              <img src="/logo.png" alt="Dhandha App" className="h-16 w-auto" />
+              <img 
+                src={resolvedTheme === 'dark' ? '/light_logo.png' : '/dark_logo.png'} 
+                alt="Dhandha App" 
+                className="h-16 w-auto" 
+              />
             </div>
             <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
             <CardDescription>Enter your email to receive a reset link</CardDescription>
@@ -200,7 +206,11 @@ export default function Auth() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="Dhandha App" className="h-16 w-auto" />
+            <img 
+              src={resolvedTheme === 'dark' ? '/light_logo.png' : '/dark_logo.png'} 
+              alt="Dhandha App" 
+              className="h-16 w-auto" 
+            />
           </div>
           <CardTitle className="text-2xl font-bold">Welcome to Dhandha App</CardTitle>
           <CardDescription>Manage your business efficiently</CardDescription>
