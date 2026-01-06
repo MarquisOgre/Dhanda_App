@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Download, Printer, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Printer, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -140,6 +140,16 @@ export default function ViewSaleInvoice() {
           </div>
         </div>
         <div className="flex gap-2">
+          {balanceDue > 0 && (
+            <Button 
+              variant="default" 
+              className="bg-success hover:bg-success/90"
+              onClick={() => navigate(`/sale/payment-in/new?invoice=${id}`)}
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              Record Payment
+            </Button>
+          )}
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
             Print

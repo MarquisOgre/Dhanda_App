@@ -164,15 +164,47 @@ export function useDashboardData() {
       .select('*', { count: 'exact', head: true })
       .gte('created_at', thisMonthStart.toISOString());
 
-    // Fetch items for stock value
+  // Fetch items for stock value - calculate based on opening stock + purchases - sales
     const { data: items } = await supabase
       .from('items')
-      .select('current_stock, purchase_price')
+      .select('id, opening_stock, purchase_price')
       .eq('is_deleted', false);
+
+    // Fetch all purchase invoice items
+    const { data: purchaseItems } = await supabase
+      .from('invoice_items')
+      .select('item_id, quantity')
+      .not('purchase_invoice_id', 'is', null);
+
+    // Fetch all sale invoice items  
+    const { data: saleItems } = await supabase
+      .from('invoice_items')
+      .select('item_id, quantity')
+      .not('sale_invoice_id', 'is', null);
+
+    // Create lookup maps for purchased and sold quantities
+    const purchasedQty: Record<string, number> = {};
+    const soldQty: Record<string, number> = {};
+
+    purchaseItems?.forEach(item => {
+      if (item.item_id) {
+        purchasedQty[item.item_id] = (purchasedQty[item.item_id] || 0) + (Number(item.quantity) || 0);
+      }
+    });
+
+    saleItems?.forEach(item => {
+      if (item.item_id) {
+        soldQty[item.item_id] = (soldQty[item.item_id] || 0) + (Number(item.quantity) || 0);
+      }
+    });
 
     let stockValue = 0;
     items?.forEach(item => {
-      stockValue += (Number(item.current_stock) || 0) * (Number(item.purchase_price) || 0);
+      const openingStock = Number(item.opening_stock) || 0;
+      const purchased = purchasedQty[item.id] || 0;
+      const sold = soldQty[item.id] || 0;
+      const currentStock = openingStock + purchased - sold;
+      stockValue += currentStock * (Number(item.purchase_price) || 0);
     });
 
     setMetrics({

@@ -25,9 +25,10 @@ interface PartySelectorProps {
   onChange: (value: string) => void;
   partyType?: "customer" | "supplier" | "all";
   label?: string;
+  disabled?: boolean;
 }
 
-export function PartySelector({ value, onChange, partyType = "all", label = "Select Party" }: PartySelectorProps) {
+export function PartySelector({ value, onChange, partyType = "all", label = "Select Party", disabled = false }: PartySelectorProps) {
   const { user } = useAuth();
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,9 +62,9 @@ export function PartySelector({ value, onChange, partyType = "all", label = "Sel
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Select value={value} onValueChange={onChange}>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger>
-          <SelectValue placeholder={loading ? "Loading..." : "Search or select party..."} />
+          <SelectValue placeholder={loading ? "Loading..." : disabled ? "Party selected" : "Search or select party..."} />
         </SelectTrigger>
         <SelectContent>
           {parties.map((party) => (
