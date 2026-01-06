@@ -34,14 +34,14 @@ export default function DeliveryChallanList() {
   const fetchChallans = async () => {
     try {
       const { data, error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .select("*, parties(name)")
         .eq("invoice_type", "delivery_challan")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setChallans(data || []);
+      setChallans((data as unknown as DeliveryChallan[]) || []);
     } catch (error: any) {
       toast.error("Failed to fetch delivery challans: " + error.message);
     } finally {
@@ -54,7 +54,7 @@ export default function DeliveryChallanList() {
     
     try {
       const { error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;

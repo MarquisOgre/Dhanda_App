@@ -47,7 +47,7 @@ export default function PurchaseBills() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setBills(data || []);
+      setBills((data as unknown as PurchaseBill[]) || []);
     } catch (error: any) {
       toast.error("Failed to fetch purchase invoices: " + error.message);
     } finally {
@@ -149,9 +149,9 @@ export default function PurchaseBills() {
       {/* Bills Table */}
       {filteredBills.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No purchase bills found</p>
+          <p className="text-muted-foreground">No purchase invoices found</p>
           <Button asChild className="mt-4">
-            <Link to="/purchase/bills/new">Create your first bill</Link>
+            <Link to="/purchase/bills/new">Create your first purchase invoice</Link>
           </Button>
         </div>
       ) : (

@@ -104,9 +104,15 @@ export function useDashboardData() {
     const lastMonthStart = startOfMonth(subMonths(now, 1));
     const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-    // Fetch all invoices for calculations
-    const { data: invoices } = await supabase
-      .from('invoices')
+    // Fetch sale invoices
+    const { data: saleInvoicesData } = await supabase
+      .from('sale_invoices')
+      .select('invoice_type, total_amount, created_at')
+      .eq('is_deleted', false);
+
+    // Fetch purchase invoices
+    const { data: purchaseInvoicesData } = await supabase
+      .from('purchase_invoices')
       .select('invoice_type, total_amount, created_at')
       .eq('is_deleted', false);
 
@@ -118,7 +124,7 @@ export function useDashboardData() {
     let purchaseThisMonth = 0;
     let purchaseLastMonth = 0;
 
-    invoices?.forEach(inv => {
+    saleInvoicesData?.forEach(inv => {
       const amount = Number(inv.total_amount) || 0;
       const createdAt = new Date(inv.created_at);
       
@@ -126,7 +132,14 @@ export function useDashboardData() {
         totalSales += amount;
         if (createdAt >= thisMonthStart) salesThisMonth += amount;
         if (createdAt >= lastMonthStart && createdAt <= lastMonthEnd) salesLastMonth += amount;
-      } else if (inv.invoice_type === 'purchase' || inv.invoice_type === 'purchase_bill') {
+      }
+    });
+
+    purchaseInvoicesData?.forEach(inv => {
+      const amount = Number(inv.total_amount) || 0;
+      const createdAt = new Date(inv.created_at);
+      
+      if (inv.invoice_type === 'purchase' || inv.invoice_type === 'purchase_bill' || inv.invoice_type === 'purchase_invoice') {
         totalPurchase += amount;
         if (createdAt >= thisMonthStart) purchaseThisMonth += amount;
         if (createdAt >= lastMonthStart && createdAt <= lastMonthEnd) purchaseLastMonth += amount;
@@ -179,36 +192,46 @@ export function useDashboardData() {
     const thisMonthStart = startOfMonth(now);
 
     // Fetch unpaid sale invoices (receivables)
-    const { data: saleInvoices } = await supabase
-      .from('invoices')
+    const { data: saleInvoicesReceivables } = await supabase
+      .from('sale_invoices')
       .select('balance_due, party_id')
       .in('invoice_type', ['sale', 'sale_invoice'])
       .gt('balance_due', 0)
       .eq('is_deleted', false);
 
-    const receivablesPartyIds = new Set(saleInvoices?.map(i => i.party_id).filter(Boolean));
-    const totalReceivables = saleInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
+    const receivablesPartyIds = new Set(saleInvoicesReceivables?.map(i => i.party_id).filter(Boolean));
+    const totalReceivables = saleInvoicesReceivables?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
 
     // Fetch unpaid purchase invoices (payables)
-    const { data: purchaseInvoices } = await supabase
-      .from('invoices')
+    const { data: purchaseInvoicesPayables } = await supabase
+      .from('purchase_invoices')
       .select('balance_due, party_id')
-      .in('invoice_type', ['purchase', 'purchase_bill'])
+      .in('invoice_type', ['purchase', 'purchase_bill', 'purchase_invoice'])
       .gt('balance_due', 0)
       .eq('is_deleted', false);
 
-    const payablesPartyIds = new Set(purchaseInvoices?.map(i => i.party_id).filter(Boolean));
-    const totalPayables = purchaseInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
+    const payablesPartyIds = new Set(purchaseInvoicesPayables?.map(i => i.party_id).filter(Boolean));
+    const totalPayables = purchaseInvoicesPayables?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
 
-    // Fetch overdue invoices
-    const { data: overdueInvoices } = await supabase
-      .from('invoices')
+    // Fetch overdue invoices from both tables
+    const { data: overdueSaleInvoices } = await supabase
+      .from('sale_invoices')
       .select('balance_due')
       .lt('due_date', now.toISOString().split('T')[0])
       .gt('balance_due', 0)
       .eq('is_deleted', false);
 
-    const overdueAmount = overdueInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0;
+    const { data: overduePurchaseInvoices } = await supabase
+      .from('purchase_invoices')
+      .select('balance_due')
+      .lt('due_date', now.toISOString().split('T')[0])
+      .gt('balance_due', 0)
+      .eq('is_deleted', false);
+
+    const overdueAmount = 
+      (overdueSaleInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0) +
+      (overduePurchaseInvoices?.reduce((sum, inv) => sum + (Number(inv.balance_due) || 0), 0) || 0);
+    const overdueCount = (overdueSaleInvoices?.length || 0) + (overduePurchaseInvoices?.length || 0);
 
     // Fetch payments this month
     const { data: paymentsThisMonth } = await supabase
@@ -224,15 +247,16 @@ export function useDashboardData() {
       totalPayables,
       payablesParties: payablesPartyIds.size,
       overdueAmount,
-      overdueCount: overdueInvoices?.length || 0,
+      overdueCount,
       paidThisMonth,
       paidCount: paymentsThisMonth?.length || 0,
     });
   };
 
   const fetchRecentTransactions = async () => {
-    const { data: invoices } = await supabase
-      .from('invoices')
+    // Fetch from both tables and combine
+    const { data: saleInvoicesRecent } = await supabase
+      .from('sale_invoices')
       .select(`
         id,
         invoice_type,
@@ -246,7 +270,29 @@ export function useDashboardData() {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    const formattedTransactions: Transaction[] = (invoices || []).map(inv => ({
+    const { data: purchaseInvoicesRecent } = await supabase
+      .from('purchase_invoices')
+      .select(`
+        id,
+        invoice_type,
+        total_amount,
+        invoice_number,
+        created_at,
+        party_id,
+        parties(name)
+      `)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    // Combine and sort by created_at
+    const allInvoices = [
+      ...(saleInvoicesRecent || []),
+      ...(purchaseInvoicesRecent || []),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+     .slice(0, 5);
+
+    const formattedTransactions: Transaction[] = allInvoices.map(inv => ({
       id: inv.id,
       type: (inv.invoice_type === 'sale' || inv.invoice_type === 'sale_invoice') ? 'sale' : 'purchase',
       party: (inv.parties as any)?.name || 'Unknown Party',
@@ -288,8 +334,16 @@ export function useDashboardData() {
       const monthEnd = endOfMonth(monthDate);
       const monthName = format(monthDate, 'MMM');
 
-      const { data: invoices } = await supabase
-        .from('invoices')
+      // Fetch from both tables
+      const { data: saleInvoicesMonth } = await supabase
+        .from('sale_invoices')
+        .select('invoice_type, total_amount')
+        .gte('created_at', monthStart.toISOString())
+        .lte('created_at', monthEnd.toISOString())
+        .eq('is_deleted', false);
+
+      const { data: purchaseInvoicesMonth } = await supabase
+        .from('purchase_invoices')
         .select('invoice_type, total_amount')
         .gte('created_at', monthStart.toISOString())
         .lte('created_at', monthEnd.toISOString())
@@ -298,11 +352,16 @@ export function useDashboardData() {
       let sales = 0;
       let purchase = 0;
 
-      invoices?.forEach(inv => {
+      saleInvoicesMonth?.forEach(inv => {
         const amount = Number(inv.total_amount) || 0;
         if (inv.invoice_type === 'sale' || inv.invoice_type === 'sale_invoice') {
           sales += amount;
-        } else if (inv.invoice_type === 'purchase' || inv.invoice_type === 'purchase_bill') {
+        }
+      });
+
+      purchaseInvoicesMonth?.forEach(inv => {
+        const amount = Number(inv.total_amount) || 0;
+        if (inv.invoice_type === 'purchase' || inv.invoice_type === 'purchase_bill' || inv.invoice_type === 'purchase_invoice') {
           purchase += amount;
         }
       });

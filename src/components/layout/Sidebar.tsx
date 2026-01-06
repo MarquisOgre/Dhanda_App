@@ -81,7 +81,7 @@ const navItems: NavItem[] = [
     title: "Purchase & Expense",
     icon: <FileText className="w-5 h-5" />,
     children: [
-      { title: "Purchase Bills", href: "/purchase/bills" },
+      { title: "Purchase Invoices", href: "/purchase/bills" },
       { title: "Payment Out", href: "/purchase/payment-out" },
       { title: "Expenses", href: "/purchase/expenses" },
       { title: "Purchase Order", href: "/purchase/order" },

@@ -57,7 +57,7 @@ export default function SaleInvoices() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setInvoices(data || []);
+      setInvoices((data as unknown as Invoice[]) || []);
     } catch (error: any) {
       toast.error("Failed to fetch invoices: " + error.message);
     } finally {

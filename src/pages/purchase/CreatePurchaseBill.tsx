@@ -52,8 +52,8 @@ export default function CreatePurchaseBill() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">New Purchase Bill</h1>
-            <p className="text-muted-foreground">Create a new purchase bill</p>
+            <h1 className="text-2xl font-bold">New Purchase Invoice</h1>
+            <p className="text-muted-foreground">Create a new purchase invoice</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -134,7 +134,7 @@ export default function CreatePurchaseBill() {
       <InvoicePreview
         open={showPreview}
         onOpenChange={setShowPreview}
-        documentType="Purchase Bill"
+        documentType="Purchase Invoice"
         documentNumber={billNumber}
         date={billDate}
         partyId={selectedParty}

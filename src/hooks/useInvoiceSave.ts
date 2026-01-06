@@ -63,9 +63,13 @@ export function useInvoiceSave() {
 
       const totalAmount = subtotal - discountAmount + taxAmount;
 
-      // Insert invoice
+      // Determine which table to use based on invoice type
+      const isSaleType = ["sale", "sale_invoice", "sale_return", "sale_order", "estimation", "proforma", "delivery_challan"].includes(invoiceType);
+      const tableName = isSaleType ? "sale_invoices" : "purchase_invoices";
+
+      // Insert invoice into appropriate table
       const { data: invoice, error: invoiceError } = await supabase
-        .from("invoices")
+        .from(tableName)
         .insert({
           user_id: user.id,
           invoice_type: invoiceType,
@@ -115,7 +119,8 @@ export function useInvoiceSave() {
 
       if (itemsError) throw itemsError;
 
-      toast.success(`${invoiceType} saved successfully!`);
+      const displayType = invoiceType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      toast.success(`${displayType} saved successfully!`);
       return invoice;
     } catch (error: any) {
       toast.error(error.message || "Failed to save");

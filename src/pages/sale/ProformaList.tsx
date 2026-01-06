@@ -35,14 +35,14 @@ export default function ProformaList() {
   const fetchProformas = async () => {
     try {
       const { data, error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .select("*, parties(name)")
         .eq("invoice_type", "proforma")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setProformas(data || []);
+      setProformas((data as unknown as Proforma[]) || []);
     } catch (error: any) {
       toast.error("Failed to fetch proforma invoices: " + error.message);
     } finally {
@@ -55,7 +55,7 @@ export default function ProformaList() {
     
     try {
       const { error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;

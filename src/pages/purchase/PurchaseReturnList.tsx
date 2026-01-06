@@ -40,14 +40,14 @@ export default function PurchaseReturnList() {
   const fetchReturns = async () => {
     try {
       const { data, error } = await supabase
-        .from("invoices")
+        .from("purchase_invoices")
         .select("*, parties(name)")
         .eq("invoice_type", "purchase_return")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setReturns(data || []);
+      setReturns((data as unknown as PurchaseReturn[]) || []);
     } catch (error: any) {
       toast.error("Failed to fetch purchase returns: " + error.message);
     } finally {
@@ -60,7 +60,7 @@ export default function PurchaseReturnList() {
     
     try {
       const { error } = await supabase
-        .from("invoices")
+        .from("purchase_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;

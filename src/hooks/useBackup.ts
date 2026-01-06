@@ -126,34 +126,37 @@ export function useBackups() {
       const [
         { data: parties },
         { data: items },
-        { data: invoices },
+        { data: saleInvoices },
+        { data: purchaseInvoices },
         { data: invoiceItems },
         { data: payments },
         { data: expenses },
         { data: categories },
         { data: bankAccounts },
       ] = await Promise.all([
-        supabase.from("parties").select("*").eq("user_id", user.id),
-        supabase.from("items").select("*").eq("user_id", user.id),
-        supabase.from("invoices").select("*").eq("user_id", user.id),
+        supabase.from("parties").select("*"),
+        supabase.from("items").select("*"),
+        supabase.from("sale_invoices").select("*"),
+        supabase.from("purchase_invoices").select("*"),
         supabase.from("invoice_items").select("*"),
-        supabase.from("payments").select("*").eq("user_id", user.id),
-        supabase.from("expenses").select("*").eq("user_id", user.id),
-        supabase.from("categories").select("*").eq("user_id", user.id),
-        supabase.from("bank_accounts").select("*").eq("user_id", user.id),
+        supabase.from("payments").select("*"),
+        supabase.from("expenses").select("*"),
+        supabase.from("categories").select("*"),
+        supabase.from("bank_accounts").select("*"),
       ]);
 
       const backupData = {
         parties: parties || [],
         items: items || [],
-        invoices: invoices || [],
+        saleInvoices: saleInvoices || [],
+        purchaseInvoices: purchaseInvoices || [],
         invoiceItems: invoiceItems || [],
         payments: payments || [],
         expenses: expenses || [],
         categories: categories || [],
         bankAccounts: bankAccounts || [],
         exportedAt: new Date().toISOString(),
-        version: "1.0",
+        version: "2.0",
       };
 
       const jsonString = JSON.stringify(backupData, null, 2);

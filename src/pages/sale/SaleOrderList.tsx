@@ -35,14 +35,14 @@ export default function SaleOrderList() {
   const fetchOrders = async () => {
     try {
       const { data, error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .select("*, parties(name)")
         .eq("invoice_type", "sale_order")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setOrders(data || []);
+      setOrders((data as unknown as SaleOrder[]) || []);
     } catch (error: any) {
       toast.error("Failed to fetch sale orders: " + error.message);
     } finally {
@@ -55,7 +55,7 @@ export default function SaleOrderList() {
     
     try {
       const { error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
