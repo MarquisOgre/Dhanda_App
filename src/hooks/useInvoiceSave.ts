@@ -90,7 +90,7 @@ export function useInvoiceSave() {
 
       if (invoiceError) throw invoiceError;
 
-      // Insert invoice items
+      // Insert invoice items with the correct FK column
       const invoiceItems = validItems.map((item) => {
         const itemSubtotal = item.quantity * item.rate;
         const itemDiscount = (itemSubtotal * item.discount) / 100;
@@ -98,7 +98,7 @@ export function useInvoiceSave() {
         const itemTax = (taxableAmount * item.taxRate) / 100;
 
         return {
-          invoice_id: invoice.id,
+          ...(isSaleType ? { sale_invoice_id: invoice.id } : { purchase_invoice_id: invoice.id }),
           item_id: item.itemId,
           item_name: item.name,
           hsn_code: item.hsn || null,

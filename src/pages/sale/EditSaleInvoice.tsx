@@ -50,28 +50,11 @@ export default function EditSaleInvoice() {
       setNotes(invoiceData.notes || "");
       setTerms(invoiceData.terms || "");
 
-      // First try to get items from sale_invoices id
-      let { data: itemsData } = await supabase
+      // Fetch items linked to this sale invoice
+      const { data: itemsData } = await supabase
         .from("invoice_items")
         .select("*")
-        .eq("invoice_id", id);
-
-      // If no items found, try looking up from old invoices table by invoice_number
-      if (!itemsData || itemsData.length === 0) {
-        const { data: oldInvoice } = await supabase
-          .from("invoices")
-          .select("id")
-          .eq("invoice_number", invoiceData.invoice_number)
-          .maybeSingle();
-        
-        if (oldInvoice) {
-          const { data: oldItems } = await supabase
-            .from("invoice_items")
-            .select("*")
-            .eq("invoice_id", oldInvoice.id);
-          itemsData = oldItems;
-        }
-      }
+        .eq("sale_invoice_id", id);
       
       setItems((itemsData || []).map((item, index) => ({
         id: Date.now() + index,
@@ -129,7 +112,7 @@ export default function EditSaleInvoice() {
       if (invoiceError) throw invoiceError;
 
       // Delete existing items
-      await supabase.from("invoice_items").delete().eq("invoice_id", id);
+      await supabase.from("invoice_items").delete().eq("sale_invoice_id", id);
 
       // Insert updated items
       const itemsToInsert = items.map(item => {
@@ -139,7 +122,7 @@ export default function EditSaleInvoice() {
         const taxAmount = (taxableAmount * item.taxRate) / 100;
         
         return {
-          invoice_id: id,
+          sale_invoice_id: id,
           item_id: item.itemId || null,
           item_name: item.name,
           quantity: item.quantity,

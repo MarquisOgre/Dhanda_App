@@ -51,9 +51,9 @@ export default function TaxesReport() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get invoices with tax info
+      // Get invoices with tax info from sale_invoices
       const { data: invoices, error } = await supabase
-        .from('invoices')
+        .from('sale_invoices')
         .select(`
           id,
           invoice_number,
@@ -65,7 +65,6 @@ export default function TaxesReport() {
           parties (name)
         `)
         .eq('user_id', user.id)
-        .eq('invoice_type', 'sale')
         .eq('is_deleted', false)
         .order('invoice_date', { ascending: false });
 
@@ -74,7 +73,7 @@ export default function TaxesReport() {
       // Group by month for GST summary
       const monthlyTotals: { [key: string]: TaxSummary } = {};
       
-      (invoices || []).forEach(inv => {
+      (invoices || []).forEach((inv: any) => {
         const monthKey = format(new Date(inv.invoice_date), 'MMM yyyy');
         if (!monthlyTotals[monthKey]) {
           monthlyTotals[monthKey] = {
@@ -97,11 +96,11 @@ export default function TaxesReport() {
 
       // TCS data (0.1% on sales > 50L - simplified for demo)
       const tcsDetails = (invoices || [])
-        .filter(inv => (inv.total_amount || 0) >= 50000)
-        .map(inv => ({
+        .filter((inv: any) => (inv.total_amount || 0) >= 50000)
+        .map((inv: any) => ({
           id: inv.id,
           date: inv.invoice_date,
-          party: (inv.parties as any)?.name || 'Unknown',
+          party: inv.parties?.name || 'Unknown',
           invoice: inv.invoice_number,
           amount: inv.total_amount || 0,
           tcsRate: 0.1,

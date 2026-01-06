@@ -55,23 +55,21 @@ export default function BalanceSheet() {
       const bankTotal = (bankAccounts || []).reduce((sum, acc) => sum + (acc.current_balance || 0), 0);
       setBankBalance(bankTotal);
 
-      // Get receivables (unpaid sales)
+      // Get receivables (unpaid sales) from sale_invoices
       const { data: salesInvoices } = await supabase
-        .from('invoices')
+        .from('sale_invoices')
         .select('balance_due')
         .eq('user_id', user.id)
-        .eq('invoice_type', 'sale')
         .eq('is_deleted', false);
 
       const totalReceivables = (salesInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
       setReceivables(totalReceivables);
 
-      // Get payables (unpaid purchases)
+      // Get payables (unpaid purchases) from purchase_invoices
       const { data: purchaseInvoices } = await supabase
-        .from('invoices')
+        .from('purchase_invoices')
         .select('balance_due')
         .eq('user_id', user.id)
-        .eq('invoice_type', 'purchase')
         .eq('is_deleted', false);
 
       const totalPayables = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
