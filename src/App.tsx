@@ -14,6 +14,9 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PartiesList from "./pages/parties/PartiesList";
 import AddParty from "./pages/parties/AddParty";
+import EditParty from "./pages/parties/EditParty";
+import ViewParty from "./pages/parties/ViewParty";
+import PartyTransactions from "./pages/parties/PartyTransactions";
 import ItemsList from "./pages/items/ItemsList";
 import AddItem from "./pages/items/AddItem";
 import EditItem from "./pages/items/EditItem";
@@ -106,6 +109,9 @@ const AppRoutes = () => {
       {/* Parties */}
       <Route path="/parties" element={<ProtectedRoute><PartiesList /></ProtectedRoute>} />
       <Route path="/parties/add" element={<ProtectedRoute><AddParty /></ProtectedRoute>} />
+      <Route path="/parties/edit/:id" element={<ProtectedRoute><EditParty /></ProtectedRoute>} />
+      <Route path="/parties/:id" element={<ProtectedRoute><ViewParty /></ProtectedRoute>} />
+      <Route path="/parties/:id/transactions" element={<ProtectedRoute><PartyTransactions /></ProtectedRoute>} />
       {/* Items */}
       <Route path="/items" element={<ProtectedRoute><ItemsList /></ProtectedRoute>} />
       <Route path="/items/add" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -37,6 +37,7 @@ interface Party {
 
 export default function PartiesList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "customer" | "supplier">("all");
   const [parties, setParties] = useState<Party[]>([]);
@@ -184,9 +185,15 @@ export default function PartiesList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Party</DropdownMenuItem>
-                      <DropdownMenuItem>View Transactions</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}`)}>
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/parties/edit/${party.id}`)}>
+                        Edit Party
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}/transactions`)}>
+                        View Transactions
+                      </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-destructive"
                         onClick={() => handleDelete(party.id)}
