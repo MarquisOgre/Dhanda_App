@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search, MoreHorizontal, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ interface PurchaseBill {
 
 export default function PurchaseBills() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [bills, setBills] = useState<PurchaseBill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,12 +220,18 @@ export default function PurchaseBills() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Bill</DropdownMenuItem>
-                          <DropdownMenuItem>Record Payment</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Bill</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}`)}>
+                            View Invoice
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/purchase/payment-out?invoice=${bill.id}`)}>
+                            Record Payment
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}/edit`)}>
+                            Edit Invoice
+                          </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-destructive"
-                            onClick={() => handleDelete(bill.id)}
+                            onSelect={() => handleDelete(bill.id)}
                           >
                             Delete
                           </DropdownMenuItem>

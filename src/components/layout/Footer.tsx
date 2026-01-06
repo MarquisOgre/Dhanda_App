@@ -1,10 +1,13 @@
 import { Shield, Calendar } from "lucide-react";
-import { LICENSE_CONFIG, getDaysRemaining, formatExpiryDate, isLicenseValid } from "@/lib/license";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { cn } from "@/lib/utils";
 
 export function Footer() {
+  const { licenseSettings, isLicenseValid, getDaysRemaining, formatExpiryDate, isLoading } = useLicenseSettings();
+  
   const daysRemaining = getDaysRemaining();
   const isExpiringSoon = daysRemaining <= 30 && daysRemaining > 0;
+  const licenseValid = isLicenseValid();
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[hsl(199,89%,48%)] to-[hsl(172,66%,50%)] text-white py-3 px-6 z-40">
@@ -20,7 +23,7 @@ export function Footer() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <Shield className="w-4 h-4" />
-            <span>{LICENSE_CONFIG.licenseType} License</span>
+            <span>{licenseSettings?.license_type || 'Professional'} License</span>
           </div>
           <span className="text-white/50">|</span>
           <div className={cn(
@@ -28,7 +31,9 @@ export function Footer() {
             isExpiringSoon && "text-yellow-200 font-medium"
           )}>
             <Calendar className="w-4 h-4" />
-            {isLicenseValid() ? (
+            {isLoading ? (
+              <span>Loading...</span>
+            ) : licenseValid ? (
               isExpiringSoon ? (
                 <span>Expires in {daysRemaining} days</span>
               ) : (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -37,6 +37,7 @@ interface Invoice {
 
 export default function SaleInvoices() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,23 +231,27 @@ export default function SaleInvoices() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/sale/invoices/${invoice.id}`)}>
                             <Eye className="w-4 h-4 mr-2" />
                             View Invoice
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => toast.info("PDF download coming soon")}>
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => toast.info("Send to party coming soon")}>
                             <Send className="w-4 h-4 mr-2" />
                             Send to Party
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Record Payment</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Invoice</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in?invoice=${invoice.id}`)}>
+                            Record Payment
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/sale/invoices/${invoice.id}/edit`)}>
+                            Edit Invoice
+                          </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-destructive"
-                            onClick={() => handleDelete(invoice.id)}
+                            onSelect={() => handleDelete(invoice.id)}
                           >
                             Delete
                           </DropdownMenuItem>
