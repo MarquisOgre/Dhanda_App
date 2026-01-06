@@ -72,7 +72,7 @@ export function Header() {
                 <Link to="/sale/invoices/new">New Sale Invoice</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/purchase/bills/new">New Purchase Bill</Link>
+                <Link to="/purchase/bills/new">New Purchase Invoice</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/parties/add">Add Party</Link>

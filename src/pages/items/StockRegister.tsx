@@ -85,10 +85,9 @@ const StockRegister = () => {
 
       // Fetch purchase invoices for the period
       const { data: purchaseInvoices, error: purchaseError } = await supabase
-        .from("invoices")
+        .from("purchase_invoices")
         .select("id, invoice_date")
-        .eq("user_id", user.id)
-        .eq("invoice_type", "purchase")
+        .in("invoice_type", ["purchase", "purchase_bill", "purchase_invoice"])
         .eq("is_deleted", false)
         .gte("invoice_date", format(periodStart, "yyyy-MM-dd"))
         .lte("invoice_date", format(periodEnd, "yyyy-MM-dd"));
@@ -97,10 +96,9 @@ const StockRegister = () => {
 
       // Fetch sale invoices for the period
       const { data: saleInvoices, error: saleError } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .select("id, invoice_date")
-        .eq("user_id", user.id)
-        .eq("invoice_type", "sale")
+        .in("invoice_type", ["sale", "sale_invoice"])
         .eq("is_deleted", false)
         .gte("invoice_date", format(periodStart, "yyyy-MM-dd"))
         .lte("invoice_date", format(periodEnd, "yyyy-MM-dd"));
@@ -109,20 +107,18 @@ const StockRegister = () => {
 
       // Fetch invoices before the period for opening stock calculation
       const { data: beforePurchaseInvoices, error: beforePurchaseError } = await supabase
-        .from("invoices")
+        .from("purchase_invoices")
         .select("id")
-        .eq("user_id", user.id)
-        .eq("invoice_type", "purchase")
+        .in("invoice_type", ["purchase", "purchase_bill", "purchase_invoice"])
         .eq("is_deleted", false)
         .lt("invoice_date", format(beforePeriodStart, "yyyy-MM-dd"));
 
       if (beforePurchaseError) throw beforePurchaseError;
 
       const { data: beforeSaleInvoices, error: beforeSaleError } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .select("id")
-        .eq("user_id", user.id)
-        .eq("invoice_type", "sale")
+        .in("invoice_type", ["sale", "sale_invoice"])
         .eq("is_deleted", false)
         .lt("invoice_date", format(beforePeriodStart, "yyyy-MM-dd"));
 

@@ -35,14 +35,14 @@ export default function SaleReturnList() {
   const fetchReturns = async () => {
     try {
       const { data, error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .select("*, parties(name)")
         .eq("invoice_type", "sale_return")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setReturns(data || []);
+      setReturns((data as unknown as SaleReturn[]) || []);
     } catch (error: any) {
       toast.error("Failed to fetch sale returns: " + error.message);
     } finally {
@@ -55,7 +55,7 @@ export default function SaleReturnList() {
     
     try {
       const { error } = await supabase
-        .from("invoices")
+        .from("sale_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
