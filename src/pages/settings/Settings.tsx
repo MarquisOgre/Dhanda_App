@@ -660,12 +660,10 @@ export default function Settings() {
             <Palette className="w-4 h-4" />
             <span className="hidden md:inline">Theme</span>
           </TabsTrigger>
-          {user?.email === 'marquisogre@gmail.com' && (
-            <TabsTrigger value="license" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
-              <Shield className="w-4 h-4" />
-              <span className="hidden md:inline">License</span>
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="license" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+            <Shield className="w-4 h-4" />
+            <span className="hidden md:inline">License</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Business Settings */}
