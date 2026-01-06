@@ -21,6 +21,8 @@ import Categories from "./pages/items/Categories";
 import StockRegister from "./pages/items/StockRegister";
 import SaleInvoices from "./pages/sale/SaleInvoices";
 import CreateSaleInvoice from "./pages/sale/CreateSaleInvoice";
+import ViewSaleInvoice from "./pages/sale/ViewSaleInvoice";
+import EditSaleInvoice from "./pages/sale/EditSaleInvoice";
 import EstimationList from "./pages/sale/EstimationList";
 import CreateEstimation from "./pages/sale/CreateEstimation";
 import ProformaList from "./pages/sale/ProformaList";
@@ -109,6 +111,8 @@ const AppRoutes = () => {
       {/* Sale */}
       <Route path="/sale/invoices" element={<ProtectedRoute><SaleInvoices /></ProtectedRoute>} />
       <Route path="/sale/invoices/new" element={<ProtectedRoute><CreateSaleInvoice /></ProtectedRoute>} />
+      <Route path="/sale/invoices/:id" element={<ProtectedRoute><ViewSaleInvoice /></ProtectedRoute>} />
+      <Route path="/sale/invoices/:id/edit" element={<ProtectedRoute><EditSaleInvoice /></ProtectedRoute>} />
       <Route path="/sale/estimation" element={<ProtectedRoute><EstimationList /></ProtectedRoute>} />
       <Route path="/sale/estimation/new" element={<ProtectedRoute><CreateEstimation /></ProtectedRoute>} />
       <Route path="/sale/proforma" element={<ProtectedRoute><ProformaList /></ProtectedRoute>} />
@@ -167,7 +171,7 @@ const AppRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange>
       <TooltipProvider>
         <Toaster />
         <Sonner />
