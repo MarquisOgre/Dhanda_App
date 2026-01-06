@@ -50,14 +50,30 @@ export default function EditPurchaseInvoice() {
       setNotes(invoiceData.notes || "");
       setTerms(invoiceData.terms || "");
 
-      const { data: itemsData, error: itemsError } = await supabase
+      // First try to get items from purchase_invoices id
+      let { data: itemsData } = await supabase
         .from("invoice_items")
         .select("*")
         .eq("invoice_id", id);
 
-      if (itemsError) throw itemsError;
+      // If no items found, try looking up from old invoices table by invoice_number
+      if (!itemsData || itemsData.length === 0) {
+        const { data: oldInvoice } = await supabase
+          .from("invoices")
+          .select("id")
+          .eq("invoice_number", invoiceData.invoice_number)
+          .maybeSingle();
+        
+        if (oldInvoice) {
+          const { data: oldItems } = await supabase
+            .from("invoice_items")
+            .select("*")
+            .eq("invoice_id", oldInvoice.id);
+          itemsData = oldItems;
+        }
+      }
       
-      setItems(itemsData.map((item, index) => ({
+      setItems((itemsData || []).map((item, index) => ({
         id: Date.now() + index,
         itemId: item.item_id || "",
         name: item.item_name,
