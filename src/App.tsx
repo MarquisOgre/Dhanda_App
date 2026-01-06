@@ -37,6 +37,8 @@ import SaleReturnList from "./pages/sale/SaleReturnList";
 import CreateSaleReturn from "./pages/sale/CreateSaleReturn";
 import PurchaseBills from "./pages/purchase/PurchaseBills";
 import CreatePurchaseBill from "./pages/purchase/CreatePurchaseBill";
+import ViewPurchaseInvoice from "./pages/purchase/ViewPurchaseInvoice";
+import EditPurchaseInvoice from "./pages/purchase/EditPurchaseInvoice";
 import PaymentOutList from "./pages/purchase/PaymentOutList";
 import PaymentOut from "./pages/purchase/PaymentOut";
 import ExpensesList from "./pages/purchase/ExpensesList";
@@ -128,6 +130,8 @@ const AppRoutes = () => {
       {/* Purchase */}
       <Route path="/purchase/bills" element={<ProtectedRoute><PurchaseBills /></ProtectedRoute>} />
       <Route path="/purchase/bills/new" element={<ProtectedRoute><CreatePurchaseBill /></ProtectedRoute>} />
+      <Route path="/purchase/bills/:id" element={<ProtectedRoute><ViewPurchaseInvoice /></ProtectedRoute>} />
+      <Route path="/purchase/bills/:id/edit" element={<ProtectedRoute><EditPurchaseInvoice /></ProtectedRoute>} />
       <Route path="/purchase/payment-out" element={<ProtectedRoute><PaymentOutList /></ProtectedRoute>} />
       <Route path="/purchase/payment-out/new" element={<ProtectedRoute><PaymentOut /></ProtectedRoute>} />
       <Route path="/purchase/expenses" element={<ProtectedRoute><ExpensesList /></ProtectedRoute>} />

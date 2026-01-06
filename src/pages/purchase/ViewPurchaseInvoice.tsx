@@ -45,7 +45,7 @@ interface Invoice {
   } | null;
 }
 
-export default function ViewSaleInvoice() {
+export default function ViewPurchaseInvoice() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -63,7 +63,7 @@ export default function ViewSaleInvoice() {
   const fetchInvoice = async () => {
     try {
       const { data: invoiceData, error: invoiceError } = await supabase
-        .from("sale_invoices")
+        .from("purchase_invoices")
         .select("*, parties(name, phone, email, billing_address, gstin)")
         .eq("id", id)
         .single();
@@ -80,7 +80,7 @@ export default function ViewSaleInvoice() {
       setItems(itemsData || []);
     } catch (error: any) {
       toast.error("Failed to fetch invoice: " + error.message);
-      navigate("/sale/invoices");
+      navigate("/purchase/bills");
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export default function ViewSaleInvoice() {
       invoice,
       items,
       settings,
-      type: "sale",
+      type: "purchase",
     });
   };
 
@@ -113,7 +113,7 @@ export default function ViewSaleInvoice() {
       <div className="text-center py-12">
         <p className="text-muted-foreground">Invoice not found</p>
         <Button asChild className="mt-4">
-          <Link to="/sale/invoices">Back to Invoices</Link>
+          <Link to="/purchase/bills">Back to Purchase Invoices</Link>
         </Button>
       </div>
     );
@@ -131,11 +131,11 @@ export default function ViewSaleInvoice() {
       {/* Header */}
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/sale/invoices")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/purchase/bills")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Invoice {invoice.invoice_number}</h1>
+            <h1 className="text-2xl font-bold">Purchase Invoice {invoice.invoice_number}</h1>
             <p className="text-muted-foreground">View invoice details</p>
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function ViewSaleInvoice() {
             <Download className="w-4 h-4 mr-2" />
             Download PDF
           </Button>
-          <Button onClick={() => navigate(`/sale/invoices/${id}/edit`)}>
+          <Button onClick={() => navigate(`/purchase/bills/${id}/edit`)}>
             Edit Invoice
           </Button>
         </div>
@@ -165,7 +165,7 @@ export default function ViewSaleInvoice() {
             {settings?.gstin && <p className="text-muted-foreground">GSTIN: {settings.gstin}</p>}
           </div>
           <div className="text-right">
-            <h3 className="text-xl font-bold">TAX INVOICE</h3>
+            <h3 className="text-xl font-bold">PURCHASE INVOICE</h3>
             <p className="text-muted-foreground">Invoice #: {invoice.invoice_number}</p>
             <p className="text-muted-foreground">
               Date: {format(new Date(invoice.invoice_date), "dd MMM yyyy")}
@@ -178,10 +178,10 @@ export default function ViewSaleInvoice() {
           </div>
         </div>
 
-        {/* Bill To */}
+        {/* Supplier Info */}
         <div className="mb-8 p-4 bg-muted/30 rounded-lg">
-          <h4 className="font-semibold mb-2">Bill To:</h4>
-          <p className="font-medium">{invoice.parties?.name || "Walk-in Customer"}</p>
+          <h4 className="font-semibold mb-2">Supplier:</h4>
+          <p className="font-medium">{invoice.parties?.name || "Unknown Supplier"}</p>
           {invoice.parties?.billing_address && <p className="text-muted-foreground">{invoice.parties.billing_address}</p>}
           {invoice.parties?.phone && <p className="text-muted-foreground">Phone: {invoice.parties.phone}</p>}
           {invoice.parties?.email && <p className="text-muted-foreground">Email: {invoice.parties.email}</p>}
