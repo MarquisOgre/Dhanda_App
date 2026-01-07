@@ -8,6 +8,7 @@ import {
   Download,
   Eye,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +59,11 @@ export default function SaleInvoices() {
   const [searchQuery, setSearchQuery] = useState("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pay Now dialog state
+  const [payNowOpen, setPayNowOpen] = useState(false);
+  const [payNowInvoice, setPayNowInvoice] = useState<Invoice | null>(null);
+  const [payNowMode, setPayNowMode] = useState("cash");
 
   useEffect(() => {
     if (user) {
@@ -293,6 +308,14 @@ export default function SaleInvoices() {
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
                           </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => {
+                            setPayNowInvoice(invoice);
+                            setPayNowMode("cash");
+                            setPayNowOpen(true);
+                          }}>
+                            <CreditCard className="w-4 h-4 mr-2" />
+                            Pay Now
+                          </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in/new?invoice=${invoice.id}`)}>
                             Record Payment
                           </DropdownMenuItem>
@@ -315,6 +338,68 @@ export default function SaleInvoices() {
           </table>
         </div>
       )}
+
+      {/* Pay Now Dialog */}
+      <Dialog open={payNowOpen} onOpenChange={setPayNowOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-primary" />
+              Quick Payment
+            </DialogTitle>
+          </DialogHeader>
+          {payNowInvoice && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-muted/50">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Invoice</span>
+                  <span className="font-medium">{payNowInvoice.invoice_number}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Party</span>
+                  <span className="font-medium">{payNowInvoice.parties?.name || "-"}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-border">
+                  <span className="text-sm font-medium">Balance Due</span>
+                  <span className="text-lg font-bold text-primary">
+                    ₹{((payNowInvoice.total_amount || 0) - (payNowInvoice.paid_amount || 0)).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Payment Mode</Label>
+                <Select value={payNowMode} onValueChange={setPayNowMode}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPayNowOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="btn-gradient"
+              onClick={() => {
+                setPayNowOpen(false);
+                navigate(`/sale/payment-in/new?invoice=${payNowInvoice?.id}&mode=${payNowMode}`);
+              }}
+            >
+              Continue to Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
