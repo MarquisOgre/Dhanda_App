@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 export interface PurchaseInvoiceItem {
   id: number;
@@ -41,6 +42,8 @@ interface DbItem {
 
 export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvoiceItemsTableProps) {
   const { user } = useAuth();
+  const { businessSettings } = useBusinessSettings();
+  const defaultTaxRate = businessSettings?.default_tax_rate ?? 0;
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
 
   useEffect(() => {
@@ -70,7 +73,7 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
       unit: "pcs",
       rate: 0,
       discount: 0,
-      taxRate: 18,
+      taxRate: defaultTaxRate,
       amount: 0,
     };
     onItemsChange([...items, newItem]);
@@ -89,7 +92,7 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
             updatedItem.hsn = selectedItem.hsn_code || "";
             updatedItem.rate = selectedItem.purchase_price || 0; // Use purchase_price
             updatedItem.unit = selectedItem.unit || "pcs";
-            updatedItem.taxRate = selectedItem.tax_rate || 18;
+            updatedItem.taxRate = selectedItem.tax_rate ?? defaultTaxRate;
           }
         }
         

@@ -163,9 +163,11 @@ export default function Settings() {
   // Tax settings
   const [gstRegistrationType, setGstRegistrationType] = useState("regular");
   const [stateCode, setStateCode] = useState("KA");
-  const [defaultTaxRate, setDefaultTaxRate] = useState(18);
+  const [defaultTaxRate, setDefaultTaxRate] = useState(0);
   const [enableTcs, setEnableTcs] = useState(false);
   const [enableTds, setEnableTds] = useState(false);
+  const [tcsPercent, setTcsPercent] = useState(1);
+  const [tdsPercent, setTdsPercent] = useState(2);
 
   // Print settings
   const [paperSize, setPaperSize] = useState("a4");
@@ -268,9 +270,11 @@ export default function Settings() {
         // Tax settings
         setGstRegistrationType(data.gst_registration_type || "regular");
         setStateCode(data.state_code || "KA");
-        setDefaultTaxRate(data.default_tax_rate || 18);
+        setDefaultTaxRate(data.default_tax_rate ?? 0);
         setEnableTcs(data.enable_tcs || false);
         setEnableTds(data.enable_tds || false);
+        setTcsPercent(data.tcs_percent ?? 1);
+        setTdsPercent(data.tds_percent ?? 2);
 
         // Print settings
         setPaperSize(data.paper_size || "a4");
@@ -401,6 +405,8 @@ export default function Settings() {
           default_tax_rate: defaultTaxRate,
           enable_tcs: enableTcs,
           enable_tds: enableTds,
+          tcs_percent: tcsPercent,
+          tds_percent: tdsPercent,
           paper_size: paperSize,
           invoice_template: invoiceTemplate,
           show_logo_on_invoice: showLogoOnInvoice,
@@ -957,7 +963,7 @@ export default function Settings() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Enable TCS</p>
-                  <p className="text-sm text-muted-foreground">Tax Collected at Source</p>
+                  <p className="text-sm text-muted-foreground">Tax Collected at Source (for Sales)</p>
                 </div>
                 <Switch 
                   checked={enableTcs}
@@ -965,10 +971,25 @@ export default function Settings() {
                   disabled={!isAdmin} 
                 />
               </div>
+              {enableTcs && (
+                <div className="space-y-2 pl-4 border-l-2 border-primary/20">
+                  <Label>TCS Rate (%)</Label>
+                  <Input
+                    type="number"
+                    value={tcsPercent}
+                    onChange={(e) => setTcsPercent(Number(e.target.value))}
+                    className="w-32"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    disabled={!isAdmin}
+                  />
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Enable TDS</p>
-                  <p className="text-sm text-muted-foreground">Tax Deducted at Source</p>
+                  <p className="text-sm text-muted-foreground">Tax Deducted at Source (for Purchases)</p>
                 </div>
                 <Switch 
                   checked={enableTds}
@@ -976,6 +997,21 @@ export default function Settings() {
                   disabled={!isAdmin} 
                 />
               </div>
+              {enableTds && (
+                <div className="space-y-2 pl-4 border-l-2 border-primary/20">
+                  <Label>TDS Rate (%)</Label>
+                  <Input
+                    type="number"
+                    value={tdsPercent}
+                    onChange={(e) => setTdsPercent(Number(e.target.value))}
+                    className="w-32"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    disabled={!isAdmin}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>

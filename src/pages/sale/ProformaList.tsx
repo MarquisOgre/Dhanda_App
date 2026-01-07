@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Plus, Search, FileText, MoreHorizontal, Eye, Download, Send, ArrowRightCircle, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Search, FileText, MoreHorizontal, Eye, Download, ArrowRightCircle, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { generateInvoicePDF } from "@/lib/invoicePdf";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 interface Proforma {
   id: string;
@@ -16,12 +18,18 @@ interface Proforma {
   invoice_date: string;
   due_date: string | null;
   total_amount: number | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  discount_amount: number | null;
   status: string | null;
-  parties?: { name: string } | null;
+  notes: string | null;
+  parties?: { name: string; billing_address: string | null; gstin: string | null } | null;
 }
 
 export default function ProformaList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { businessSettings } = useBusinessSettings();
   const [searchQuery, setSearchQuery] = useState("");
   const [proformas, setProformas] = useState<Proforma[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +44,7 @@ export default function ProformaList() {
     try {
       const { data, error } = await supabase
         .from("sale_invoices")
-        .select("*, parties(name)")
+        .select("*, parties(name, billing_address, gstin)")
         .eq("invoice_type", "proforma")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
@@ -47,6 +55,67 @@ export default function ProformaList() {
       toast.error("Failed to fetch proforma invoices: " + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleView = (id: string) => {
+    navigate(`/sale/invoice/${id}`);
+  };
+
+  const handleConvertToInvoice = async (proforma: Proforma) => {
+    navigate(`/sale/invoice/new?from=${proforma.id}`);
+    toast.info("Create invoice from proforma - data will be pre-filled");
+  };
+
+  const handleDownloadPdf = async (proforma: Proforma) => {
+    try {
+      const { data: items, error: itemsError } = await supabase
+        .from("invoice_items")
+        .select("*")
+        .eq("sale_invoice_id", proforma.id);
+
+      if (itemsError) throw itemsError;
+
+      const invoice = {
+        id: proforma.id,
+        invoice_number: proforma.invoice_number,
+        invoice_date: proforma.invoice_date,
+        due_date: proforma.due_date,
+        total_amount: proforma.total_amount,
+        paid_amount: 0,
+        subtotal: proforma.subtotal,
+        tax_amount: proforma.tax_amount,
+        discount_amount: proforma.discount_amount,
+        status: proforma.status,
+        notes: proforma.notes,
+        terms: null,
+        parties: proforma.parties ? {
+          name: proforma.parties.name,
+          phone: null,
+          email: null,
+          billing_address: proforma.parties.billing_address,
+          gstin: proforma.parties.gstin,
+        } : null,
+      };
+
+      const settings = {
+        business_name: businessSettings?.business_name || null,
+        gstin: businessSettings?.gstin || null,
+        phone: businessSettings?.phone || null,
+        email: businessSettings?.email || null,
+        business_address: businessSettings?.business_address || null,
+      };
+
+      generateInvoicePDF({
+        invoice,
+        items: items || [],
+        settings,
+        type: "sale",
+      });
+
+      toast.success("PDF downloaded successfully");
+    } catch (error: any) {
+      toast.error("Failed to download PDF: " + error.message);
     }
   };
 
@@ -137,11 +206,18 @@ export default function ProformaList() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem><Eye className="w-4 h-4 mr-2" />View</DropdownMenuItem>
-                        <DropdownMenuItem><ArrowRightCircle className="w-4 h-4 mr-2" />Convert to Invoice</DropdownMenuItem>
-                        <DropdownMenuItem><Download className="w-4 h-4 mr-2" />Download PDF</DropdownMenuItem>
-                        <DropdownMenuItem><Send className="w-4 h-4 mr-2" />Send to Party</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(pf.id)}>Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleView(pf.id)}>
+                          <Eye className="w-4 h-4 mr-2" />View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleConvertToInvoice(pf)}>
+                          <ArrowRightCircle className="w-4 h-4 mr-2" />Convert to Invoice
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadPdf(pf)}>
+                          <Download className="w-4 h-4 mr-2" />Download PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(pf.id)}>
+                          <Trash2 className="w-4 h-4 mr-2" />Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>

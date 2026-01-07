@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Plus, Search, FileText, MoreHorizontal, Eye, Download, Send, ArrowRightCircle, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Search, FileText, MoreHorizontal, Eye, Download, ArrowRightCircle, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { generateInvoicePDF } from "@/lib/invoicePdf";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 interface Estimation {
   id: string;
@@ -16,12 +18,18 @@ interface Estimation {
   invoice_date: string;
   due_date: string | null;
   total_amount: number | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  discount_amount: number | null;
   status: string | null;
-  parties?: { name: string } | null;
+  notes: string | null;
+  parties?: { name: string; billing_address: string | null; gstin: string | null } | null;
 }
 
 export default function EstimationList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { businessSettings } = useBusinessSettings();
   const [searchQuery, setSearchQuery] = useState("");
   const [estimations, setEstimations] = useState<Estimation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +44,7 @@ export default function EstimationList() {
     try {
       const { data, error } = await supabase
         .from("sale_invoices")
-        .select("*, parties(name)")
+        .select("*, parties(name, billing_address, gstin)")
         .eq("invoice_type", "estimation")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
@@ -47,6 +55,70 @@ export default function EstimationList() {
       toast.error("Failed to fetch estimations: " + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleView = (id: string) => {
+    navigate(`/sale/invoice/${id}`);
+  };
+
+  const handleConvertToInvoice = async (estimation: Estimation) => {
+    // Navigate to create sale invoice with pre-filled data from estimation
+    navigate(`/sale/invoice/new?from=${estimation.id}`);
+    toast.info("Create invoice from estimation - data will be pre-filled");
+  };
+
+  const handleDownloadPdf = async (estimation: Estimation) => {
+    try {
+      // Fetch invoice items
+      const { data: items, error: itemsError } = await supabase
+        .from("invoice_items")
+        .select("*")
+        .eq("sale_invoice_id", estimation.id);
+
+      if (itemsError) throw itemsError;
+
+      // Prepare invoice data in the format expected by generateInvoicePDF
+      const invoice = {
+        id: estimation.id,
+        invoice_number: estimation.invoice_number,
+        invoice_date: estimation.invoice_date,
+        due_date: estimation.due_date,
+        total_amount: estimation.total_amount,
+        paid_amount: 0,
+        subtotal: estimation.subtotal,
+        tax_amount: estimation.tax_amount,
+        discount_amount: estimation.discount_amount,
+        status: estimation.status,
+        notes: estimation.notes,
+        terms: null,
+        parties: estimation.parties ? {
+          name: estimation.parties.name,
+          phone: null,
+          email: null,
+          billing_address: estimation.parties.billing_address,
+          gstin: estimation.parties.gstin,
+        } : null,
+      };
+
+      const settings = {
+        business_name: businessSettings?.business_name || null,
+        gstin: businessSettings?.gstin || null,
+        phone: businessSettings?.phone || null,
+        email: businessSettings?.email || null,
+        business_address: businessSettings?.business_address || null,
+      };
+
+      generateInvoicePDF({
+        invoice,
+        items: items || [],
+        settings,
+        type: "sale",
+      });
+
+      toast.success("PDF downloaded successfully");
+    } catch (error: any) {
+      toast.error("Failed to download PDF: " + error.message);
     }
   };
 
@@ -139,11 +211,18 @@ export default function EstimationList() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem><Eye className="w-4 h-4 mr-2" />View</DropdownMenuItem>
-                        <DropdownMenuItem><ArrowRightCircle className="w-4 h-4 mr-2" />Convert to Invoice</DropdownMenuItem>
-                        <DropdownMenuItem><Download className="w-4 h-4 mr-2" />Download PDF</DropdownMenuItem>
-                        <DropdownMenuItem><Send className="w-4 h-4 mr-2" />Send to Party</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(est.id)}>Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleView(est.id)}>
+                          <Eye className="w-4 h-4 mr-2" />View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleConvertToInvoice(est)}>
+                          <ArrowRightCircle className="w-4 h-4 mr-2" />Convert to Invoice
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadPdf(est)}>
+                          <Download className="w-4 h-4 mr-2" />Download PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(est.id)}>
+                          <Trash2 className="w-4 h-4 mr-2" />Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
