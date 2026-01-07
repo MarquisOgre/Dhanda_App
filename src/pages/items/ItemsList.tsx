@@ -150,6 +150,9 @@ export default function ItemsList() {
           <Button variant="outline" asChild>
             <Link to="/items/categories">Categories</Link>
           </Button>
+          <Button variant="outline" asChild>
+            <Link to="/utilities/import">Bulk Import</Link>
+          </Button>
           <Button asChild className="btn-gradient gap-2">
             <Link to="/items/add">
               <Plus className="w-4 h-4" />
