@@ -143,21 +143,16 @@ export default function AddItem() {
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
                 <Select
-                  value={formData.unit}
-                  onValueChange={(value) => handleChange("unit", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PCS">Pieces (Pcs)</SelectItem>
-                    <SelectItem value="KG">Kilograms (Kg)</SelectItem>
-                    <SelectItem value="LTR">Liters (Ltr)</SelectItem>
-                    <SelectItem value="MTR">Meters (Mtr)</SelectItem>
-                    <SelectItem value="BOX">Box</SelectItem>
-                    <SelectItem value="DOZEN">Dozen</SelectItem>
-                  </SelectContent>
-                </Select>
+                    value={item.unit || "Bottles"}
+                    onValueChange={(value) => updateItem(item.id, "unit", value)}
+                  >
+                    <SelectTrigger className="h-9 w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Bottles">Bottles</SelectItem>
+                    </SelectContent>
+                  </Select>
               </div>
             </div>
           </div>

@@ -174,18 +174,14 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
                 </td>
                 <td className="py-2 px-2">
                   <Select
-                    value={item.unit}
+                    value={item.unit || "Bottles"}
                     onValueChange={(value) => updateItem(item.id, "unit", value)}
                   >
                     <SelectTrigger className="h-9 w-20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pcs">Pcs</SelectItem>
-                      <SelectItem value="kg">Kg</SelectItem>
-                      <SelectItem value="ltr">Ltr</SelectItem>
-                      <SelectItem value="mtr">Mtr</SelectItem>
-                      <SelectItem value="box">Box</SelectItem>
+                      <SelectItem value="Bottles">Bottles</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
