@@ -97,16 +97,20 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
             updatedItem.hsn = selectedItem.hsn_code || "";
             updatedItem.rate = selectedItem.sale_price || 0;
             updatedItem.availableStock = selectedItem.current_stock || 0;
-            updatedItem.closingStock = Math.max(0, (selectedItem.current_stock || 0) - updatedItem.quantity);
+            // Default closing stock = available stock (no sale yet), quantity = 0
+            updatedItem.closingStock = selectedItem.current_stock || 0;
+            updatedItem.quantity = 0;
             updatedItem.unit = selectedItem.unit || "pcs";
             // Always use the app default GST (from Settings) when creating invoices
             updatedItem.taxRate = defaultTaxRate;
           }
         }
         
-        // Recalculate closing stock when quantity changes
-        if (field === "quantity") {
-          updatedItem.closingStock = Math.max(0, updatedItem.availableStock - (value as number));
+        // When closing stock changes, calculate quantity = available - closing
+        if (field === "closingStock") {
+          const closingVal = Math.max(0, Math.min(value as number, updatedItem.availableStock));
+          updatedItem.closingStock = closingVal;
+          updatedItem.quantity = Math.max(0, updatedItem.availableStock - closingVal);
         }
         
         // Recalculate amount (without item-level tax - tax on subtotal)
@@ -135,8 +139,8 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
               <th className="text-left py-3 px-2 font-medium text-muted-foreground min-w-[200px]">Item</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">HSN</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Avl. Stock</th>
-              <th className="text-left py-3 px-2 font-medium text-muted-foreground">Qty</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Cls. Stock</th>
+              <th className="text-left py-3 px-2 font-medium text-muted-foreground">Sale Qty</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Unit</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Rate</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Disc %</th>
@@ -178,22 +182,23 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
                   />
                 </td>
                 <td className="py-2 px-2 text-center">
-                  <span className={item.availableStock < item.quantity ? "text-destructive font-medium" : "text-muted-foreground"}>
+                  <span className="text-muted-foreground font-medium">
                     {item.availableStock}
                   </span>
                 </td>
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
-                    className="h-9 w-16"
-                    min={1}
+                    value={item.closingStock}
+                    onChange={(e) => updateItem(item.id, "closingStock", Number(e.target.value))}
+                    className="h-9 w-20"
+                    min={0}
+                    max={item.availableStock}
                   />
                 </td>
                 <td className="py-2 px-2 text-center">
-                  <span className={item.closingStock < 0 ? "text-destructive font-medium" : "text-green-600 font-medium"}>
-                    {item.closingStock}
+                  <span className={item.quantity > 0 ? "text-primary font-medium" : "text-muted-foreground"}>
+                    {item.quantity}
                   </span>
                 </td>
                 <td className="py-2 px-2">
