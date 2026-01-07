@@ -174,30 +174,27 @@ export default function ViewSaleInvoice() {
 
       {/* Invoice Content */}
       <div className="metric-card p-8 print:shadow-none print:border-none">
-        {/* Business & Invoice Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-primary">{settings?.business_name || "Your Business"}</h2>
-          
-          {settings?.logo_url && (
-            <div className="flex justify-center my-4">
-              <img 
-                src={settings.logo_url} 
-                alt="Business Logo" 
-                className="w-20 h-20 object-contain rounded-xl"
-              />
-            </div>
-          )}
-          
-          <h3 className="text-xl font-bold">TAX INVOICE</h3>
-        </div>
-        
-        <div className="flex justify-between mb-8">
+        {/* Centered Logo */}
+        {settings?.logo_url && (
+          <div className="flex justify-center mb-6">
+            <img 
+              src={settings.logo_url} 
+              alt="Business Logo" 
+              className="w-32 h-32 object-contain rounded-xl"
+            />
+          </div>
+        )}
+
+        {/* Business Name (Left) & TAX INVOICE (Right) */}
+        <div className="flex justify-between items-start mb-4">
           <div>
-            {settings?.business_address && <p className="text-muted-foreground">{settings.business_address}</p>}
+            <h2 className="text-2xl font-bold text-primary">{settings?.business_name || "Your Business"}</h2>
+            {settings?.business_address && <p className="text-muted-foreground mt-1">{settings.business_address}</p>}
             {settings?.phone && <p className="text-muted-foreground">Phone: {settings.phone}</p>}
             {settings?.gstin && <p className="text-muted-foreground">GSTIN: {settings.gstin}</p>}
           </div>
           <div className="text-right">
+            <h3 className="text-xl font-bold mb-2">TAX INVOICE</h3>
             <p className="text-muted-foreground">Invoice #: {invoice.invoice_number}</p>
             <p className="text-muted-foreground">
               Date: {format(new Date(invoice.invoice_date), "dd MMM yyyy")}
