@@ -22,6 +22,8 @@ interface BusinessSettings {
   default_tax_rate: number | null;
   enable_tcs: boolean | null;
   enable_tds: boolean | null;
+  tcs_percent: number | null;
+  tds_percent: number | null;
 }
 
 interface BusinessContextType {

@@ -151,6 +151,8 @@ export type Database = {
           show_logo_on_invoice: boolean | null
           show_qr_code: boolean | null
           state_code: string | null
+          tcs_percent: number | null
+          tds_percent: number | null
           updated_at: string
           user_id: string
         }
@@ -182,6 +184,8 @@ export type Database = {
           show_logo_on_invoice?: boolean | null
           show_qr_code?: boolean | null
           state_code?: string | null
+          tcs_percent?: number | null
+          tds_percent?: number | null
           updated_at?: string
           user_id: string
         }
@@ -213,6 +217,8 @@ export type Database = {
           show_logo_on_invoice?: boolean | null
           show_qr_code?: boolean | null
           state_code?: string | null
+          tcs_percent?: number | null
+          tds_percent?: number | null
           updated_at?: string
           user_id?: string
         }

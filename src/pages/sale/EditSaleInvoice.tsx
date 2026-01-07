@@ -65,6 +65,7 @@ export default function EditSaleInvoice() {
         taxRate: item.tax_rate || 0,
         discount: item.discount_percent || 0,
         amount: item.total,
+        availableStock: 0,
         hsn: item.hsn_code || "",
         unit: item.unit || "pcs",
       })));

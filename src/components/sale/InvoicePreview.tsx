@@ -7,9 +7,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { InvoiceItem } from "./InvoiceItemsTable";
 import { calculateTotals } from "./TaxSummary";
 import { supabase } from "@/integrations/supabase/client";
+
+// Generic base item interface that works for both sale and purchase
+interface BaseItem {
+  id: number;
+  itemId: string;
+  name: string;
+  hsn: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  discount: number;
+  taxRate: number;
+  amount: number;
+}
 
 interface InvoicePreviewProps {
   open: boolean;
@@ -19,7 +32,7 @@ interface InvoicePreviewProps {
   date: string;
   dueDate?: string;
   partyId: string;
-  items: InvoiceItem[];
+  items: BaseItem[];
   notes?: string;
 }
 

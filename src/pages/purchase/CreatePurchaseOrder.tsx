@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PartySelector } from "@/components/sale/PartySelector";
-import { InvoiceItemsTable, InvoiceItem } from "@/components/sale/InvoiceItemsTable";
+import { PurchaseInvoiceItemsTable, PurchaseInvoiceItem } from "@/components/purchase/PurchaseInvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
 
@@ -15,7 +15,7 @@ export default function CreatePurchaseOrder() {
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedParty, setSelectedParty] = useState("");
   const [showPreview, setShowPreview] = useState(false);
-  const [items, setItems] = useState<InvoiceItem[]>([
+  const [items, setItems] = useState<PurchaseInvoiceItem[]>([
     { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
@@ -92,7 +92,7 @@ export default function CreatePurchaseOrder() {
           {/* Items Table */}
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Items</h3>
-            <InvoiceItemsTable items={items} onItemsChange={setItems} />
+            <PurchaseInvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
           {/* Terms & Notes */}
