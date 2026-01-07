@@ -24,6 +24,7 @@ interface Invoice {
   subtotal: number | null;
   tax_amount: number | null;
   discount_amount: number | null;
+  tcs_amount?: number | null;
   status: string | null;
   notes: string | null;
   terms: string | null;
@@ -42,6 +43,9 @@ interface BusinessSettings {
   phone: string | null;
   email: string | null;
   business_address: string | null;
+  logo_url: string | null;
+  enable_tcs: boolean | null;
+  tcs_percent: number | null;
 }
 
 interface GeneratePDFParams {
@@ -51,30 +55,105 @@ interface GeneratePDFParams {
   type: "sale" | "purchase";
 }
 
-export function generateInvoicePDF({ invoice, items, settings, type }: GeneratePDFParams) {
+// Helper function to format currency properly
+function formatCurrency(amount: number): string {
+  return `Rs. ${amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+export async function generateInvoicePDF({ invoice, items, settings, type }: GeneratePDFParams) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  // Header
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text(settings?.business_name || "Your Business", 14, 20);
-  
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  let yPos = 28;
-  
-  if (settings?.business_address) {
-    doc.text(settings.business_address, 14, yPos);
-    yPos += 5;
-  }
-  if (settings?.phone) {
-    doc.text(`Phone: ${settings.phone}`, 14, yPos);
-    yPos += 5;
-  }
-  if (settings?.gstin) {
-    doc.text(`GSTIN: ${settings.gstin}`, 14, yPos);
-    yPos += 5;
+  let yPos = 20;
+
+  // Add logo if available
+  if (settings?.logo_url) {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = settings.logo_url!;
+      });
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL('image/png');
+      
+      doc.addImage(dataURL, 'PNG', 14, yPos - 5, 25, 25);
+      
+      // Header with logo offset
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(settings?.business_name || "Your Business", 45, yPos + 5);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      yPos += 15;
+      
+      if (settings?.business_address) {
+        doc.text(settings.business_address, 45, yPos);
+        yPos += 5;
+      }
+      if (settings?.phone) {
+        doc.text(`Phone: ${settings.phone}`, 45, yPos);
+        yPos += 5;
+      }
+      if (settings?.gstin) {
+        doc.text(`GSTIN: ${settings.gstin}`, 45, yPos);
+        yPos += 5;
+      }
+    } catch (error) {
+      console.error("Failed to load logo:", error);
+      // Fallback to text only
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(settings?.business_name || "Your Business", 14, yPos);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      yPos += 8;
+      
+      if (settings?.business_address) {
+        doc.text(settings.business_address, 14, yPos);
+        yPos += 5;
+      }
+      if (settings?.phone) {
+        doc.text(`Phone: ${settings.phone}`, 14, yPos);
+        yPos += 5;
+      }
+      if (settings?.gstin) {
+        doc.text(`GSTIN: ${settings.gstin}`, 14, yPos);
+        yPos += 5;
+      }
+    }
+  } else {
+    // No logo - just business name
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(settings?.business_name || "Your Business", 14, yPos);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    yPos += 8;
+    
+    if (settings?.business_address) {
+      doc.text(settings.business_address, 14, yPos);
+      yPos += 5;
+    }
+    if (settings?.phone) {
+      doc.text(`Phone: ${settings.phone}`, 14, yPos);
+      yPos += 5;
+    }
+    if (settings?.gstin) {
+      doc.text(`GSTIN: ${settings.gstin}`, 14, yPos);
+      yPos += 5;
+    }
   }
 
   // Invoice Title
@@ -123,9 +202,9 @@ export function generateInvoicePDF({ invoice, items, settings, type }: GenerateP
     item.hsn_code || "-",
     item.quantity.toString(),
     item.unit || "pcs",
-    `₹${item.rate.toLocaleString()}`,
+    formatCurrency(item.rate),
     item.tax_rate ? `${item.tax_rate}%` : "-",
-    `₹${item.total.toLocaleString()}`,
+    formatCurrency(item.total),
   ]);
 
   autoTable(doc, {
@@ -148,20 +227,28 @@ export function generateInvoicePDF({ invoice, items, settings, type }: GenerateP
       2: { cellWidth: 25 },
       3: { cellWidth: 15, halign: "right" },
       4: { cellWidth: 15 },
-      5: { cellWidth: 25, halign: "right" },
+      5: { cellWidth: 28, halign: "right" },
       6: { cellWidth: 20, halign: "right" },
-      7: { cellWidth: 30, halign: "right" },
+      7: { cellWidth: 32, halign: "right" },
     },
   });
 
   // Summary
   const finalY = (doc as any).lastAutoTable.finalY + 10;
-  const summaryX = pageWidth - 80;
+  const summaryX = pageWidth - 85;
   
   const subtotal = invoice.subtotal || 0;
   const taxAmount = invoice.tax_amount || 0;
   const discountAmount = invoice.discount_amount || 0;
-  const totalAmount = invoice.total_amount || 0;
+  
+  // Calculate TCS if enabled for sale invoices
+  const useTcs = settings?.enable_tcs ?? false;
+  const tcsRate = settings?.tcs_percent ?? 0;
+  const tcsAmount = useTcs && type === "sale" && tcsRate > 0 
+    ? ((subtotal - discountAmount + taxAmount) * tcsRate) / 100 
+    : (invoice.tcs_amount || 0);
+  
+  const totalAmount = (invoice.total_amount || 0) + tcsAmount;
   const paidAmount = invoice.paid_amount || 0;
   const balanceDue = totalAmount - paidAmount;
 
@@ -169,34 +256,41 @@ export function generateInvoicePDF({ invoice, items, settings, type }: GenerateP
   let summaryY = finalY;
   
   doc.text("Subtotal:", summaryX, summaryY);
-  doc.text(`₹${subtotal.toLocaleString()}`, pageWidth - 14, summaryY, { align: "right" });
+  doc.text(formatCurrency(subtotal), pageWidth - 14, summaryY, { align: "right" });
   summaryY += 6;
   
   if (discountAmount > 0) {
     doc.text("Discount:", summaryX, summaryY);
-    doc.text(`-₹${discountAmount.toLocaleString()}`, pageWidth - 14, summaryY, { align: "right" });
+    doc.text(`-${formatCurrency(discountAmount)}`, pageWidth - 14, summaryY, { align: "right" });
     summaryY += 6;
   }
   
   doc.text("Tax:", summaryX, summaryY);
-  doc.text(`₹${taxAmount.toLocaleString()}`, pageWidth - 14, summaryY, { align: "right" });
-  summaryY += 8;
+  doc.text(formatCurrency(taxAmount), pageWidth - 14, summaryY, { align: "right" });
+  summaryY += 6;
   
+  if (tcsAmount > 0) {
+    doc.text(`TCS @ ${tcsRate}%:`, summaryX, summaryY);
+    doc.text(formatCurrency(tcsAmount), pageWidth - 14, summaryY, { align: "right" });
+    summaryY += 6;
+  }
+  
+  summaryY += 2;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Total:", summaryX, summaryY);
-  doc.text(`₹${totalAmount.toLocaleString()}`, pageWidth - 14, summaryY, { align: "right" });
+  doc.text(formatCurrency(totalAmount), pageWidth - 14, summaryY, { align: "right" });
   summaryY += 8;
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text("Paid:", summaryX, summaryY);
-  doc.text(`₹${paidAmount.toLocaleString()}`, pageWidth - 14, summaryY, { align: "right" });
+  doc.text(formatCurrency(paidAmount), pageWidth - 14, summaryY, { align: "right" });
   summaryY += 6;
   
   doc.setFont("helvetica", "bold");
   doc.text("Balance Due:", summaryX, summaryY);
-  doc.text(`₹${balanceDue.toLocaleString()}`, pageWidth - 14, summaryY, { align: "right" });
+  doc.text(formatCurrency(balanceDue), pageWidth - 14, summaryY, { align: "right" });
 
   // Notes & Terms
   if (invoice.notes || invoice.terms) {

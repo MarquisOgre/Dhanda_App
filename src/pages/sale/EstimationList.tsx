@@ -107,6 +107,9 @@ export default function EstimationList() {
         phone: businessSettings?.phone || null,
         email: businessSettings?.email || null,
         business_address: businessSettings?.business_address || null,
+        logo_url: businessSettings?.logo_url || null,
+        enable_tcs: businessSettings?.enable_tcs || null,
+        tcs_percent: businessSettings?.tcs_percent || null,
       };
 
       generateInvoicePDF({

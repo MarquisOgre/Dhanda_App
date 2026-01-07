@@ -56,6 +56,13 @@ export function useInvoiceSave() {
 
     setLoading(true);
     try {
+      // Get business settings for TCS
+      const { data: settings } = await supabase
+        .from("business_settings")
+        .select("enable_tcs, tcs_percent")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
       // Calculate totals
       let subtotal = 0;
       let taxAmount = 0;
@@ -72,10 +79,18 @@ export function useInvoiceSave() {
         taxAmount += itemTax;
       });
 
-      const totalAmount = subtotal - discountAmount + taxAmount;
+      // Calculate TCS for sale invoices
+      const isSaleType = ["sale", "sale_invoice", "sale_return", "sale_order", "estimation", "proforma", "delivery_challan"].includes(invoiceType);
+      const useTcs = settings?.enable_tcs ?? false;
+      const tcsRate = settings?.tcs_percent ?? 0;
+      const taxableAmount = subtotal - discountAmount;
+      const tcsAmount = useTcs && isSaleType && tcsRate > 0 
+        ? ((taxableAmount + taxAmount) * tcsRate) / 100 
+        : 0;
+
+      const totalAmount = Math.round(subtotal - discountAmount + taxAmount + tcsAmount);
 
       // Determine which table to use based on invoice type
-      const isSaleType = ["sale", "sale_invoice", "sale_return", "sale_order", "estimation", "proforma", "delivery_challan"].includes(invoiceType);
       const tableName = isSaleType ? "sale_invoices" : "purchase_invoices";
 
       // Insert invoice into appropriate table

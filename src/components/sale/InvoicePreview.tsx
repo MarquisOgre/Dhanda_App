@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { calculateTotals } from "./TaxSummary";
 import { supabase } from "@/integrations/supabase/client";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 // Generic base item interface that works for both sale and purchase
 interface BaseItem {
@@ -34,6 +34,7 @@ interface InvoicePreviewProps {
   partyId: string;
   items: BaseItem[];
   notes?: string;
+  invoiceType?: "sale" | "purchase";
 }
 
 interface Party {
@@ -54,9 +55,10 @@ export function InvoicePreview({
   partyId,
   items,
   notes,
+  invoiceType = "sale",
 }: InvoicePreviewProps) {
   const [party, setParty] = useState<Party | null>(null);
-  const { subtotal, totalTax, grandTotal } = calculateTotals(items);
+  const { businessSettings } = useBusinessSettings();
 
   useEffect(() => {
     if (partyId && open) {
@@ -73,10 +75,33 @@ export function InvoicePreview({
     if (data) setParty(data);
   };
 
-  const totalDiscount = items.reduce((acc, item) => {
+  // Calculate totals including TCS
+  const validItems = items.filter(item => item.itemId);
+  
+  const grossSubtotal = validItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
+  
+  const totalDiscount = validItems.reduce((acc, item) => {
     const itemSubtotal = item.quantity * item.rate;
     return acc + (itemSubtotal * item.discount) / 100;
   }, 0);
+
+  const taxableAmount = grossSubtotal - totalDiscount;
+
+  const totalTax = validItems.reduce((acc, item) => {
+    const itemSubtotal = item.quantity * item.rate;
+    const discountAmount = (itemSubtotal * item.discount) / 100;
+    const itemTaxable = itemSubtotal - discountAmount;
+    return acc + (itemTaxable * item.taxRate) / 100;
+  }, 0);
+
+  // Calculate TCS (only for sale invoices)
+  const useTcs = businessSettings?.enable_tcs ?? false;
+  const tcsRate = businessSettings?.tcs_percent ?? 0;
+  const tcsAmount = useTcs && invoiceType === "sale" && tcsRate > 0 
+    ? ((taxableAmount + totalTax) * tcsRate) / 100 
+    : 0;
+
+  const grandTotal = Math.round(taxableAmount + totalTax + tcsAmount);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,14 +126,30 @@ export function InvoicePreview({
           <div className="flex justify-between items-start mb-8">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-primary-foreground" />
-                </div>
+                {businessSettings?.logo_url ? (
+                  <img 
+                    src={businessSettings.logo_url} 
+                    alt="Business Logo" 
+                    className="w-12 h-12 rounded-xl object-contain"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                )}
                 <div>
-                  <h1 className="text-2xl font-bold">AccuBooks</h1>
-                  <p className="text-sm text-muted-foreground">Accounting Software</p>
+                  <h1 className="text-2xl font-bold">{businessSettings?.business_name || "Your Business"}</h1>
+                  {businessSettings?.business_address && (
+                    <p className="text-sm text-muted-foreground">{businessSettings.business_address}</p>
+                  )}
                 </div>
               </div>
+              {businessSettings?.gstin && (
+                <p className="text-sm text-muted-foreground">GSTIN: {businessSettings.gstin}</p>
+              )}
+              {businessSettings?.phone && (
+                <p className="text-sm text-muted-foreground">Phone: {businessSettings.phone}</p>
+              )}
             </div>
             <div className="text-right">
               <h2 className="text-2xl font-bold text-primary uppercase">{documentType}</h2>
@@ -148,7 +189,7 @@ export function InvoicePreview({
                 </tr>
               </thead>
               <tbody>
-                {items.filter(item => item.itemId).map((item, index) => (
+                {validItems.map((item, index) => (
                   <tr key={item.id} className="border-t border-border">
                     <td className="py-3 px-4">{index + 1}</td>
                     <td className="py-3 px-4 font-medium">{item.name}</td>
@@ -167,7 +208,7 @@ export function InvoicePreview({
             <div className="w-80 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>₹{(subtotal + totalDiscount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                <span>₹{grossSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
               </div>
               {totalDiscount > 0 && (
                 <div className="flex justify-between text-sm">
@@ -179,6 +220,12 @@ export function InvoicePreview({
                 <span className="text-muted-foreground">Tax (GST)</span>
                 <span>₹{totalTax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
               </div>
+              {useTcs && tcsAmount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">TCS @ {tcsRate}%</span>
+                  <span>₹{tcsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
               <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
                 <span>Grand Total</span>
                 <span className="text-primary">₹{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
