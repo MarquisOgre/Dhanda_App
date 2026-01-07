@@ -118,9 +118,9 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
             updatedItem.hsn = selectedItem.hsn_code || "";
             updatedItem.rate = selectedItem.sale_price || 0;
             updatedItem.availableStock = selectedItem.current_stock || 0;
-            // Default closing stock = available stock (no sale yet), quantity = 0
-            updatedItem.closingStock = selectedItem.current_stock || 0;
-            updatedItem.quantity = 0;
+            // Default closing stock = 0, so sale qty = available stock
+            updatedItem.closingStock = 0;
+            updatedItem.quantity = selectedItem.current_stock || 0;
             updatedItem.unit = selectedItem.unit || "pcs";
             // Always use the app default GST (from Settings) when creating invoices
             updatedItem.taxRate = defaultTaxRate;
