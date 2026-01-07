@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 export interface InvoiceItem {
   id: number;
@@ -43,6 +44,8 @@ interface DbItem {
 
 export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTableProps) {
   const { user } = useAuth();
+  const { businessSettings } = useBusinessSettings();
+  const defaultTaxRate = businessSettings?.default_tax_rate ?? 0;
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
       unit: "pcs",
       rate: 0,
       discount: 0,
-      taxRate: 18,
+      taxRate: defaultTaxRate,
       amount: 0,
     };
     onItemsChange([...items, newItem]);
@@ -93,7 +96,7 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
             updatedItem.rate = selectedItem.sale_price || 0;
             updatedItem.availableStock = selectedItem.current_stock || 0;
             updatedItem.unit = selectedItem.unit || "pcs";
-            updatedItem.taxRate = selectedItem.tax_rate || 18;
+            updatedItem.taxRate = selectedItem.tax_rate ?? defaultTaxRate;
           }
         }
         
@@ -213,9 +216,6 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
                     min={0}
                     max={100}
                   />
-                </td>
-                <td className="py-2 px-2 text-right font-medium">
-                  ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="py-2 px-2 text-right font-medium">
                   ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
