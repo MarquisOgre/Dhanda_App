@@ -25,14 +25,16 @@ export default function PaymentIn() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const invoiceId = searchParams.get("invoice");
+  const modeFromUrl = searchParams.get("mode");
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoice | null>(null);
+  const [partyOutstanding, setPartyOutstanding] = useState<number>(0);
   
   const [receiptNumber, setReceiptNumber] = useState("");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [selectedParty, setSelectedParty] = useState("");
-  const [paymentMode, setPaymentMode] = useState("cash");
+  const [paymentMode, setPaymentMode] = useState(modeFromUrl || "cash");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -87,6 +89,42 @@ export default function PaymentIn() {
       toast.error("Failed to load invoice details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch outstanding balance when party is selected (and no linked invoice)
+  const fetchPartyOutstanding = async (partyId: string) => {
+    if (!partyId || linkedInvoice) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("sale_invoices")
+        .select("total_amount, paid_amount")
+        .eq("party_id", partyId)
+        .eq("is_deleted", false)
+        .in("invoice_type", ["sale", "sale_invoice"]);
+
+      if (error) throw error;
+      
+      const totalOutstanding = (data || []).reduce((sum, inv) => {
+        const balance = (inv.total_amount || 0) - (inv.paid_amount || 0);
+        return sum + balance;
+      }, 0);
+      
+      setPartyOutstanding(totalOutstanding);
+      if (totalOutstanding > 0) {
+        setAmount(String(totalOutstanding));
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch party outstanding:", error);
+    }
+  };
+
+  // Handle party change
+  const handlePartyChange = (partyId: string) => {
+    setSelectedParty(partyId);
+    if (partyId && !linkedInvoice) {
+      fetchPartyOutstanding(partyId);
     }
   };
 
@@ -231,10 +269,17 @@ export default function PaymentIn() {
             <h2 className="text-lg font-semibold mb-4">Customer</h2>
             <PartySelector 
               value={selectedParty} 
-              onChange={setSelectedParty} 
+              onChange={handlePartyChange} 
               partyType="customer" 
               disabled={!!linkedInvoice}
             />
+            {!linkedInvoice && partyOutstanding > 0 && (
+              <div className="mt-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
+                <p className="text-sm text-warning">
+                  Total Outstanding: <span className="font-bold">₹{partyOutstanding.toLocaleString()}</span>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Amount */}
