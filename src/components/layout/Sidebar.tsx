@@ -69,12 +69,8 @@ const navItems: NavItem[] = [
     icon: <ShoppingCart className="w-5 h-5" />,
     children: [
       { title: "Sale Invoices", href: "/sale/invoices" },
-      { title: "Estimation", href: "/sale/estimation" },
-      { title: "Proforma Invoice", href: "/sale/proforma" },
       { title: "Payment In", href: "/sale/payment-in" },
-      { title: "Sale Order", href: "/sale/order" },
       { title: "Delivery Challan", href: "/sale/dc" },
-      { title: "Sale Return / Credit Note", href: "/sale/return" },
     ],
   },
   {
@@ -84,8 +80,6 @@ const navItems: NavItem[] = [
       { title: "Purchase Invoices", href: "/purchase/bills" },
       { title: "Payment Out", href: "/purchase/payment-out" },
       { title: "Expenses", href: "/purchase/expenses" },
-      { title: "Purchase Order", href: "/purchase/order" },
-      { title: "Purchase Return / Dr. Note", href: "/purchase/return" },
     ],
   },
   {

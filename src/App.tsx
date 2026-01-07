@@ -26,19 +26,11 @@ import SaleInvoices from "./pages/sale/SaleInvoices";
 import CreateSaleInvoice from "./pages/sale/CreateSaleInvoice";
 import ViewSaleInvoice from "./pages/sale/ViewSaleInvoice";
 import EditSaleInvoice from "./pages/sale/EditSaleInvoice";
-import EstimationList from "./pages/sale/EstimationList";
-import CreateEstimation from "./pages/sale/CreateEstimation";
-import ProformaList from "./pages/sale/ProformaList";
-import CreateProformaInvoice from "./pages/sale/CreateProformaInvoice";
 import PaymentInList from "./pages/sale/PaymentInList";
 import PaymentIn from "./pages/sale/PaymentIn";
 import ViewPaymentIn from "./pages/sale/ViewPaymentIn";
-import SaleOrderList from "./pages/sale/SaleOrderList";
-import CreateSaleOrder from "./pages/sale/CreateSaleOrder";
 import DeliveryChallanList from "./pages/sale/DeliveryChallanList";
 import CreateDeliveryChallan from "./pages/sale/CreateDeliveryChallan";
-import SaleReturnList from "./pages/sale/SaleReturnList";
-import CreateSaleReturn from "./pages/sale/CreateSaleReturn";
 import PurchaseBills from "./pages/purchase/PurchaseBills";
 import CreatePurchaseBill from "./pages/purchase/CreatePurchaseBill";
 import ViewPurchaseInvoice from "./pages/purchase/ViewPurchaseInvoice";
@@ -48,10 +40,6 @@ import PaymentOut from "./pages/purchase/PaymentOut";
 import ViewPaymentOut from "./pages/purchase/ViewPaymentOut";
 import ExpensesList from "./pages/purchase/ExpensesList";
 import CreateExpense from "./pages/purchase/CreateExpense";
-import PurchaseOrderList from "./pages/purchase/PurchaseOrderList";
-import CreatePurchaseOrder from "./pages/purchase/CreatePurchaseOrder";
-import PurchaseReturnList from "./pages/purchase/PurchaseReturnList";
-import CreatePurchaseReturn from "./pages/purchase/CreatePurchaseReturn";
 import BankAccounts from "./pages/cash-bank/BankAccounts";
 import CashInHand from "./pages/cash-bank/CashInHand";
 // Reports
@@ -123,19 +111,11 @@ const AppRoutes = () => {
       <Route path="/sale/invoices/new" element={<ProtectedRoute><CreateSaleInvoice /></ProtectedRoute>} />
       <Route path="/sale/invoices/:id" element={<ProtectedRoute><ViewSaleInvoice /></ProtectedRoute>} />
       <Route path="/sale/invoices/:id/edit" element={<ProtectedRoute><EditSaleInvoice /></ProtectedRoute>} />
-      <Route path="/sale/estimation" element={<ProtectedRoute><EstimationList /></ProtectedRoute>} />
-      <Route path="/sale/estimation/new" element={<ProtectedRoute><CreateEstimation /></ProtectedRoute>} />
-      <Route path="/sale/proforma" element={<ProtectedRoute><ProformaList /></ProtectedRoute>} />
-      <Route path="/sale/proforma/new" element={<ProtectedRoute><CreateProformaInvoice /></ProtectedRoute>} />
       <Route path="/sale/payment-in" element={<ProtectedRoute><PaymentInList /></ProtectedRoute>} />
       <Route path="/sale/payment-in/new" element={<ProtectedRoute><PaymentIn /></ProtectedRoute>} />
       <Route path="/sale/payment-in/:id" element={<ProtectedRoute><ViewPaymentIn /></ProtectedRoute>} />
-      <Route path="/sale/order" element={<ProtectedRoute><SaleOrderList /></ProtectedRoute>} />
-      <Route path="/sale/order/new" element={<ProtectedRoute><CreateSaleOrder /></ProtectedRoute>} />
       <Route path="/sale/dc" element={<ProtectedRoute><DeliveryChallanList /></ProtectedRoute>} />
       <Route path="/sale/dc/new" element={<ProtectedRoute><CreateDeliveryChallan /></ProtectedRoute>} />
-      <Route path="/sale/return" element={<ProtectedRoute><SaleReturnList /></ProtectedRoute>} />
-      <Route path="/sale/return/new" element={<ProtectedRoute><CreateSaleReturn /></ProtectedRoute>} />
       {/* Purchase */}
       <Route path="/purchase/bills" element={<ProtectedRoute><PurchaseBills /></ProtectedRoute>} />
       <Route path="/purchase/bills/new" element={<ProtectedRoute><CreatePurchaseBill /></ProtectedRoute>} />
@@ -146,10 +126,6 @@ const AppRoutes = () => {
       <Route path="/purchase/payment-out/:id" element={<ProtectedRoute><ViewPaymentOut /></ProtectedRoute>} />
       <Route path="/purchase/expenses" element={<ProtectedRoute><ExpensesList /></ProtectedRoute>} />
       <Route path="/purchase/expenses/new" element={<ProtectedRoute><CreateExpense /></ProtectedRoute>} />
-      <Route path="/purchase/order" element={<ProtectedRoute><PurchaseOrderList /></ProtectedRoute>} />
-      <Route path="/purchase/order/new" element={<ProtectedRoute><CreatePurchaseOrder /></ProtectedRoute>} />
-      <Route path="/purchase/return" element={<ProtectedRoute><PurchaseReturnList /></ProtectedRoute>} />
-      <Route path="/purchase/return/new" element={<ProtectedRoute><CreatePurchaseReturn /></ProtectedRoute>} />
       {/* Cash & Bank */}
       <Route path="/cash-bank/accounts" element={<ProtectedRoute><BankAccounts /></ProtectedRoute>} />
       <Route path="/cash-bank/cash" element={<ProtectedRoute><CashInHand /></ProtectedRoute>} />
