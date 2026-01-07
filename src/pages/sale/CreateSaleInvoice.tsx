@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Eye, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,17 +14,51 @@ import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceIt
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
 import { useInvoiceSave } from "@/hooks/useInvoiceSave";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function CreateSaleInvoice() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { saveInvoice, loading } = useInvoiceSave();
   
-  const [invoiceNumber, setInvoiceNumber] = useState("INV-006");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
   const [dueDate, setDueDate] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
   const [selectedParty, setSelectedParty] = useState("");
   const [notes, setNotes] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+
+  // Generate next invoice number on mount
+  useEffect(() => {
+    const generateInvoiceNumber = async () => {
+      if (!user) return;
+      
+      const { data } = await supabase
+        .from("sale_invoices")
+        .select("invoice_number")
+        .eq("user_id", user.id)
+        .eq("invoice_type", "sale_invoice")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        const lastNumber = data[0].invoice_number;
+        const match = lastNumber.match(/(\d+)$/);
+        if (match) {
+          const nextNum = parseInt(match[1]) + 1;
+          const prefix = lastNumber.replace(/\d+$/, "");
+          setInvoiceNumber(`${prefix}${String(nextNum).padStart(3, "0")}`);
+        } else {
+          setInvoiceNumber("INV-001");
+        }
+      } else {
+        setInvoiceNumber("INV-001");
+      }
+    };
+    
+    generateInvoiceNumber();
+  }, [user]);
   
   const [items, setItems] = useState<InvoiceItem[]>([
     {
@@ -34,6 +68,7 @@ export default function CreateSaleInvoice() {
       hsn: "",
       quantity: 1,
       availableStock: 0,
+      closingStock: 0,
       unit: "pcs",
       rate: 0,
       discount: 0,

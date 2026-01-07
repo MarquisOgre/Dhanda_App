@@ -130,6 +130,44 @@ export function useInvoiceSave() {
 
       if (itemsError) throw itemsError;
 
+      // Update stock for sale invoices (deduct) and purchase invoices (add)
+      if (invoiceType === "sale_invoice") {
+        // Deduct stock for each item sold
+        for (const item of validItems) {
+          // Get current stock and calculate new value
+          const { data: itemData } = await supabase
+            .from("items")
+            .select("current_stock")
+            .eq("id", item.itemId)
+            .single();
+          
+          if (itemData) {
+            const newStock = Math.max(0, (itemData.current_stock || 0) - item.quantity);
+            await supabase
+              .from("items")
+              .update({ current_stock: newStock })
+              .eq("id", item.itemId);
+          }
+        }
+      } else if (invoiceType === "purchase_bill") {
+        // Add stock for each item purchased
+        for (const item of validItems) {
+          const { data: itemData } = await supabase
+            .from("items")
+            .select("current_stock")
+            .eq("id", item.itemId)
+            .single();
+          
+          if (itemData) {
+            const newStock = (itemData.current_stock || 0) + item.quantity;
+            await supabase
+              .from("items")
+              .update({ current_stock: newStock })
+              .eq("id", item.itemId);
+          }
+        }
+      }
+
       const displayType = invoiceType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       toast.success(`${displayType} saved successfully!`);
       return invoice;
