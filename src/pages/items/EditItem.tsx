@@ -186,16 +186,20 @@ export default function EditItem() {
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
                 <Select
-                    value={item.unit || "Bottles"}
-                    onValueChange={(value) => updateItem(item.id, "unit", value)}
-                  >
-                    <SelectTrigger className="h-9 w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Bottles">Bottles</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  value={formData.unit}
+                  onValueChange={(value) => handleChange("unit", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PCS">PCS</SelectItem>
+                    <SelectItem value="KG">KG</SelectItem>
+                    <SelectItem value="LTR">LTR</SelectItem>
+                    <SelectItem value="Bottles">Bottles</SelectItem>
+                    <SelectItem value="BOX">BOX</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
