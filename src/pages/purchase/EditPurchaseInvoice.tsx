@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { PartySelector } from "@/components/sale/PartySelector";
-import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
+import { PurchaseInvoiceItemsTable, type PurchaseInvoiceItem } from "@/components/purchase/PurchaseInvoiceItemsTable";
 import { TaxSummary, calculateTotals } from "@/components/sale/TaxSummary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,7 @@ export default function EditPurchaseInvoice() {
   const [invoiceDate, setInvoiceDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [partyId, setPartyId] = useState<string | null>(null);
-  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [items, setItems] = useState<PurchaseInvoiceItem[]>([]);
   const [notes, setNotes] = useState("");
   const [terms, setTerms] = useState("");
 
@@ -227,7 +227,7 @@ export default function EditPurchaseInvoice() {
           {/* Items */}
           <div className="metric-card p-6">
             <h3 className="font-semibold mb-4">Items</h3>
-            <InvoiceItemsTable items={items} onItemsChange={setItems} />
+            <PurchaseInvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
           {/* Notes & Terms */}
@@ -259,7 +259,7 @@ export default function EditPurchaseInvoice() {
         <div className="space-y-6">
           <div className="metric-card p-6">
             <h3 className="font-semibold mb-4">Summary</h3>
-            <TaxSummary items={items} />
+            <TaxSummary items={items} invoiceType="purchase" />
           </div>
         </div>
       </div>

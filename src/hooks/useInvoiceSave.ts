@@ -2,7 +2,18 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { InvoiceItem } from "@/components/sale/InvoiceItemsTable";
+
+// Generic item interface for both sale and purchase
+interface BaseInvoiceItem {
+  itemId: string;
+  name: string;
+  hsn?: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  discount: number;
+  taxRate: number;
+}
 
 interface SaveInvoiceParams {
   invoiceType: string;
@@ -10,7 +21,7 @@ interface SaveInvoiceParams {
   invoiceDate: Date;
   dueDate?: Date;
   partyId: string;
-  items: InvoiceItem[];
+  items: BaseInvoiceItem[];
   notes?: string;
 }
 

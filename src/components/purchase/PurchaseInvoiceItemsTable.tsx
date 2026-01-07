@@ -12,13 +12,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export interface InvoiceItem {
+export interface PurchaseInvoiceItem {
   id: number;
   itemId: string;
   name: string;
   hsn: string;
   quantity: number;
-  availableStock: number;
   unit: string;
   rate: number;
   discount: number;
@@ -26,22 +25,21 @@ export interface InvoiceItem {
   amount: number;
 }
 
-interface InvoiceItemsTableProps {
-  items: InvoiceItem[];
-  onItemsChange: (items: InvoiceItem[]) => void;
+interface PurchaseInvoiceItemsTableProps {
+  items: PurchaseInvoiceItem[];
+  onItemsChange: (items: PurchaseInvoiceItem[]) => void;
 }
 
 interface DbItem {
   id: string;
   name: string;
   hsn_code: string | null;
-  sale_price: number | null;
-  current_stock: number | null;
+  purchase_price: number | null;
   unit: string | null;
   tax_rate: number | null;
 }
 
-export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTableProps) {
+export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvoiceItemsTableProps) {
   const { user } = useAuth();
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
 
@@ -54,7 +52,7 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
   const fetchItems = async () => {
     const { data } = await supabase
       .from("items")
-      .select("id, name, hsn_code, sale_price, current_stock, unit, tax_rate")
+      .select("id, name, hsn_code, purchase_price, unit, tax_rate")
       .eq("is_deleted", false)
       .order("name");
     if (data) {
@@ -63,13 +61,12 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
   };
 
   const addItem = () => {
-    const newItem: InvoiceItem = {
+    const newItem: PurchaseInvoiceItem = {
       id: Date.now(),
       itemId: "",
       name: "",
       hsn: "",
       quantity: 1,
-      availableStock: 0,
       unit: "pcs",
       rate: 0,
       discount: 0,
@@ -79,25 +76,24 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
     onItemsChange([...items, newItem]);
   };
 
-  const updateItem = (id: number, field: keyof InvoiceItem, value: string | number) => {
+  const updateItem = (id: number, field: keyof PurchaseInvoiceItem, value: string | number) => {
     const updated = items.map((item) => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
         
-        // If item selection changed, update related fields
+        // If item selection changed, update related fields using PURCHASE PRICE
         if (field === "itemId") {
           const selectedItem = dbItems.find((i) => i.id === value);
           if (selectedItem) {
             updatedItem.name = selectedItem.name;
             updatedItem.hsn = selectedItem.hsn_code || "";
-            updatedItem.rate = selectedItem.sale_price || 0;
-            updatedItem.availableStock = selectedItem.current_stock || 0;
+            updatedItem.rate = selectedItem.purchase_price || 0; // Use purchase_price
             updatedItem.unit = selectedItem.unit || "pcs";
             updatedItem.taxRate = selectedItem.tax_rate || 18;
           }
         }
         
-        // Recalculate amount (without item-level tax - tax on subtotal)
+        // Recalculate amount (without tax - tax calculated on subtotal)
         const subtotal = updatedItem.quantity * updatedItem.rate;
         const discountAmount = (subtotal * updatedItem.discount) / 100;
         updatedItem.amount = subtotal - discountAmount;
@@ -122,7 +118,6 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">#</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground min-w-[200px]">Item</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">HSN</th>
-              <th className="text-left py-3 px-2 font-medium text-muted-foreground">Avl. Stock</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Qty</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Unit</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Rate</th>
@@ -163,11 +158,6 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
                     onChange={(e) => updateItem(item.id, "hsn", e.target.value)}
                     className="h-9 w-20"
                   />
-                </td>
-                <td className="py-2 px-2 text-center">
-                  <span className={item.availableStock < item.quantity ? "text-destructive font-medium" : "text-muted-foreground"}>
-                    {item.availableStock}
-                  </span>
                 </td>
                 <td className="py-2 px-2">
                   <Input
@@ -213,9 +203,6 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
                     min={0}
                     max={100}
                   />
-                </td>
-                <td className="py-2 px-2 text-right font-medium">
-                  ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="py-2 px-2 text-right font-medium">
                   ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
