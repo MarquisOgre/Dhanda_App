@@ -28,7 +28,7 @@ export interface InvoiceItem {
   amount: number;
 }
 
-interface InvoiceItemsTableProps {
+interface SaleInvoiceItemsTableProps {
   items: InvoiceItem[];
   onItemsChange: (items: InvoiceItem[]) => void;
 }
@@ -43,7 +43,7 @@ interface DbItem {
   tax_rate: number | null;
 }
 
-export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTableProps) {
+export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItemsTableProps) {
   const { user } = useAuth();
   const { businessSettings } = useBusinessSettings();
   const defaultTaxRate = businessSettings?.default_tax_rate ?? 0;

@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { PartySelector } from "@/components/sale/PartySelector";
-import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
+import { SaleInvoiceItemsTable, type InvoiceItem } from "@/components/sale/SaleInvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
 import { useInvoiceSave } from "@/hooks/useInvoiceSave";
@@ -121,7 +121,7 @@ export default function CreateSaleReturn() {
 
           <div className="metric-card">
             <h2 className="text-lg font-semibold mb-4">Returned Items</h2>
-            <InvoiceItemsTable items={items} onItemsChange={setItems} />
+            <SaleInvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
           <div className="metric-card">

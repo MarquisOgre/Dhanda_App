@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { PartySelector } from "@/components/sale/PartySelector";
-import { InvoiceItemsTable, type InvoiceItem } from "@/components/sale/InvoiceItemsTable";
+import { SaleInvoiceItemsTable, type InvoiceItem } from "@/components/sale/SaleInvoiceItemsTable";
 import { TaxSummary, calculateTotals } from "@/components/sale/TaxSummary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -229,7 +229,7 @@ export default function EditSaleInvoice() {
           {/* Items */}
           <div className="metric-card p-6">
             <h3 className="font-semibold mb-4">Items</h3>
-            <InvoiceItemsTable items={items} onItemsChange={setItems} />
+            <SaleInvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
           {/* Notes & Terms */}
