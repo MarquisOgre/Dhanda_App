@@ -15,6 +15,11 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface UnitOption {
+  id: string;
+  name: string;
+}
+
 export default function EditItem() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -22,12 +27,13 @@ export default function EditItem() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     categoryId: "",
     salePrice: "",
     purchasePrice: "",
-    unit: "PCS",
+    unit: "Bottles",
     openingStock: "",
     currentStock: "",
     minStock: "",
@@ -38,6 +44,7 @@ export default function EditItem() {
   useEffect(() => {
     if (user && id) {
       fetchCategories();
+      fetchUnits();
       fetchItem();
     }
   }, [user, id]);
@@ -48,6 +55,20 @@ export default function EditItem() {
       .select("id, name")
       .order("name");
     if (data) setCategories(data);
+  };
+
+  const fetchUnits = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("units")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .order("name");
+    if (data && data.length > 0) {
+      setUnitOptions(data);
+    } else {
+      setUnitOptions([{ id: 'default', name: 'Bottles' }]);
+    }
   };
 
   const fetchItem = async () => {
@@ -193,11 +214,11 @@ export default function EditItem() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PCS">PCS</SelectItem>
-                    <SelectItem value="KG">KG</SelectItem>
-                    <SelectItem value="LTR">LTR</SelectItem>
-                    <SelectItem value="Bottles">Bottles</SelectItem>
-                    <SelectItem value="BOX">BOX</SelectItem>
+                    {unitOptions.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.name}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

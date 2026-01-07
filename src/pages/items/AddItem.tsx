@@ -15,17 +15,23 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface UnitOption {
+  id: string;
+  name: string;
+}
+
 export default function AddItem() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     categoryId: "",
     salePrice: "",
     purchasePrice: "",
-    unit: "PCS",
+    unit: "Bottles",
     openingStock: "",
     minStock: "",
     hsn: "",
@@ -35,6 +41,7 @@ export default function AddItem() {
   useEffect(() => {
     if (user) {
       fetchCategories();
+      fetchUnits();
     }
   }, [user]);
 
@@ -44,6 +51,21 @@ export default function AddItem() {
       .select("id, name")
       .order("name");
     if (data) setCategories(data);
+  };
+
+  const fetchUnits = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("units")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .order("name");
+    if (data && data.length > 0) {
+      setUnitOptions(data);
+      setFormData(prev => ({ ...prev, unit: data[0].name }));
+    } else {
+      setUnitOptions([{ id: 'default', name: 'Bottles' }]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,11 +172,11 @@ export default function AddItem() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PCS">PCS</SelectItem>
-                    <SelectItem value="KG">KG</SelectItem>
-                    <SelectItem value="LTR">LTR</SelectItem>
-                    <SelectItem value="Bottles">Bottles</SelectItem>
-                    <SelectItem value="BOX">BOX</SelectItem>
+                    {unitOptions.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.name}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
