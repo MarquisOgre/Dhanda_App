@@ -66,14 +66,10 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
   const centerX = pageWidth / 2;
   
   let yPos = 15;
+  const leftColX = 14;
+  const rightColX = pageWidth - 14;
 
-  // Centered Header: Business Name
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.text(settings?.business_name || "Your Business", centerX, yPos, { align: "center" });
-  yPos += 8;
-
-  // Centered Logo (if available)
+  // Centered Logo (if available) - Increased size
   if (settings?.logo_url) {
     try {
       const img = new Image();
@@ -92,33 +88,28 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
       ctx?.drawImage(img, 0, 0);
       const dataURL = canvas.toDataURL('image/png');
       
-      // Center the logo
-      const logoWidth = 25;
-      const logoHeight = 25;
+      // Center the logo - increased size
+      const logoWidth = 40;
+      const logoHeight = 40;
       doc.addImage(dataURL, 'PNG', centerX - logoWidth / 2, yPos, logoWidth, logoHeight);
-      yPos += logoHeight + 5;
+      yPos += logoHeight + 8;
     } catch (error) {
       console.error("Failed to load logo:", error);
     }
   }
 
-  // Centered Invoice Title
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  const title = type === "sale" ? "TAX INVOICE" : "PURCHASE INVOICE";
-  doc.text(title, centerX, yPos, { align: "center" });
-  yPos += 10;
-
-  // Two columns: Business Info (left) and Invoice Details (right)
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  
-  const leftColX = 14;
-  const rightColX = pageWidth - 14;
+  // Business Name (Left) & TAX INVOICE (Right)
   let leftY = yPos;
   let rightY = yPos;
+
+  // Left column - Business Name and details
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(settings?.business_name || "Your Business", leftColX, leftY);
+  leftY += 7;
   
-  // Left column - Business details
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
   if (settings?.business_address) {
     doc.text(settings.business_address, leftColX, leftY);
     leftY += 5;
@@ -132,7 +123,15 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
     leftY += 5;
   }
   
-  // Right column - Invoice details
+  // Right column - TAX INVOICE title and Invoice details
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  const title = type === "sale" ? "TAX INVOICE" : "PURCHASE INVOICE";
+  doc.text(title, rightColX, rightY, { align: "right" });
+  rightY += 7;
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
   doc.text(`Invoice #: ${invoice.invoice_number}`, rightColX, rightY, { align: "right" });
   rightY += 5;
   doc.text(`Date: ${format(new Date(invoice.invoice_date), "dd MMM yyyy")}`, rightColX, rightY, { align: "right" });
