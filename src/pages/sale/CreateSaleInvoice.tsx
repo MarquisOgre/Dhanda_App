@@ -37,7 +37,7 @@ export default function CreateSaleInvoice() {
       unit: "pcs",
       rate: 0,
       discount: 0,
-      taxRate: 18,
+      taxRate: 0,
       amount: 0,
     },
   ]);

@@ -21,7 +21,7 @@ export default function CreatePurchaseBill() {
   const [selectedParty, setSelectedParty] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [items, setItems] = useState<PurchaseInvoiceItem[]>([
-    { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 18, amount: 0 },
+    { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 0, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
 
