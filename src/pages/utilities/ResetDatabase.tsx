@@ -143,6 +143,36 @@ export default function ResetDatabase() {
       if (bankError) console.error('Bank accounts deletion error:', bankError);
       addProgress("✓ Bank accounts deleted");
 
+      // 11. Delete units
+      addProgress("Deleting units...");
+      const { error: unitsError } = await supabase
+        .from('units')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (unitsError) console.error('Units deletion error:', unitsError);
+      addProgress("✓ Units deleted");
+
+      // 12. Delete notifications
+      addProgress("Deleting notifications...");
+      const { error: notificationsError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (notificationsError) console.error('Notifications deletion error:', notificationsError);
+      addProgress("✓ Notifications deleted");
+
+      // 13. Delete backups
+      addProgress("Deleting backups...");
+      const { error: backupsError } = await supabase
+        .from('backups')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (backupsError) console.error('Backups deletion error:', backupsError);
+      addProgress("✓ Backups deleted");
+
       addProgress("Database reset complete!");
       setResetComplete(true);
       toast.success("Database has been reset successfully");
@@ -246,12 +276,13 @@ export default function ResetDatabase() {
             <h4 className="font-semibold mb-2">The following data will be permanently deleted:</h4>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
               <li>All parties (customers & suppliers)</li>
-              <li>All items and categories</li>
-              <li>All invoices (sales, purchases, returns, etc.)</li>
+              <li>All items, categories & units</li>
+              <li>All invoices (sales & purchases)</li>
               <li>All payments (in & out)</li>
               <li>All expenses</li>
               <li>All cash transactions</li>
               <li>All bank account records</li>
+              <li>All notifications & backups</li>
             </ul>
           </div>
 
