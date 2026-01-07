@@ -66,6 +66,7 @@ export default function EditSaleInvoice() {
         discount: item.discount_percent || 0,
         amount: item.total,
         availableStock: 0,
+        closingStock: 0,
         hsn: item.hsn_code || "",
         unit: item.unit || "pcs",
       })));

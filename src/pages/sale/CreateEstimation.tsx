@@ -33,6 +33,7 @@ export default function CreateEstimation() {
       hsn: "",
       quantity: 1,
       availableStock: 0,
+      closingStock: 0,
       unit: "pcs",
       rate: 0,
       discount: 0,

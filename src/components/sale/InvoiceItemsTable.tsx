@@ -20,6 +20,7 @@ export interface InvoiceItem {
   hsn: string;
   quantity: number;
   availableStock: number;
+  closingStock: number;
   unit: string;
   rate: number;
   discount: number;
@@ -73,6 +74,7 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
       hsn: "",
       quantity: 1,
       availableStock: 0,
+      closingStock: 0,
       unit: "pcs",
       rate: 0,
       discount: 0,
@@ -95,10 +97,16 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
             updatedItem.hsn = selectedItem.hsn_code || "";
             updatedItem.rate = selectedItem.sale_price || 0;
             updatedItem.availableStock = selectedItem.current_stock || 0;
+            updatedItem.closingStock = Math.max(0, (selectedItem.current_stock || 0) - updatedItem.quantity);
             updatedItem.unit = selectedItem.unit || "pcs";
             // Always use the app default GST (from Settings) when creating invoices
             updatedItem.taxRate = defaultTaxRate;
           }
+        }
+        
+        // Recalculate closing stock when quantity changes
+        if (field === "quantity") {
+          updatedItem.closingStock = Math.max(0, updatedItem.availableStock - (value as number));
         }
         
         // Recalculate amount (without item-level tax - tax on subtotal)
@@ -128,6 +136,7 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">HSN</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Avl. Stock</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Qty</th>
+              <th className="text-left py-3 px-2 font-medium text-muted-foreground">Cls. Stock</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Unit</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Rate</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Disc %</th>
@@ -181,6 +190,11 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
                     className="h-9 w-16"
                     min={1}
                   />
+                </td>
+                <td className="py-2 px-2 text-center">
+                  <span className={item.closingStock < 0 ? "text-destructive font-medium" : "text-green-600 font-medium"}>
+                    {item.closingStock}
+                  </span>
                 </td>
                 <td className="py-2 px-2">
                   <Select
