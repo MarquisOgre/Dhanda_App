@@ -37,11 +37,13 @@ export default function PaymentIn() {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    generateReceiptNumber();
-    if (invoiceId) {
-      fetchLinkedInvoice();
+    if (user) {
+      generateReceiptNumber();
+      if (invoiceId) {
+        fetchLinkedInvoice();
+      }
     }
-  }, [invoiceId]);
+  }, [invoiceId, user]);
 
   const generateReceiptNumber = async () => {
     try {
@@ -56,20 +58,35 @@ export default function PaymentIn() {
   };
 
   const fetchLinkedInvoice = async () => {
+    if (!invoiceId) return;
+    
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("sale_invoices")
-        .select("id, invoice_number, balance_due, party_id")
+        .select("id, invoice_number, balance_due, party_id, total_amount, paid_amount")
         .eq("id", invoiceId)
         .single();
 
       if (error) throw error;
-      setLinkedInvoice(data);
-      setSelectedParty(data.party_id || "");
-      setAmount(String(data.balance_due || 0));
-      setNotes(`Payment for invoice ${data.invoice_number}`);
+      
+      if (data) {
+        const balanceDue = (data.total_amount || 0) - (data.paid_amount || 0);
+        setLinkedInvoice({
+          id: data.id,
+          invoice_number: data.invoice_number,
+          balance_due: balanceDue,
+          party_id: data.party_id || "",
+        });
+        setSelectedParty(data.party_id || "");
+        setAmount(String(balanceDue));
+        setNotes(`Payment for invoice ${data.invoice_number}`);
+      }
     } catch (error: any) {
       console.error("Failed to fetch linked invoice:", error);
+      toast.error("Failed to load invoice details");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -105,16 +122,26 @@ export default function PaymentIn() {
 
       // Update invoice balance if linked
       if (linkedInvoice) {
-        const newPaidAmount = (linkedInvoice.balance_due || 0) - parseFloat(amount);
-        const newBalance = Math.max(0, newPaidAmount);
-        await supabase
+        // Get current invoice data
+        const { data: currentInvoice } = await supabase
           .from("sale_invoices")
-          .update({
-            paid_amount: supabase.rpc ? parseFloat(amount) : parseFloat(amount),
-            balance_due: newBalance,
-            status: newBalance <= 0 ? "paid" : "partial",
-          })
-          .eq("id", linkedInvoice.id);
+          .select("paid_amount, total_amount")
+          .eq("id", linkedInvoice.id)
+          .single();
+
+        if (currentInvoice) {
+          const newPaidAmount = (currentInvoice.paid_amount || 0) + parseFloat(amount);
+          const newBalance = Math.max(0, (currentInvoice.total_amount || 0) - newPaidAmount);
+          
+          await supabase
+            .from("sale_invoices")
+            .update({
+              paid_amount: newPaidAmount,
+              balance_due: newBalance,
+              status: newBalance <= 0 ? "paid" : "partial",
+            })
+            .eq("id", linkedInvoice.id);
+        }
       }
 
       toast.success("Payment recorded successfully!");
