@@ -83,6 +83,8 @@ export default function AddItem() {
     setLoading(true);
     try {
       const openingStock = formData.openingStock ? parseFloat(formData.openingStock) : 0;
+      // Default current_stock to 0 (closing stock = 0 by default)
+      const currentStock = 0;
       
       const { error } = await supabase.from("items").insert({
         user_id: user.id,
@@ -90,9 +92,9 @@ export default function AddItem() {
         category_id: formData.categoryId || null,
         sale_price: formData.salePrice ? parseFloat(formData.salePrice) : 0,
         purchase_price: formData.purchasePrice ? parseFloat(formData.purchasePrice) : 0,
-        unit: formData.unit,
+        unit: formData.unit || "Bottles",
         opening_stock: openingStock,
-        current_stock: openingStock,
+        current_stock: currentStock,
         low_stock_alert: formData.minStock ? parseFloat(formData.minStock) : 10,
         hsn_code: formData.hsn || null,
         tax_rate: parseFloat(formData.gst),
