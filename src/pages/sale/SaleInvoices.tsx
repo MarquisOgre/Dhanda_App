@@ -293,7 +293,7 @@ export default function SaleInvoices() {
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in?invoice=${invoice.id}`)}>
+                          <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in/new?invoice=${invoice.id}`)}>
                             Record Payment
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => navigate(`/sale/invoices/${invoice.id}/edit`)}>

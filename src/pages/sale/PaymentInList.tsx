@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Search, Wallet, MoreHorizontal, Eye, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +22,19 @@ interface Payment {
 export default function PaymentInList() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invoiceId = searchParams.get("invoice");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Backward-compatible: if some link lands on /sale/payment-in?invoice=..., redirect to the prefilled form.
+  useEffect(() => {
+    if (invoiceId) {
+      navigate(`/sale/payment-in/new?invoice=${invoiceId}`, { replace: true });
+    }
+  }, [invoiceId, navigate]);
 
   useEffect(() => {
     if (user) {
