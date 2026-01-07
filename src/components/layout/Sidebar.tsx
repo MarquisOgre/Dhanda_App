@@ -65,7 +65,7 @@ const navItems: NavItem[] = [
     icon: <FolderOpen className="w-5 h-5" />,
   },
   {
-    title: "Sale",
+    title: "Sales",
     icon: <ShoppingCart className="w-5 h-5" />,
     children: [
       { title: "Sale Invoices", href: "/sale/invoices" },
@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    title: "Purchase & Expense",
+    title: "Purchases",
     icon: <FileText className="w-5 h-5" />,
     children: [
       { title: "Purchase Invoices", href: "/purchase/bills" },
