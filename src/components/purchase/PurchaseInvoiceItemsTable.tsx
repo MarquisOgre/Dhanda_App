@@ -92,7 +92,8 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
             updatedItem.hsn = selectedItem.hsn_code || "";
             updatedItem.rate = selectedItem.purchase_price || 0; // Use purchase_price
             updatedItem.unit = selectedItem.unit || "pcs";
-            updatedItem.taxRate = selectedItem.tax_rate ?? defaultTaxRate;
+            // Always use the app default GST (from Settings) when creating invoices
+            updatedItem.taxRate = defaultTaxRate;
           }
         }
         

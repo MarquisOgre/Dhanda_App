@@ -96,7 +96,8 @@ export function InvoiceItemsTable({ items, onItemsChange }: InvoiceItemsTablePro
             updatedItem.rate = selectedItem.sale_price || 0;
             updatedItem.availableStock = selectedItem.current_stock || 0;
             updatedItem.unit = selectedItem.unit || "pcs";
-            updatedItem.taxRate = selectedItem.tax_rate ?? defaultTaxRate;
+            // Always use the app default GST (from Settings) when creating invoices
+            updatedItem.taxRate = defaultTaxRate;
           }
         }
         
