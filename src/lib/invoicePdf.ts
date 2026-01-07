@@ -63,10 +63,17 @@ function formatCurrency(amount: number): string {
 export async function generateInvoicePDF({ invoice, items, settings, type }: GeneratePDFParams) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const centerX = pageWidth / 2;
   
-  let yPos = 20;
+  let yPos = 15;
 
-  // Add logo if available
+  // Centered Header: Business Name
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(settings?.business_name || "Your Business", centerX, yPos, { align: "center" });
+  yPos += 8;
+
+  // Centered Logo (if available)
   if (settings?.logo_url) {
     try {
       const img = new Image();
@@ -85,94 +92,61 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
       ctx?.drawImage(img, 0, 0);
       const dataURL = canvas.toDataURL('image/png');
       
-      doc.addImage(dataURL, 'PNG', 14, yPos - 5, 25, 25);
-      
-      // Header with logo offset
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text(settings?.business_name || "Your Business", 45, yPos + 5);
-      
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      yPos += 15;
-      
-      if (settings?.business_address) {
-        doc.text(settings.business_address, 45, yPos);
-        yPos += 5;
-      }
-      if (settings?.phone) {
-        doc.text(`Phone: ${settings.phone}`, 45, yPos);
-        yPos += 5;
-      }
-      if (settings?.gstin) {
-        doc.text(`GSTIN: ${settings.gstin}`, 45, yPos);
-        yPos += 5;
-      }
+      // Center the logo
+      const logoWidth = 25;
+      const logoHeight = 25;
+      doc.addImage(dataURL, 'PNG', centerX - logoWidth / 2, yPos, logoWidth, logoHeight);
+      yPos += logoHeight + 5;
     } catch (error) {
       console.error("Failed to load logo:", error);
-      // Fallback to text only
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text(settings?.business_name || "Your Business", 14, yPos);
-      
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      yPos += 8;
-      
-      if (settings?.business_address) {
-        doc.text(settings.business_address, 14, yPos);
-        yPos += 5;
-      }
-      if (settings?.phone) {
-        doc.text(`Phone: ${settings.phone}`, 14, yPos);
-        yPos += 5;
-      }
-      if (settings?.gstin) {
-        doc.text(`GSTIN: ${settings.gstin}`, 14, yPos);
-        yPos += 5;
-      }
-    }
-  } else {
-    // No logo - just business name
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text(settings?.business_name || "Your Business", 14, yPos);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    yPos += 8;
-    
-    if (settings?.business_address) {
-      doc.text(settings.business_address, 14, yPos);
-      yPos += 5;
-    }
-    if (settings?.phone) {
-      doc.text(`Phone: ${settings.phone}`, 14, yPos);
-      yPos += 5;
-    }
-    if (settings?.gstin) {
-      doc.text(`GSTIN: ${settings.gstin}`, 14, yPos);
-      yPos += 5;
     }
   }
 
-  // Invoice Title
-  doc.setFontSize(16);
+  // Centered Invoice Title
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   const title = type === "sale" ? "TAX INVOICE" : "PURCHASE INVOICE";
-  doc.text(title, pageWidth - 14, 20, { align: "right" });
-  
+  doc.text(title, centerX, yPos, { align: "center" });
+  yPos += 10;
+
+  // Two columns: Business Info (left) and Invoice Details (right)
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Invoice #: ${invoice.invoice_number}`, pageWidth - 14, 28, { align: "right" });
-  doc.text(`Date: ${format(new Date(invoice.invoice_date), "dd MMM yyyy")}`, pageWidth - 14, 34, { align: "right" });
-  if (invoice.due_date) {
-    doc.text(`Due: ${format(new Date(invoice.due_date), "dd MMM yyyy")}`, pageWidth - 14, 40, { align: "right" });
+  
+  const leftColX = 14;
+  const rightColX = pageWidth - 14;
+  let leftY = yPos;
+  let rightY = yPos;
+  
+  // Left column - Business details
+  if (settings?.business_address) {
+    doc.text(settings.business_address, leftColX, leftY);
+    leftY += 5;
   }
+  if (settings?.phone) {
+    doc.text(`Phone: ${settings.phone}`, leftColX, leftY);
+    leftY += 5;
+  }
+  if (settings?.gstin) {
+    doc.text(`GSTIN: ${settings.gstin}`, leftColX, leftY);
+    leftY += 5;
+  }
+  
+  // Right column - Invoice details
+  doc.text(`Invoice #: ${invoice.invoice_number}`, rightColX, rightY, { align: "right" });
+  rightY += 5;
+  doc.text(`Date: ${format(new Date(invoice.invoice_date), "dd MMM yyyy")}`, rightColX, rightY, { align: "right" });
+  rightY += 5;
+  if (invoice.due_date) {
+    doc.text(`Due: ${format(new Date(invoice.due_date), "dd MMM yyyy")}`, rightColX, rightY, { align: "right" });
+    rightY += 5;
+  }
+  
+  yPos = Math.max(leftY, rightY);
 
   // Party Info Box
   const partyLabel = type === "sale" ? "Bill To:" : "Supplier:";
-  yPos = Math.max(yPos, 50) + 10;
+  yPos += 10;
   
   doc.setFillColor(245, 245, 245);
   doc.rect(14, yPos, pageWidth - 28, 30, "F");

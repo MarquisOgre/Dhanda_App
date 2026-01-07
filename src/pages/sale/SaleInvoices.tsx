@@ -78,12 +78,40 @@ export default function SaleInvoices() {
     if (!confirm("Are you sure you want to delete this invoice?")) return;
     
     try {
+      // First, get invoice items to restore stock
+      const { data: invoiceItems } = await supabase
+        .from("invoice_items")
+        .select("item_id, quantity")
+        .eq("sale_invoice_id", id);
+
+      // Restore stock for each item
+      if (invoiceItems && invoiceItems.length > 0) {
+        for (const invoiceItem of invoiceItems) {
+          if (invoiceItem.item_id) {
+            const { data: itemData } = await supabase
+              .from("items")
+              .select("current_stock")
+              .eq("id", invoiceItem.item_id)
+              .single();
+
+            if (itemData) {
+              const newStock = (itemData.current_stock || 0) + invoiceItem.quantity;
+              await supabase
+                .from("items")
+                .update({ current_stock: newStock })
+                .eq("id", invoiceItem.item_id);
+            }
+          }
+        }
+      }
+
+      // Mark invoice as deleted
       const { error } = await supabase
         .from("sale_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
-      toast.success("Invoice deleted successfully");
+      toast.success("Invoice deleted and stock restored successfully");
       fetchInvoices();
     } catch (error: any) {
       toast.error("Failed to delete invoice: " + error.message);

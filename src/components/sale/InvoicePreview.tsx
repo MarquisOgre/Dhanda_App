@@ -123,27 +123,35 @@ export function InvoicePreview({
         </DialogHeader>
 
         <div className="bg-white border border-border rounded-lg p-8 text-foreground">
-          <div className="flex justify-between items-start mb-8">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                {businessSettings?.logo_url ? (
-                  <img 
-                    src={businessSettings.logo_url} 
-                    alt="Business Logo" 
-                    className="w-12 h-12 rounded-xl object-contain"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-primary-foreground" />
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-2xl font-bold">{businessSettings?.business_name || "Your Business"}</h1>
-                  {businessSettings?.business_address && (
-                    <p className="text-sm text-muted-foreground">{businessSettings.business_address}</p>
-                  )}
+          {/* Centered Header: Business Name, Logo, Document Type */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold">{businessSettings?.business_name || "Your Business"}</h1>
+            
+            {businessSettings?.logo_url ? (
+              <div className="flex justify-center my-4">
+                <img 
+                  src={businessSettings.logo_url} 
+                  alt="Business Logo" 
+                  className="w-16 h-16 rounded-xl object-contain"
+                />
+              </div>
+            ) : (
+              <div className="flex justify-center my-4">
+                <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center">
+                  <FileText className="w-8 h-8 text-primary-foreground" />
                 </div>
               </div>
+            )}
+            
+            <h2 className="text-2xl font-bold text-primary uppercase">{documentType}</h2>
+          </div>
+          
+          {/* Two columns: Business Info (left) and Invoice Details (right) */}
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              {businessSettings?.business_address && (
+                <p className="text-sm text-muted-foreground">{businessSettings.business_address}</p>
+              )}
               {businessSettings?.gstin && (
                 <p className="text-sm text-muted-foreground">GSTIN: {businessSettings.gstin}</p>
               )}
@@ -152,8 +160,7 @@ export function InvoicePreview({
               )}
             </div>
             <div className="text-right">
-              <h2 className="text-2xl font-bold text-primary uppercase">{documentType}</h2>
-              <div className="mt-4 space-y-1 text-sm">
+              <div className="space-y-1 text-sm">
                 <p><span className="text-muted-foreground">Number:</span> <span className="font-medium">{documentNumber}</span></p>
                 <p><span className="text-muted-foreground">Date:</span> <span className="font-medium">{date}</span></p>
                 {dueDate && <p><span className="text-muted-foreground">Due Date:</span> <span className="font-medium">{dueDate}</span></p>}

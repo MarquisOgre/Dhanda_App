@@ -54,6 +54,22 @@ export function useInvoiceSave() {
       return null;
     }
 
+    // Stock validation for sale invoices
+    if (invoiceType === "sale_invoice") {
+      for (const item of validItems) {
+        const { data: itemData } = await supabase
+          .from("items")
+          .select("current_stock, name")
+          .eq("id", item.itemId)
+          .single();
+        
+        if (itemData && item.quantity > (itemData.current_stock || 0)) {
+          toast.error(`Insufficient stock for "${itemData.name}". Available: ${itemData.current_stock || 0}, Requested: ${item.quantity}`);
+          return null;
+        }
+      }
+    }
+
     setLoading(true);
     try {
       // Get business settings for TCS
