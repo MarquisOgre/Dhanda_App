@@ -20,7 +20,9 @@ import {
   Sun,
   Moon,
   Eye,
-  EyeOff
+  EyeOff,
+  Plus,
+  Ruler
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +78,13 @@ import { toast } from "sonner";
 import { LicenseSettings } from "./LicenseSettings";
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
+
+interface UnitOfMeasure {
+  id: string;
+  name: string;
+  symbol: string | null;
+  is_default: boolean;
+}
 
 interface UserWithRole {
   user_id: string;
@@ -195,6 +204,13 @@ export default function Settings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Units of measure
+  const [units, setUnits] = useState<UnitOfMeasure[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [newUnitName, setNewUnitName] = useState("");
+  const [newUnitSymbol, setNewUnitSymbol] = useState("");
+  const [addingUnit, setAddingUnit] = useState(false);
+
   // Display preferences (stored in localStorage)
   const [autoLogoutTime, setAutoLogoutTime] = useState("30");
   const [accentColor, setAccentColor] = useState("199 89% 48%");
@@ -204,6 +220,7 @@ export default function Settings() {
   useEffect(() => {
     fetchSettings();
     loadDisplayPreferences();
+    fetchUnits();
     if (isAdmin) {
       fetchUsers();
     }
@@ -289,6 +306,94 @@ export default function Settings() {
       toast.error('Failed to load settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUnits = async () => {
+    if (!user) return;
+    setLoadingUnits(true);
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name');
+
+      if (error) throw error;
+      
+      // If no units exist, create default "Bottles" unit
+      if (!data || data.length === 0) {
+        const { data: newUnit, error: insertError } = await supabase
+          .from('units')
+          .insert({
+            user_id: user.id,
+            name: 'Bottles',
+            symbol: 'Btl',
+            is_default: true
+          })
+          .select()
+          .single();
+        
+        if (!insertError && newUnit) {
+          setUnits([newUnit]);
+        }
+      } else {
+        setUnits(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching units:', error);
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
+  const handleAddUnit = async () => {
+    if (!newUnitName.trim() || !user) {
+      toast.error('Please enter a unit name');
+      return;
+    }
+
+    setAddingUnit(true);
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .insert({
+          user_id: user.id,
+          name: newUnitName.trim(),
+          symbol: newUnitSymbol.trim() || null,
+          is_default: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setUnits([...units, data]);
+      setNewUnitName("");
+      setNewUnitSymbol("");
+      toast.success('Unit added successfully');
+    } catch (error: any) {
+      console.error('Error adding unit:', error);
+      toast.error('Failed to add unit');
+    } finally {
+      setAddingUnit(false);
+    }
+  };
+
+  const handleDeleteUnit = async (unitId: string) => {
+    try {
+      const { error } = await supabase
+        .from('units')
+        .delete()
+        .eq('id', unitId);
+
+      if (error) throw error;
+
+      setUnits(units.filter(u => u.id !== unitId));
+      toast.success('Unit deleted');
+    } catch (error: any) {
+      console.error('Error deleting unit:', error);
+      toast.error('Failed to delete unit');
     }
   };
 
@@ -808,6 +913,76 @@ export default function Settings() {
                 <Input value={getCurrentFinancialYear()} readOnly className="bg-muted" />
               </div>
             </div>
+          </div>
+
+          {/* Units of Measure */}
+          <div className="metric-card">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Ruler className="w-4 h-4" />
+              Units of Measure
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Add custom units to use across items and invoices
+            </p>
+            
+            {/* Add new unit */}
+            <div className="flex gap-2 mb-4">
+              <Input
+                placeholder="Unit name (e.g., Bottles)"
+                value={newUnitName}
+                onChange={(e) => setNewUnitName(e.target.value)}
+                disabled={!isAdmin || addingUnit}
+                className="flex-1"
+              />
+              <Input
+                placeholder="Symbol (e.g., Btl)"
+                value={newUnitSymbol}
+                onChange={(e) => setNewUnitSymbol(e.target.value)}
+                disabled={!isAdmin || addingUnit}
+                className="w-24"
+              />
+              <Button 
+                onClick={handleAddUnit} 
+                disabled={!isAdmin || addingUnit || !newUnitName.trim()}
+                className="gap-1"
+              >
+                {addingUnit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Add
+              </Button>
+            </div>
+
+            {/* Units list */}
+            {loadingUnits ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : units.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No units added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {units.map((unit) => (
+                  <div key={unit.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <span className="font-medium">{unit.name}</span>
+                      {unit.symbol && <span className="text-muted-foreground ml-2">({unit.symbol})</span>}
+                      {unit.is_default && (
+                        <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Default</span>
+                      )}
+                    </div>
+                    {isAdmin && !unit.is_default && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteUnit(unit.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 

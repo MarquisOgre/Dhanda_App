@@ -43,15 +43,22 @@ interface DbItem {
   tax_rate: number | null;
 }
 
+interface UnitOption {
+  id: string;
+  name: string;
+}
+
 export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItemsTableProps) {
   const { user } = useAuth();
   const { businessSettings } = useBusinessSettings();
   const defaultTaxRate = businessSettings?.default_tax_rate ?? 0;
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
+  const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchItems();
+      fetchUnits();
     }
   }, [user]);
 
@@ -63,6 +70,20 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
       .order("name");
     if (data) {
       setDbItems(data);
+    }
+  };
+
+  const fetchUnits = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("units")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .order("name");
+    if (data && data.length > 0) {
+      setUnitOptions(data);
+    } else {
+      setUnitOptions([{ id: 'default', name: 'Bottles' }]);
     }
   };
 
@@ -203,14 +224,18 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
                 </td>
                 <td className="py-2 px-2">
                   <Select
-                    value={item.unit || "Bottles"}
+                    value={item.unit || (unitOptions[0]?.name || "Bottles")}
                     onValueChange={(value) => updateItem(item.id, "unit", value)}
                   >
-                    <SelectTrigger className="h-9 w-20">
+                    <SelectTrigger className="h-9 w-24">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Bottles">Bottles</SelectItem>
+                      {unitOptions.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.name}>
+                          {unit.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </td>
