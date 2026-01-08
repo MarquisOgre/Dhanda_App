@@ -41,17 +41,21 @@ export default function ResetDatabase() {
     try {
       // Delete in proper order respecting foreign keys
       
-      // 1. Delete invoice items first (depends on invoices)
-      addProgress("Deleting invoice items...");
-      const { error: invoiceItemsError } = await supabase
-        .from('invoice_items')
+      // 1. Delete sale invoice items first
+      addProgress("Deleting sale invoice items...");
+      await supabase
+        .from('sale_invoice_items')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
-      
-      if (invoiceItemsError) {
-        console.error('Invoice items deletion error:', invoiceItemsError);
-      }
-      addProgress("✓ Invoice items deleted");
+      addProgress("✓ Sale invoice items deleted");
+
+      // 2. Delete purchase invoice items
+      addProgress("Deleting purchase invoice items...");
+      await supabase
+        .from('purchase_invoice_items')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      addProgress("✓ Purchase invoice items deleted");
 
       // 2. Delete payments (may reference invoices)
       addProgress("Deleting payments...");

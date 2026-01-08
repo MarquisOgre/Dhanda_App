@@ -73,7 +73,7 @@ export default function ViewPurchaseInvoice() {
 
       // Fetch items linked to this purchase invoice
       const { data: itemsData } = await supabase
-        .from("invoice_items")
+        .from("purchase_invoice_items")
         .select("*")
         .eq("purchase_invoice_id", id);
 

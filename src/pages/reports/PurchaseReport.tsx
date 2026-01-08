@@ -59,7 +59,7 @@ export default function PurchaseReport() {
       const purchasesWithItems = await Promise.all(
         (invoices || []).map(async (inv: any) => {
           const { count } = await supabase
-            .from('invoice_items')
+            .from('purchase_invoice_items')
             .select('*', { count: 'exact', head: true })
             .eq('purchase_invoice_id', inv.id);
 

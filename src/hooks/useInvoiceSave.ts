@@ -132,15 +132,14 @@ export function useInvoiceSave() {
 
       if (invoiceError) throw invoiceError;
 
-      // Insert invoice items with the correct FK column
+      // Insert invoice items into the appropriate table
       const invoiceItems = validItems.map((item) => {
         const itemSubtotal = item.quantity * item.rate;
         const itemDiscount = (itemSubtotal * item.discount) / 100;
         const taxableAmount = itemSubtotal - itemDiscount;
         const itemTax = (taxableAmount * item.taxRate) / 100;
 
-        return {
-          ...(isSaleType ? { sale_invoice_id: invoice.id } : { purchase_invoice_id: invoice.id }),
+        const baseItem = {
           item_id: item.itemId,
           item_name: item.name,
           hsn_code: item.hsn || null,
@@ -153,10 +152,16 @@ export function useInvoiceSave() {
           tax_amount: itemTax,
           total: taxableAmount + itemTax,
         };
+
+        return isSaleType 
+          ? { ...baseItem, sale_invoice_id: invoice.id }
+          : { ...baseItem, purchase_invoice_id: invoice.id };
       });
 
+      // Use the appropriate items table
+      const itemsTable = isSaleType ? "sale_invoice_items" : "purchase_invoice_items";
       const { error: itemsError } = await supabase
-        .from("invoice_items")
+        .from(itemsTable)
         .insert(invoiceItems);
 
       if (itemsError) throw itemsError;

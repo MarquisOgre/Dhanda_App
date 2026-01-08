@@ -40,67 +40,71 @@ export default function StockDetail() {
 
       const movements: StockMovement[] = [];
 
-      // Fetch sale invoice items
-      const { data: saleItems } = await supabase
-        .from('invoice_items')
-        .select(`
-          id,
-          item_name,
-          quantity,
-          sale_invoice_id,
-          sale_invoices:sale_invoice_id (
-            invoice_number,
-            invoice_date,
-            user_id
-          )
-        `)
-        .not('sale_invoice_id', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      // Fetch sale invoice items with their invoice data
+      const { data: saleInvoices } = await supabase
+        .from('sale_invoices')
+        .select('id, invoice_number, invoice_date, user_id')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false)
+        .order('invoice_date', { ascending: false })
+        .limit(50);
 
-      (saleItems || []).forEach((item: any) => {
-        if (item.sale_invoices?.user_id === user.id) {
-          movements.push({
-            id: item.id,
-            date: item.sale_invoices?.invoice_date || '',
-            item: item.item_name,
-            type: 'sale',
-            qty: item.quantity,
-            reference: item.sale_invoices?.invoice_number || '',
-          });
-        }
-      });
+      const saleInvoiceIds = saleInvoices?.map(inv => inv.id) || [];
+      const saleInvoiceMap = new Map(saleInvoices?.map(inv => [inv.id, inv]) || []);
 
-      // Fetch purchase invoice items
-      const { data: purchaseItems } = await supabase
-        .from('invoice_items')
-        .select(`
-          id,
-          item_name,
-          quantity,
-          purchase_invoice_id,
-          purchase_invoices:purchase_invoice_id (
-            invoice_number,
-            invoice_date,
-            user_id
-          )
-        `)
-        .not('purchase_invoice_id', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      if (saleInvoiceIds.length > 0) {
+        const { data: saleItems } = await supabase
+          .from('sale_invoice_items')
+          .select('id, item_name, quantity, sale_invoice_id')
+          .in('sale_invoice_id', saleInvoiceIds);
 
-      (purchaseItems || []).forEach((item: any) => {
-        if (item.purchase_invoices?.user_id === user.id) {
-          movements.push({
-            id: item.id,
-            date: item.purchase_invoices?.invoice_date || '',
-            item: item.item_name,
-            type: 'purchase',
-            qty: item.quantity,
-            reference: item.purchase_invoices?.invoice_number || '',
-          });
-        }
-      });
+        (saleItems || []).forEach((item: any) => {
+          const invoice = saleInvoiceMap.get(item.sale_invoice_id);
+          if (invoice) {
+            movements.push({
+              id: item.id,
+              date: invoice.invoice_date || '',
+              item: item.item_name,
+              type: 'sale',
+              qty: item.quantity,
+              reference: invoice.invoice_number || '',
+            });
+          }
+        });
+      }
+
+      // Fetch purchase invoice items with their invoice data
+      const { data: purchaseInvoices } = await supabase
+        .from('purchase_invoices')
+        .select('id, invoice_number, invoice_date, user_id')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false)
+        .order('invoice_date', { ascending: false })
+        .limit(50);
+
+      const purchaseInvoiceIds = purchaseInvoices?.map(inv => inv.id) || [];
+      const purchaseInvoiceMap = new Map(purchaseInvoices?.map(inv => [inv.id, inv]) || []);
+
+      if (purchaseInvoiceIds.length > 0) {
+        const { data: purchaseItems } = await supabase
+          .from('purchase_invoice_items')
+          .select('id, item_name, quantity, purchase_invoice_id')
+          .in('purchase_invoice_id', purchaseInvoiceIds);
+
+        (purchaseItems || []).forEach((item: any) => {
+          const invoice = purchaseInvoiceMap.get(item.purchase_invoice_id);
+          if (invoice) {
+            movements.push({
+              id: item.id,
+              date: invoice.invoice_date || '',
+              item: item.item_name,
+              type: 'purchase',
+              qty: item.quantity,
+              reference: invoice.invoice_number || '',
+            });
+          }
+        });
+      }
 
       // Sort by date descending
       movements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

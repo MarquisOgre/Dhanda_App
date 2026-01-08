@@ -60,7 +60,7 @@ export default function SaleReport() {
       const salesWithItems = await Promise.all(
         (invoices || []).map(async (inv: any) => {
           const { count } = await supabase
-            .from('invoice_items')
+            .from('sale_invoice_items')
             .select('*', { count: 'exact', head: true })
             .eq('sale_invoice_id', inv.id);
 

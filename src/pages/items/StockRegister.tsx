@@ -135,11 +135,11 @@ const StockRegister = () => {
       
       if (purchaseIds.length > 0) {
         const { data: purchaseItemsData } = await supabase
-          .from("invoice_items")
+          .from("purchase_invoice_items")
           .select("purchase_invoice_id, item_id, quantity, rate, total")
           .in("purchase_invoice_id", purchaseIds);
         
-        invoiceItems.push(...(purchaseItemsData || []).map(item => ({
+        invoiceItems.push(...(purchaseItemsData || []).map((item: any) => ({
           ...item,
           invoice_id: item.purchase_invoice_id,
         })));
@@ -150,11 +150,11 @@ const StockRegister = () => {
       
       if (saleIds.length > 0) {
         const { data: saleItemsData } = await supabase
-          .from("invoice_items")
+          .from("sale_invoice_items")
           .select("sale_invoice_id, item_id, quantity, rate, total")
           .in("sale_invoice_id", saleIds);
         
-        invoiceItems.push(...(saleItemsData || []).map(item => ({
+        invoiceItems.push(...(saleItemsData || []).map((item: any) => ({
           ...item,
           invoice_id: item.sale_invoice_id,
         })));

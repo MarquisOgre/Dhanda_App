@@ -180,15 +180,15 @@ export default function RecycleBin() {
   const permanentDelete = async (item: DeletedItem) => {
     setActionLoading(item.id);
     try {
-      // For invoices, first delete invoice_items
+      // For invoices, first delete invoice items from the appropriate table
       if (item.table === 'sale_invoices') {
         await supabase
-          .from('invoice_items')
+          .from('sale_invoice_items')
           .delete()
           .eq('sale_invoice_id', item.id);
       } else if (item.table === 'purchase_invoices') {
         await supabase
-          .from('invoice_items')
+          .from('purchase_invoice_items')
           .delete()
           .eq('purchase_invoice_id', item.id);
       }
@@ -213,11 +213,11 @@ export default function RecycleBin() {
   const emptyRecycleBin = async () => {
     setActionLoading('all');
     try {
-      // Delete all invoice items for deleted sale invoices
+      // Delete all sale invoice items for deleted sale invoices
       const saleInvoiceIds = items.filter(i => i.table === 'sale_invoices').map(i => i.id);
       if (saleInvoiceIds.length > 0) {
         await supabase
-          .from('invoice_items')
+          .from('sale_invoice_items')
           .delete()
           .in('sale_invoice_id', saleInvoiceIds);
 
@@ -227,11 +227,11 @@ export default function RecycleBin() {
           .in('id', saleInvoiceIds);
       }
 
-      // Delete all invoice items for deleted purchase invoices
+      // Delete all purchase invoice items for deleted purchase invoices
       const purchaseInvoiceIds = items.filter(i => i.table === 'purchase_invoices').map(i => i.id);
       if (purchaseInvoiceIds.length > 0) {
         await supabase
-          .from('invoice_items')
+          .from('purchase_invoice_items')
           .delete()
           .in('purchase_invoice_id', purchaseInvoiceIds);
 
