@@ -65,38 +65,39 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
   const pageWidth = doc.internal.pageSize.getWidth();
   const centerX = pageWidth / 2;
   
-  const headerY = 15;
+  const headerY = 18;
   const leftColX = 14;
   const rightColX = pageWidth - 14;
-
-  // All three columns in the same row
-  let leftY = headerY;
-  let rightY = headerY;
-
-  // LEFT COLUMN - Business Name and details
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(settings?.business_name || "Your Business", leftColX, leftY);
-  leftY += 6;
   
-  doc.setFontSize(9);
+  // Calculate header content heights first to determine vertical centering
+  const logoHeight = 32;
+  const headerRowHeight = Math.max(logoHeight, 28); // Minimum height for header row
+  const verticalCenterY = headerY + headerRowHeight / 2;
+
+  // LEFT COLUMN - Business Name and details (vertically centered)
+  let leftContentHeight = 0;
+  const leftLines: string[] = [];
+  leftLines.push(settings?.business_name || "Your Business");
+  if (settings?.business_address) leftLines.push(settings.business_address);
+  if (settings?.phone) leftLines.push(`Phone: ${settings.phone}`);
+  if (settings?.gstin) leftLines.push(`GSTIN: ${settings.gstin}`);
+  leftContentHeight = 6 + (leftLines.length - 1) * 4;
+  
+  let leftStartY = verticalCenterY - leftContentHeight / 2;
+  
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(leftLines[0], leftColX, leftStartY);
+  leftStartY += 5;
+  
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  if (settings?.business_address) {
-    // Split address if too long
-    const addressLines = doc.splitTextToSize(settings.business_address, 60);
-    doc.text(addressLines, leftColX, leftY);
-    leftY += addressLines.length * 4;
-  }
-  if (settings?.phone) {
-    doc.text(`Phone: ${settings.phone}`, leftColX, leftY);
-    leftY += 4;
-  }
-  if (settings?.gstin) {
-    doc.text(`GSTIN: ${settings.gstin}`, leftColX, leftY);
-    leftY += 4;
+  for (let i = 1; i < leftLines.length; i++) {
+    doc.text(leftLines[i], leftColX, leftStartY);
+    leftStartY += 4;
   }
 
-  // CENTER COLUMN - Logo (if available)
+  // CENTER COLUMN - Logo (vertically centered)
   if (settings?.logo_url) {
     try {
       const img = new Image();
@@ -115,36 +116,41 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
       ctx?.drawImage(img, 0, 0);
       const dataURL = canvas.toDataURL('image/png');
       
-      // Center the logo in the header row
-      const logoWidth = 35;
-      const logoHeight = 35;
-      doc.addImage(dataURL, 'PNG', centerX - logoWidth / 2, headerY - 2, logoWidth, logoHeight);
+      const logoWidth = 32;
+      const logoStartY = verticalCenterY - logoHeight / 2;
+      doc.addImage(dataURL, 'PNG', centerX - logoWidth / 2, logoStartY, logoWidth, logoHeight);
     } catch (error) {
       console.error("Failed to load logo:", error);
     }
   }
   
-  // RIGHT COLUMN - Invoice title and details
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
+  // RIGHT COLUMN - Invoice title and details (vertically centered)
+  const rightLines: string[] = [];
   const title = type === "sale" ? "TAX INVOICE" : "PURCHASE INVOICE";
-  doc.text(title, rightColX, rightY, { align: "right" });
-  rightY += 6;
-  
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Invoice #: ${invoice.invoice_number}`, rightColX, rightY, { align: "right" });
-  rightY += 4;
-  doc.text(`Date: ${format(new Date(invoice.invoice_date), "dd MMM yyyy")}`, rightColX, rightY, { align: "right" });
-  rightY += 4;
+  rightLines.push(title);
+  rightLines.push(`Invoice #: ${invoice.invoice_number}`);
+  rightLines.push(`Date: ${format(new Date(invoice.invoice_date), "dd MMM yyyy")}`);
   if (invoice.due_date) {
-    doc.text(`Due: ${format(new Date(invoice.due_date), "dd MMM yyyy")}`, rightColX, rightY, { align: "right" });
-    rightY += 4;
+    rightLines.push(`Due: ${format(new Date(invoice.due_date), "dd MMM yyyy")}`);
+  }
+  const rightContentHeight = 6 + (rightLines.length - 1) * 4;
+  
+  let rightStartY = verticalCenterY - rightContentHeight / 2;
+  
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(rightLines[0], rightColX, rightStartY, { align: "right" });
+  rightStartY += 5;
+  
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  for (let i = 1; i < rightLines.length; i++) {
+    doc.text(rightLines[i], rightColX, rightStartY, { align: "right" });
+    rightStartY += 4;
   }
   
-  // Calculate max Y from all three columns (logo height ~35, so check against that too)
-  const logoBottomY = settings?.logo_url ? headerY + 35 : headerY;
-  let yPos = Math.max(leftY, rightY, logoBottomY);
+  // Calculate yPos after header row
+  let yPos = headerY + headerRowHeight + 5;
 
   // Party Info Box
   const partyLabel = type === "sale" ? "Bill To:" : "Supplier:";

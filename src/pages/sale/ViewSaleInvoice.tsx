@@ -174,33 +174,36 @@ export default function ViewSaleInvoice() {
 
       {/* Invoice Content */}
       <div className="metric-card p-8 print:shadow-none print:border-none">
-        {/* Centered Logo */}
-        {settings?.logo_url && (
-          <div className="flex justify-center mb-6">
-            <img 
-              src={settings.logo_url} 
-              alt="Business Logo" 
-              className="w-32 h-32 object-contain rounded-xl"
-            />
+        {/* Header Row: Business (Left) | Logo (Center) | Invoice Details (Right) */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* Left Column - Business Details */}
+          <div className="flex flex-col justify-center">
+            <h2 className="text-xl font-bold text-primary">{settings?.business_name || "Your Business"}</h2>
+            {settings?.business_address && <p className="text-muted-foreground text-sm mt-1">{settings.business_address}</p>}
+            {settings?.phone && <p className="text-muted-foreground text-sm">Phone: {settings.phone}</p>}
+            {settings?.gstin && <p className="text-muted-foreground text-sm">GSTIN: {settings.gstin}</p>}
           </div>
-        )}
 
-        {/* Business Name (Left) & TAX INVOICE (Right) */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-2xl font-bold text-primary">{settings?.business_name || "Your Business"}</h2>
-            {settings?.business_address && <p className="text-muted-foreground mt-1">{settings.business_address}</p>}
-            {settings?.phone && <p className="text-muted-foreground">Phone: {settings.phone}</p>}
-            {settings?.gstin && <p className="text-muted-foreground">GSTIN: {settings.gstin}</p>}
+          {/* Center Column - Logo */}
+          <div className="flex items-center justify-center">
+            {settings?.logo_url && (
+              <img 
+                src={settings.logo_url} 
+                alt="Business Logo" 
+                className="w-24 h-24 object-contain rounded-xl"
+              />
+            )}
           </div>
-          <div className="text-right">
-            <h3 className="text-xl font-bold mb-2">TAX INVOICE</h3>
-            <p className="text-muted-foreground">Invoice #: {invoice.invoice_number}</p>
-            <p className="text-muted-foreground">
+
+          {/* Right Column - Invoice Details */}
+          <div className="flex flex-col justify-center text-right">
+            <h3 className="text-lg font-bold mb-1">TAX INVOICE</h3>
+            <p className="text-muted-foreground text-sm">Invoice #: {invoice.invoice_number}</p>
+            <p className="text-muted-foreground text-sm">
               Date: {format(new Date(invoice.invoice_date), "dd MMM yyyy")}
             </p>
             {invoice.due_date && (
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Due Date: {format(new Date(invoice.due_date), "dd MMM yyyy")}
               </p>
             )}

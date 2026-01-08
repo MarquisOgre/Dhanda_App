@@ -166,22 +166,36 @@ export default function ViewPurchaseInvoice() {
 
       {/* Invoice Content */}
       <div className="metric-card p-8 print:shadow-none print:border-none">
-        {/* Business & Invoice Header */}
-        <div className="flex justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-primary">{settings?.business_name || "Your Business"}</h2>
-            {settings?.business_address && <p className="text-muted-foreground">{settings.business_address}</p>}
-            {settings?.phone && <p className="text-muted-foreground">Phone: {settings.phone}</p>}
-            {settings?.gstin && <p className="text-muted-foreground">GSTIN: {settings.gstin}</p>}
+        {/* Header Row: Business (Left) | Logo (Center) | Invoice Details (Right) */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* Left Column - Business Details */}
+          <div className="flex flex-col justify-center">
+            <h2 className="text-xl font-bold text-primary">{settings?.business_name || "Your Business"}</h2>
+            {settings?.business_address && <p className="text-muted-foreground text-sm mt-1">{settings.business_address}</p>}
+            {settings?.phone && <p className="text-muted-foreground text-sm">Phone: {settings.phone}</p>}
+            {settings?.gstin && <p className="text-muted-foreground text-sm">GSTIN: {settings.gstin}</p>}
           </div>
-          <div className="text-right">
-            <h3 className="text-xl font-bold">PURCHASE INVOICE</h3>
-            <p className="text-muted-foreground">Invoice #: {invoice.invoice_number}</p>
-            <p className="text-muted-foreground">
+
+          {/* Center Column - Logo */}
+          <div className="flex items-center justify-center">
+            {settings?.logo_url && (
+              <img 
+                src={settings.logo_url} 
+                alt="Business Logo" 
+                className="w-24 h-24 object-contain rounded-xl"
+              />
+            )}
+          </div>
+
+          {/* Right Column - Invoice Details */}
+          <div className="flex flex-col justify-center text-right">
+            <h3 className="text-lg font-bold mb-1">PURCHASE INVOICE</h3>
+            <p className="text-muted-foreground text-sm">Invoice #: {invoice.invoice_number}</p>
+            <p className="text-muted-foreground text-sm">
               Date: {format(new Date(invoice.invoice_date), "dd MMM yyyy")}
             </p>
             {invoice.due_date && (
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Due Date: {format(new Date(invoice.due_date), "dd MMM yyyy")}
               </p>
             )}
