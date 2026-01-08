@@ -94,8 +94,8 @@ export function TaxSummary({
 
   const totalTax = weightedTaxAmount;
   
-  // Calculate TCS (on sale invoices) - on total including tax
-  const tcsAmount = useTcs && invoiceType === "sale" && tcsRate > 0 
+  // Calculate TCS - applies to both sale and purchase invoices
+  const tcsAmount = useTcs && tcsRate > 0 
     ? ((taxableAmount + totalTax) * tcsRate) / 100 
     : 0;
   

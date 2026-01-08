@@ -223,14 +223,14 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
   const taxAmount = invoice.tax_amount || 0;
   const discountAmount = invoice.discount_amount || 0;
   
-  // Calculate TCS if enabled for sale invoices
+  // Calculate TCS - applies to both sale and purchase invoices
   const useTcs = settings?.enable_tcs ?? false;
   const tcsRate = settings?.tcs_percent ?? 0;
-  const tcsAmount = useTcs && type === "sale" && tcsRate > 0 
+  const tcsAmount = useTcs && tcsRate > 0 
     ? ((subtotal - discountAmount + taxAmount) * tcsRate) / 100 
     : (invoice.tcs_amount || 0);
   
-  const totalAmount = (invoice.total_amount || 0) + tcsAmount;
+  const totalAmount = (invoice.total_amount || 0) + (invoice.tcs_amount ? 0 : tcsAmount);
   const paidAmount = invoice.paid_amount || 0;
   const balanceDue = totalAmount - paidAmount;
 
