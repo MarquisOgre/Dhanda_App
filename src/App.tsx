@@ -40,6 +40,8 @@ import PaymentOut from "./pages/purchase/PaymentOut";
 import ViewPaymentOut from "./pages/purchase/ViewPaymentOut";
 import ExpensesList from "./pages/purchase/ExpensesList";
 import CreateExpense from "./pages/purchase/CreateExpense";
+import ViewExpense from "./pages/purchase/ViewExpense";
+import EditExpense from "./pages/purchase/EditExpense";
 import BankAccounts from "./pages/cash-bank/BankAccounts";
 import CashInHand from "./pages/cash-bank/CashInHand";
 // Reports
@@ -126,6 +128,8 @@ const AppRoutes = () => {
       <Route path="/purchase/payment-out/:id" element={<ProtectedRoute><ViewPaymentOut /></ProtectedRoute>} />
       <Route path="/purchase/expenses" element={<ProtectedRoute><ExpensesList /></ProtectedRoute>} />
       <Route path="/purchase/expenses/new" element={<ProtectedRoute><CreateExpense /></ProtectedRoute>} />
+      <Route path="/purchase/expenses/:id" element={<ProtectedRoute><ViewExpense /></ProtectedRoute>} />
+      <Route path="/purchase/expenses/:id/edit" element={<ProtectedRoute><EditExpense /></ProtectedRoute>} />
       {/* Cash & Bank */}
       <Route path="/cash-bank/accounts" element={<ProtectedRoute><BankAccounts /></ProtectedRoute>} />
       <Route path="/cash-bank/cash" element={<ProtectedRoute><CashInHand /></ProtectedRoute>} />
