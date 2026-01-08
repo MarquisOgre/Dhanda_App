@@ -1,19 +1,14 @@
 import { useState, useEffect } from "react";
 import { Building2, Wallet, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { DateRangeFilter, getDefaultDateRange, DateRange } from "@/components/DateRangeFilter";
 
 export default function BalanceSheet() {
-  const [asOnDate, setAsOnDate] = useState("today");
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [loading, setLoading] = useState(true);
   const [cashInHand, setCashInHand] = useState(0);
   const [bankBalance, setBankBalance] = useState(0);
@@ -23,18 +18,20 @@ export default function BalanceSheet() {
 
   useEffect(() => {
     fetchBalanceSheetData();
-  }, []);
+  }, [dateRange]);
 
   const fetchBalanceSheetData = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get cash transactions
+      // Get cash transactions up to the end date
       const { data: cashTxns } = await supabase
         .from('cash_transactions')
-        .select('amount, transaction_type')
-        .eq('user_id', user.id);
+        .select('amount, transaction_type, transaction_date')
+        .eq('user_id', user.id)
+        .lte('transaction_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       let cash = 0;
       (cashTxns || []).forEach(txn => {
@@ -55,22 +52,24 @@ export default function BalanceSheet() {
       const bankTotal = (bankAccounts || []).reduce((sum, acc) => sum + (acc.current_balance || 0), 0);
       setBankBalance(bankTotal);
 
-      // Get receivables (unpaid sales) from sale_invoices
+      // Get receivables (unpaid sales) up to end date
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
-        .select('balance_due')
+        .select('balance_due, invoice_date')
         .eq('user_id', user.id)
-        .eq('is_deleted', false);
+        .eq('is_deleted', false)
+        .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       const totalReceivables = (salesInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
       setReceivables(totalReceivables);
 
-      // Get payables (unpaid purchases) from purchase_invoices
+      // Get payables (unpaid purchases) up to end date
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
-        .select('balance_due')
+        .select('balance_due, invoice_date')
         .eq('user_id', user.id)
-        .eq('is_deleted', false);
+        .eq('is_deleted', false)
+        .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       const totalPayables = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
       setPayables(totalPayables);
@@ -114,6 +113,8 @@ export default function BalanceSheet() {
   const totalLiabilities = totalCurrentLiabilities;
   const totalEquity = totalAssets - totalLiabilities;
 
+  const dateRangeLabel = `As on ${format(dateRange.to, 'dd MMM yyyy')}`;
+
   const handlePrint = () => {
     const allRows = [
       ["ASSETS", "", ""],
@@ -133,7 +134,7 @@ export default function BalanceSheet() {
 
     printTable({
       title: "Balance Sheet",
-      subtitle: "As on Today",
+      subtitle: dateRangeLabel,
       columns: ["Section", "Particulars", "Amount"],
       rows: allRows,
     });
@@ -159,7 +160,7 @@ export default function BalanceSheet() {
     const doc = generateReportPDF({
       title: "Balance Sheet",
       subtitle: "Dhandha App",
-      dateRange: "As on Today",
+      dateRange: dateRangeLabel,
       columns: ["Section", "Particulars", "Amount"],
       rows: allRows,
     });
@@ -182,19 +183,13 @@ export default function BalanceSheet() {
           <p className="text-muted-foreground">Financial position statement</p>
         </div>
         <div className="flex gap-3">
-          <Select value={asOnDate} onValueChange={setAsOnDate}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">As on Today</SelectItem>
-              <SelectItem value="month-end">Month End</SelectItem>
-              <SelectItem value="quarter-end">Quarter End</SelectItem>
-              <SelectItem value="year-end">Year End (31 Mar)</SelectItem>
-            </SelectContent>
-          </Select>
           <PrintButton onPrint={handlePrint} onExportPDF={handleExportPDF} />
         </div>
+      </div>
+
+      {/* Date Range Filter */}
+      <div className="flex flex-wrap gap-4 items-center">
+        <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Summary */}

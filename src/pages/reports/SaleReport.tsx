@@ -1,19 +1,11 @@
 import { useState, useEffect } from "react";
-import { Filter, Calendar, TrendingUp, IndianRupee, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { TrendingUp, IndianRupee, Calendar, Loader2 } from "lucide-react";
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { DateRangeFilter, getDefaultDateRange, filterByDateRange, DateRange } from "@/components/DateRangeFilter";
 
 interface SaleData {
   id: string;
@@ -26,7 +18,7 @@ interface SaleData {
 }
 
 export default function SaleReport() {
-  const [dateRange, setDateRange] = useState("this-month");
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [salesData, setSalesData] = useState<SaleData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -84,17 +76,21 @@ export default function SaleReport() {
     }
   };
 
-  const totalSales = salesData.reduce((sum, s) => sum + s.total_amount, 0);
-  const totalCost = salesData.reduce((sum, s) => sum + s.subtotal, 0);
+  const filteredData = filterByDateRange(salesData, dateRange, "invoice_date");
+
+  const totalSales = filteredData.reduce((sum, s) => sum + s.total_amount, 0);
+  const totalCost = filteredData.reduce((sum, s) => sum + s.subtotal, 0);
   const totalProfit = totalSales - totalCost;
-  const avgOrderValue = salesData.length > 0 ? totalSales / salesData.length : 0;
+  const avgOrderValue = filteredData.length > 0 ? totalSales / filteredData.length : 0;
+
+  const dateRangeLabel = `${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`;
 
   const handlePrint = () => {
     printTable({
       title: "Sale Report",
-      subtitle: "This Month",
+      subtitle: dateRangeLabel,
       columns: ["Invoice", "Date", "Party", "Items", "Amount"],
-      rows: salesData.map(sale => [
+      rows: filteredData.map(sale => [
         sale.invoice_number,
         format(new Date(sale.invoice_date), 'dd MMM yyyy'),
         sale.party_name,
@@ -103,7 +99,7 @@ export default function SaleReport() {
       ]),
       summary: [
         { label: "Total Sales", value: `₹${totalSales.toLocaleString()}` },
-        { label: "Total Invoices", value: salesData.length.toString() },
+        { label: "Total Invoices", value: filteredData.length.toString() },
       ]
     });
   };
@@ -112,9 +108,9 @@ export default function SaleReport() {
     const doc = generateReportPDF({
       title: "Sale Report",
       subtitle: "Dhandha App",
-      dateRange: "This Month",
+      dateRange: dateRangeLabel,
       columns: ["Invoice", "Date", "Party", "Items", "Amount"],
-      rows: salesData.map(sale => [
+      rows: filteredData.map(sale => [
         sale.invoice_number,
         format(new Date(sale.invoice_date), 'dd MMM yyyy'),
         sale.party_name,
@@ -123,7 +119,7 @@ export default function SaleReport() {
       ]),
       summary: [
         { label: "Total Sales", value: `₹${totalSales.toLocaleString()}` },
-        { label: "Total Invoices", value: salesData.length.toString() },
+        { label: "Total Invoices", value: filteredData.length.toString() },
       ]
     });
     downloadPDF(doc, `sale-report-${new Date().toISOString().split('T')[0]}`);
@@ -171,7 +167,7 @@ export default function SaleReport() {
             <p className="text-sm text-muted-foreground">Total Invoices</p>
             <Calendar className="w-4 h-4 text-muted-foreground" />
           </div>
-          <p className="text-2xl font-bold mt-2">{salesData.length}</p>
+          <p className="text-2xl font-bold mt-2">{filteredData.length}</p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -184,24 +180,7 @@ export default function SaleReport() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 items-center">
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this-week">This Week</SelectItem>
-            <SelectItem value="this-month">This Month</SelectItem>
-            <SelectItem value="this-quarter">This Quarter</SelectItem>
-            <SelectItem value="this-year">This Year</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input type="date" className="w-[150px]" />
-        <Input type="date" className="w-[150px]" />
-        <Button variant="outline" className="gap-2">
-          <Filter className="w-4 h-4" />
-          More Filters
-        </Button>
+        <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Data Table */}
@@ -217,14 +196,14 @@ export default function SaleReport() {
             </tr>
           </thead>
           <tbody>
-            {salesData.length === 0 ? (
+            {filteredData.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center py-8 text-muted-foreground">
                   No sales found
                 </td>
               </tr>
             ) : (
-              salesData.map((sale) => (
+              filteredData.map((sale) => (
                 <tr key={sale.id}>
                   <td className="font-medium">{sale.invoice_number}</td>
                   <td className="text-muted-foreground">
@@ -237,7 +216,7 @@ export default function SaleReport() {
               ))
             )}
           </tbody>
-          {salesData.length > 0 && (
+          {filteredData.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 font-semibold">
                 <td colSpan={4}>Total</td>

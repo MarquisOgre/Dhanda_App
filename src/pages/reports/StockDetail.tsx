@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { DateRangeFilter, getDefaultDateRange, filterByDateRange, DateRange } from "@/components/DateRangeFilter";
 
 interface StockMovement {
   id: string;
@@ -25,7 +26,7 @@ interface StockMovement {
 export default function StockDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [dateRange, setDateRange] = useState("this-month");
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,14 +41,12 @@ export default function StockDetail() {
 
       const movements: StockMovement[] = [];
 
-      // Fetch sale invoice items with their invoice data
       const { data: saleInvoices } = await supabase
         .from('sale_invoices')
         .select('id, invoice_number, invoice_date, user_id')
         .eq('user_id', user.id)
         .eq('is_deleted', false)
-        .order('invoice_date', { ascending: false })
-        .limit(50);
+        .order('invoice_date', { ascending: false });
 
       const saleInvoiceIds = saleInvoices?.map(inv => inv.id) || [];
       const saleInvoiceMap = new Map(saleInvoices?.map(inv => [inv.id, inv]) || []);
@@ -73,14 +72,12 @@ export default function StockDetail() {
         });
       }
 
-      // Fetch purchase invoice items with their invoice data
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
         .select('id, invoice_number, invoice_date, user_id')
         .eq('user_id', user.id)
         .eq('is_deleted', false)
-        .order('invoice_date', { ascending: false })
-        .limit(50);
+        .order('invoice_date', { ascending: false });
 
       const purchaseInvoiceIds = purchaseInvoices?.map(inv => inv.id) || [];
       const purchaseInvoiceMap = new Map(purchaseInvoices?.map(inv => [inv.id, inv]) || []);
@@ -106,9 +103,7 @@ export default function StockDetail() {
         });
       }
 
-      // Sort by date descending
       movements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
       setStockMovements(movements);
     } catch (error) {
       console.error('Error fetching stock movements:', error);
@@ -117,7 +112,9 @@ export default function StockDetail() {
     }
   };
 
-  const filtered = stockMovements.filter((m) => {
+  const filteredByDate = filterByDateRange(stockMovements, dateRange, "date");
+
+  const filtered = filteredByDate.filter((m) => {
     const matchesSearch = m.item.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           m.reference.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === "all" || m.type === typeFilter;
@@ -148,7 +145,6 @@ export default function StockDetail() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -156,7 +152,6 @@ export default function StockDetail() {
             <ArrowUpCircle className="w-4 h-4 text-success" />
           </div>
           <p className="text-2xl font-bold mt-2 text-success">{totalIn} units</p>
-          <p className="text-xs text-muted-foreground mt-1">From purchases</p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -164,7 +159,6 @@ export default function StockDetail() {
             <ArrowDownCircle className="w-4 h-4 text-destructive" />
           </div>
           <p className="text-2xl font-bold mt-2 text-destructive">{totalOut} units</p>
-          <p className="text-xs text-muted-foreground mt-1">From sales</p>
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
@@ -177,70 +171,37 @@ export default function StockDetail() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search items or reference..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Search items or reference..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="purchase">Stock In</SelectItem>
             <SelectItem value="sale">Stock Out</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this-week">This Week</SelectItem>
-            <SelectItem value="this-month">This Month</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
-      {/* Data Table */}
       <div className="metric-card overflow-hidden p-0">
         <table className="data-table">
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Item</th>
-              <th>Type</th>
-              <th>Reference</th>
-              <th className="text-center">Quantity</th>
-            </tr>
+            <tr><th>Date</th><th>Item</th><th>Type</th><th>Reference</th><th className="text-center">Quantity</th></tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No stock movements found
-                </td>
-              </tr>
+              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No stock movements found</td></tr>
             ) : (
               filtered.map((movement) => (
                 <tr key={movement.id}>
-                  <td className="text-muted-foreground">
-                    {movement.date ? format(new Date(movement.date), 'dd MMM yyyy') : '-'}
-                  </td>
+                  <td className="text-muted-foreground">{movement.date ? format(new Date(movement.date), 'dd MMM yyyy') : '-'}</td>
                   <td className="font-medium">{movement.item}</td>
                   <td>
-                    <span className={cn(
-                      "inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full",
-                      movement.type === "purchase" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                    )}>
+                    <span className={cn("inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full", movement.type === "purchase" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
                       {movement.type === "purchase" ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
                       {movement.type === "purchase" ? "Stock In" : "Stock Out"}
                     </span>
