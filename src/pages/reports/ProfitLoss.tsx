@@ -1,56 +1,58 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, IndianRupee, Loader2 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { DateRangeFilter, getDefaultDateRange, DateRange } from "@/components/DateRangeFilter";
 
 export default function ProfitLoss() {
-  const [period, setPeriod] = useState("this-year");
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [loading, setLoading] = useState(true);
   const [incomeData, setIncomeData] = useState<{ category: string; amount: number }[]>([]);
   const [expenseData, setExpenseData] = useState<{ category: string; amount: number }[]>([]);
 
   useEffect(() => {
     fetchProfitLossData();
-  }, []);
+  }, [dateRange]);
 
   const fetchProfitLossData = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get sales revenue from sale_invoices
+      // Get sales revenue from sale_invoices within date range
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
-        .select('total_amount, subtotal')
+        .select('total_amount, subtotal, invoice_date')
         .eq('user_id', user.id)
-        .eq('is_deleted', false);
+        .eq('is_deleted', false)
+        .gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd'))
+        .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       const salesRevenue = (salesInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
       const costOfGoods = (salesInvoices || []).reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
 
-      // Get purchase costs from purchase_invoices
+      // Get purchase costs from purchase_invoices within date range
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
-        .select('total_amount')
+        .select('total_amount, invoice_date')
         .eq('user_id', user.id)
-        .eq('is_deleted', false);
+        .eq('is_deleted', false)
+        .gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd'))
+        .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       const purchaseCost = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
-      // Get expenses by category
+      // Get expenses by category within date range
       const { data: expenses } = await supabase
         .from('expenses')
-        .select('category, amount')
-        .eq('user_id', user.id);
+        .select('category, amount, expense_date')
+        .eq('user_id', user.id)
+        .gte('expense_date', format(dateRange.from, 'yyyy-MM-dd'))
+        .lte('expense_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       const expensesByCategory: { [key: string]: number } = {};
       (expenses || []).forEach(exp => {
@@ -86,6 +88,8 @@ export default function ProfitLoss() {
   const netProfit = totalIncome - totalExpenses;
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : "0";
 
+  const dateRangeLabel = `${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`;
+
   const handlePrint = () => {
     const allRows = [
       ["INCOME", "", ""],
@@ -101,7 +105,7 @@ export default function ProfitLoss() {
 
     printTable({
       title: "Profit & Loss Statement",
-      subtitle: "This Year",
+      subtitle: dateRangeLabel,
       columns: ["Section", "Particulars", "Amount"],
       rows: allRows,
       summary: [
@@ -129,7 +133,7 @@ export default function ProfitLoss() {
     const doc = generateReportPDF({
       title: "Profit & Loss Statement",
       subtitle: "Dhandha App",
-      dateRange: "This Year",
+      dateRange: dateRangeLabel,
       columns: ["Section", "Particulars", "Amount"],
       rows: allRows,
       summary: [
@@ -158,18 +162,13 @@ export default function ProfitLoss() {
           <p className="text-muted-foreground">Financial performance overview</p>
         </div>
         <div className="flex gap-3">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="this-month">This Month</SelectItem>
-              <SelectItem value="this-quarter">This Quarter</SelectItem>
-              <SelectItem value="this-year">This Year</SelectItem>
-            </SelectContent>
-          </Select>
           <PrintButton onPrint={handlePrint} onExportPDF={handleExportPDF} />
         </div>
+      </div>
+
+      {/* Date Range Filter */}
+      <div className="flex flex-wrap gap-4 items-center">
+        <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Summary Cards */}

@@ -1,19 +1,11 @@
 import { useState, useEffect } from "react";
-import { Filter, TrendingDown, IndianRupee, Package, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { TrendingDown, IndianRupee, Package, Loader2 } from "lucide-react";
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { DateRangeFilter, getDefaultDateRange, filterByDateRange, DateRange } from "@/components/DateRangeFilter";
 
 interface PurchaseData {
   id: string;
@@ -26,7 +18,7 @@ interface PurchaseData {
 }
 
 export default function PurchaseReport() {
-  const [dateRange, setDateRange] = useState("this-month");
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [purchaseData, setPurchaseData] = useState<PurchaseData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -83,16 +75,20 @@ export default function PurchaseReport() {
     }
   };
 
-  const totalPurchase = purchaseData.reduce((sum, p) => sum + p.total_amount, 0);
-  const totalPaid = purchaseData.reduce((sum, p) => sum + p.paid_amount, 0);
+  const filteredData = filterByDateRange(purchaseData, dateRange, "invoice_date");
+
+  const totalPurchase = filteredData.reduce((sum, p) => sum + p.total_amount, 0);
+  const totalPaid = filteredData.reduce((sum, p) => sum + p.paid_amount, 0);
   const totalPending = totalPurchase - totalPaid;
+
+  const dateRangeLabel = `${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`;
 
   const handlePrint = () => {
     printTable({
       title: "Purchase Report",
-      subtitle: "This Month",
+      subtitle: dateRangeLabel,
       columns: ["Bill No.", "Date", "Supplier", "Items", "Amount", "Paid", "Balance"],
-      rows: purchaseData.map(p => [
+      rows: filteredData.map(p => [
         p.invoice_number,
         format(new Date(p.invoice_date), 'dd MMM yyyy'),
         p.party_name,
@@ -113,9 +109,9 @@ export default function PurchaseReport() {
     const doc = generateReportPDF({
       title: "Purchase Report",
       subtitle: "Dhandha App",
-      dateRange: "This Month",
+      dateRange: dateRangeLabel,
       columns: ["Bill No.", "Date", "Supplier", "Items", "Amount", "Paid", "Balance"],
-      rows: purchaseData.map(p => [
+      rows: filteredData.map(p => [
         p.invoice_number,
         format(new Date(p.invoice_date), 'dd MMM yyyy'),
         p.party_name,
@@ -182,30 +178,13 @@ export default function PurchaseReport() {
             <p className="text-sm text-muted-foreground">Total Bills</p>
             <Package className="w-4 h-4 text-muted-foreground" />
           </div>
-          <p className="text-2xl font-bold mt-2">{purchaseData.length}</p>
+          <p className="text-2xl font-bold mt-2">{filteredData.length}</p>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 items-center">
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this-week">This Week</SelectItem>
-            <SelectItem value="this-month">This Month</SelectItem>
-            <SelectItem value="this-quarter">This Quarter</SelectItem>
-            <SelectItem value="this-year">This Year</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input type="date" className="w-[150px]" />
-        <Input type="date" className="w-[150px]" />
-        <Button variant="outline" className="gap-2">
-          <Filter className="w-4 h-4" />
-          More Filters
-        </Button>
+        <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Data Table */}
@@ -223,14 +202,14 @@ export default function PurchaseReport() {
             </tr>
           </thead>
           <tbody>
-            {purchaseData.length === 0 ? (
+            {filteredData.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-8 text-muted-foreground">
                   No purchases found
                 </td>
               </tr>
             ) : (
-              purchaseData.map((purchase) => (
+              filteredData.map((purchase) => (
                 <tr key={purchase.id}>
                   <td className="font-medium">{purchase.invoice_number}</td>
                   <td className="text-muted-foreground">
@@ -247,7 +226,7 @@ export default function PurchaseReport() {
               ))
             )}
           </tbody>
-          {purchaseData.length > 0 && (
+          {filteredData.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 font-semibold">
                 <td colSpan={4}>Total</td>

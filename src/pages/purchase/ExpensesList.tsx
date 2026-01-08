@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { DateRangeFilter, getDefaultDateRange, filterByDateRange, DateRange } from "@/components/DateRangeFilter";
 
 interface Expense {
   id: string;
@@ -40,6 +41,7 @@ export default function ExpensesList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
 
   useEffect(() => {
     if (user) {
@@ -76,14 +78,16 @@ export default function ExpensesList() {
     }
   };
 
-  const filteredExpenses = expenses.filter(
+  const filteredByDate = filterByDateRange(expenses, dateRange, "expense_date");
+  
+  const filteredExpenses = filteredByDate.filter(
     (expense) =>
       expense.expense_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (expense.notes && expense.notes.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   if (loading) {
     return (
@@ -114,31 +118,34 @@ export default function ExpensesList() {
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Total Expenses</p>
           <p className="text-2xl font-bold mt-1">₹{totalExpenses.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-1">{expenses.length} entries</p>
+          <p className="text-xs text-muted-foreground mt-1">{filteredExpenses.length} entries</p>
         </div>
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Cash</p>
-          <p className="text-2xl font-bold mt-1">₹{expenses.filter(e => e.payment_mode === "cash").reduce((s, e) => s + e.amount, 0).toLocaleString()}</p>
+          <p className="text-2xl font-bold mt-1">₹{filteredExpenses.filter(e => e.payment_mode === "cash").reduce((s, e) => s + e.amount, 0).toLocaleString()}</p>
         </div>
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Bank</p>
-          <p className="text-2xl font-bold mt-1">₹{expenses.filter(e => e.payment_mode === "bank").reduce((s, e) => s + e.amount, 0).toLocaleString()}</p>
+          <p className="text-2xl font-bold mt-1">₹{filteredExpenses.filter(e => e.payment_mode === "bank").reduce((s, e) => s + e.amount, 0).toLocaleString()}</p>
         </div>
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Categories</p>
-          <p className="text-2xl font-bold mt-1">{[...new Set(expenses.map(e => e.category))].length}</p>
+          <p className="text-2xl font-bold mt-1">{[...new Set(filteredExpenses.map(e => e.category))].length}</p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search expenses..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 items-center">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search expenses..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Expenses Table */}

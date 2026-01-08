@@ -1,17 +1,11 @@
 import { useState, useEffect } from "react";
-import { Download, Filter, TrendingUp, TrendingDown, Search, Loader2 } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { DateRangeFilter, getDefaultDateRange, filterByDateRange, DateRange } from "@/components/DateRangeFilter";
 
 interface BillData {
   id: string;
@@ -26,7 +20,7 @@ interface BillData {
 
 export default function BillWisePnL() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState("this-month");
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [billData, setBillData] = useState<BillData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,7 +76,9 @@ export default function BillWisePnL() {
     }
   };
 
-  const filtered = billData.filter(
+  const filteredByDate = filterByDateRange(billData, dateRange, "date");
+  
+  const filtered = filteredByDate.filter(
     (b) => b.invoice.toLowerCase().includes(searchQuery.toLowerCase()) ||
            b.party.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -148,21 +144,7 @@ export default function BillWisePnL() {
             className="pl-10"
           />
         </div>
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this-week">This Week</SelectItem>
-            <SelectItem value="this-month">This Month</SelectItem>
-            <SelectItem value="this-quarter">This Quarter</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button variant="outline" className="gap-2">
-          <Filter className="w-4 h-4" />
-          Filters
-        </Button>
+        <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Data Table */}
