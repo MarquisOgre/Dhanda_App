@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,20 +10,68 @@ import { PurchaseInvoiceItemsTable, PurchaseInvoiceItem } from "@/components/pur
 import { TaxSummary } from "@/components/sale/TaxSummary";
 import { InvoicePreview } from "@/components/sale/InvoicePreview";
 import { useInvoiceSave } from "@/hooks/useInvoiceSave";
+import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
+import { supabase } from "@/integrations/supabase/client";
+import { addDays, format } from "date-fns";
 
 export default function CreatePurchaseBill() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { businessSettings } = useBusinessSettings();
   const { saveInvoice, loading } = useInvoiceSave();
   
-  const [billNumber, setBillNumber] = useState("PUR-043");
-  const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
-  const [dueDate, setDueDate] = useState("");
+  const today = new Date();
+  const [billNumber, setBillNumber] = useState("");
+  const [billDate, setBillDate] = useState(format(today, "yyyy-MM-dd"));
+  const [dueDate, setDueDate] = useState(format(addDays(today, 30), "yyyy-MM-dd"));
   const [selectedParty, setSelectedParty] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [items, setItems] = useState<PurchaseInvoiceItem[]>([
-    { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "pcs", rate: 0, discount: 0, taxRate: 0, amount: 0 },
+    { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "Bottles", rate: 0, discount: 0, taxRate: 0, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
+
+  // Generate bill number on mount
+  useEffect(() => {
+    if (user) {
+      generateBillNumber();
+    }
+  }, [user]);
+
+  // Update due date when bill date changes
+  useEffect(() => {
+    if (billDate) {
+      const newDueDate = addDays(new Date(billDate), businessSettings?.default_payment_terms || 30);
+      setDueDate(format(newDueDate, "yyyy-MM-dd"));
+    }
+  }, [billDate, businessSettings?.default_payment_terms]);
+
+  const generateBillNumber = async () => {
+    try {
+      const prefix = businessSettings?.purchase_prefix || "PUR-";
+      
+      // Get the highest invoice number from purchase_invoices
+      const { data: existingInvoices } = await supabase
+        .from("purchase_invoices")
+        .select("invoice_number")
+        .ilike("invoice_number", `${prefix}%`)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      let nextNumber = 1;
+      if (existingInvoices && existingInvoices.length > 0) {
+        const lastInvoice = existingInvoices[0].invoice_number;
+        const lastNumber = parseInt(lastInvoice.replace(prefix, "")) || 0;
+        nextNumber = lastNumber + 1;
+      }
+
+      setBillNumber(`${prefix}${nextNumber.toString().padStart(3, "0")}`);
+    } catch (error) {
+      console.error("Error generating bill number:", error);
+      setBillNumber("PUR-001");
+    }
+  };
 
   const handleSave = async () => {
     const result = await saveInvoice({

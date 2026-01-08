@@ -85,13 +85,14 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
   };
 
   const addItem = () => {
+    const defaultUnit = unitOptions.length > 0 ? unitOptions[0].name : "Bottles";
     const newItem: PurchaseInvoiceItem = {
       id: Date.now(),
       itemId: "",
       name: "",
       hsn: "",
       quantity: 1,
-      unit: "pcs",
+      unit: defaultUnit,
       rate: 0,
       discount: 0,
       taxRate: defaultTaxRate,

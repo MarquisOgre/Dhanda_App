@@ -122,8 +122,16 @@ export default function ViewPurchaseInvoice() {
   const subtotal = invoice.subtotal || 0;
   const taxAmount = invoice.tax_amount || 0;
   const discountAmount = invoice.discount_amount || 0;
-  const totalAmount = invoice.total_amount || 0;
   const paidAmount = invoice.paid_amount || 0;
+  
+  // Calculate TCS
+  const useTcs = settings?.enable_tcs ?? false;
+  const tcsRate = settings?.tcs_percent ?? 0;
+  const tcsAmount = useTcs && tcsRate > 0 
+    ? ((subtotal - discountAmount + taxAmount) * tcsRate) / 100 
+    : 0;
+  
+  const totalAmount = (invoice.total_amount || 0);
   const balanceDue = totalAmount - paidAmount;
 
   return (
@@ -263,6 +271,12 @@ export default function ViewPurchaseInvoice() {
               <span className="text-muted-foreground">Tax:</span>
               <span>₹{taxAmount.toLocaleString()}</span>
             </div>
+            {useTcs && tcsAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">TCS @ {tcsRate}%:</span>
+                <span>₹{tcsAmount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-lg border-t pt-2">
               <span>Total:</span>
               <span>₹{totalAmount.toLocaleString()}</span>

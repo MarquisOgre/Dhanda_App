@@ -95,18 +95,18 @@ export function useInvoiceSave() {
         taxAmount += itemTax;
       });
 
-      // Calculate TCS for sale invoices
-      const isSaleType = ["sale", "sale_invoice", "sale_return", "sale_order", "estimation", "proforma", "delivery_challan"].includes(invoiceType);
+      // Calculate TCS - applies to both sale and purchase invoices
       const useTcs = settings?.enable_tcs ?? false;
       const tcsRate = settings?.tcs_percent ?? 0;
       const taxableAmount = subtotal - discountAmount;
-      const tcsAmount = useTcs && isSaleType && tcsRate > 0 
+      const tcsAmount = useTcs && tcsRate > 0 
         ? ((taxableAmount + taxAmount) * tcsRate) / 100 
         : 0;
 
       const totalAmount = Math.round(subtotal - discountAmount + taxAmount + tcsAmount);
 
       // Determine which table to use based on invoice type
+      const isSaleType = ["sale", "sale_invoice", "sale_return", "sale_order", "estimation", "proforma", "delivery_challan"].includes(invoiceType);
       const tableName = isSaleType ? "sale_invoices" : "purchase_invoices";
 
       // Insert invoice into appropriate table
