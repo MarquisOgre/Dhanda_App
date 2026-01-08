@@ -201,7 +201,7 @@ export function useDashboardData() {
       const openingStock = Number(item.opening_stock) || 0;
       const purchased = purchasedQty[item.id] || 0;
       const sold = soldQty[item.id] || 0;
-      const currentStock = openingStock + purchased - sold;
+      const currentStock = Math.max(0, openingStock + purchased - sold);
       stockValue += currentStock * (Number(item.purchase_price) || 0);
     });
 
@@ -343,11 +343,11 @@ export function useDashboardData() {
       .limit(10);
 
     const lowStock: LowStockItem[] = (items || [])
-      .filter(item => (Number(item.current_stock) || 0) <= (Number(item.low_stock_alert) || 10))
+      .filter(item => Math.max(0, Number(item.current_stock) || 0) <= (Number(item.low_stock_alert) || 10))
       .slice(0, 4)
       .map(item => ({
         name: item.name,
-        stock: Number(item.current_stock) || 0,
+        stock: Math.max(0, Number(item.current_stock) || 0),
         minStock: Number(item.low_stock_alert) || 10,
       }));
 

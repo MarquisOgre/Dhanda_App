@@ -25,7 +25,7 @@ export default function StockSummary() {
       if (!user) return;
       const { data: items } = await supabase.from('items').select(`id, name, current_stock, low_stock_alert, purchase_price, category_id, categories (name)`).eq('user_id', user.id).eq('is_deleted', false);
       const formattedData = (items || []).map(item => {
-        const stock = item.current_stock || 0; const minStock = item.low_stock_alert || 10;
+        const stock = Math.max(0, item.current_stock || 0); const minStock = item.low_stock_alert || 10;
         let status = 'in-stock'; if (stock === 0) status = 'out'; else if (stock < minStock) status = 'low';
         return { id: item.id, name: item.name, category: (item.categories as any)?.name || 'Uncategorized', stock, minStock, value: stock * (item.purchase_price || 0), status };
       });
