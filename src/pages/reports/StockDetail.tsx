@@ -18,9 +18,14 @@ interface StockMovement {
   id: string;
   date: string;
   item: string;
+  itemId: string;
   type: string;
   qty: number;
   reference: string;
+}
+
+interface ItemOpeningStock {
+  [itemId: string]: number;
 }
 
 export default function StockDetail() {
@@ -28,6 +33,7 @@ export default function StockDetail() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [itemOpeningStocks, setItemOpeningStocks] = useState<ItemOpeningStock>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,6 +46,19 @@ export default function StockDetail() {
       if (!user) return;
 
       const movements: StockMovement[] = [];
+
+      // Fetch all items with opening stock
+      const { data: items } = await supabase
+        .from('items')
+        .select('id, name, opening_stock')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false);
+
+      const openingStocks: ItemOpeningStock = {};
+      (items || []).forEach(item => {
+        openingStocks[item.id] = Number(item.opening_stock) || 0;
+      });
+      setItemOpeningStocks(openingStocks);
 
       const { data: saleInvoices } = await supabase
         .from('sale_invoices')
@@ -54,7 +73,7 @@ export default function StockDetail() {
       if (saleInvoiceIds.length > 0) {
         const { data: saleItems } = await supabase
           .from('sale_invoice_items')
-          .select('id, item_name, quantity, sale_invoice_id')
+          .select('id, item_id, item_name, quantity, sale_invoice_id')
           .in('sale_invoice_id', saleInvoiceIds);
 
         (saleItems || []).forEach((item: any) => {
@@ -64,6 +83,7 @@ export default function StockDetail() {
               id: item.id,
               date: invoice.invoice_date || '',
               item: item.item_name,
+              itemId: item.item_id || '',
               type: 'sale',
               qty: item.quantity,
               reference: invoice.invoice_number || '',
@@ -85,7 +105,7 @@ export default function StockDetail() {
       if (purchaseInvoiceIds.length > 0) {
         const { data: purchaseItems } = await supabase
           .from('purchase_invoice_items')
-          .select('id, item_name, quantity, purchase_invoice_id')
+          .select('id, item_id, item_name, quantity, purchase_invoice_id')
           .in('purchase_invoice_id', purchaseInvoiceIds);
 
         (purchaseItems || []).forEach((item: any) => {
@@ -95,6 +115,7 @@ export default function StockDetail() {
               id: item.id,
               date: invoice.invoice_date || '',
               item: item.item_name,
+              itemId: item.item_id || '',
               type: 'purchase',
               qty: item.quantity,
               reference: invoice.invoice_number || '',
@@ -123,6 +144,11 @@ export default function StockDetail() {
 
   const totalIn = filtered.filter((m) => m.type === "purchase").reduce((sum, m) => sum + m.qty, 0);
   const totalOut = filtered.filter((m) => m.type === "sale").reduce((sum, m) => sum + m.qty, 0);
+  
+  // Calculate total opening stock for filtered items
+  const filteredItemIds = [...new Set(filtered.map(m => m.itemId).filter(Boolean))];
+  const totalOpeningStock = filteredItemIds.reduce((sum, itemId) => sum + (itemOpeningStocks[itemId] || 0), 0);
+  const netMovement = Math.max(0, totalOpeningStock + totalIn - totalOut);
 
   if (loading) {
     return (
@@ -162,12 +188,13 @@ export default function StockDetail() {
         </div>
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Net Movement</p>
+            <p className="text-sm text-muted-foreground">Current Stock</p>
             <Package className="w-4 h-4 text-primary" />
           </div>
-          <p className={cn("text-2xl font-bold mt-2", totalIn - totalOut >= 0 ? "text-success" : "text-destructive")}>
-            {totalIn - totalOut >= 0 ? "+" : ""}{totalIn - totalOut} units
+          <p className="text-2xl font-bold mt-2 text-primary">
+            {netMovement} units
           </p>
+          <p className="text-xs text-muted-foreground mt-1">Opening: {totalOpeningStock} + In: {totalIn} - Out: {totalOut}</p>
         </div>
       </div>
 
