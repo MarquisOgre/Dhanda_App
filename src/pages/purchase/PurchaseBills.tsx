@@ -60,12 +60,40 @@ export default function PurchaseBills() {
     if (!confirm("Are you sure you want to delete this invoice?")) return;
     
     try {
+      // First, get invoice items to deduct stock (purchase adds stock, so deletion removes it)
+      const { data: invoiceItems } = await supabase
+        .from("purchase_invoice_items")
+        .select("item_id, quantity")
+        .eq("purchase_invoice_id", id);
+
+      // Deduct stock for each item
+      if (invoiceItems && invoiceItems.length > 0) {
+        for (const invoiceItem of invoiceItems) {
+          if (invoiceItem.item_id) {
+            const { data: itemData } = await supabase
+              .from("items")
+              .select("current_stock")
+              .eq("id", invoiceItem.item_id)
+              .single();
+
+            if (itemData) {
+              const newStock = Math.max(0, (itemData.current_stock || 0) - invoiceItem.quantity);
+              await supabase
+                .from("items")
+                .update({ current_stock: newStock })
+                .eq("id", invoiceItem.item_id);
+            }
+          }
+        }
+      }
+
+      // Mark invoice as deleted
       const { error } = await supabase
         .from("purchase_invoices")
         .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
-      toast.success("Purchase invoice deleted successfully");
+      toast.success("Purchase invoice deleted and stock adjusted successfully");
       fetchBills();
     } catch (error: any) {
       toast.error("Failed to delete purchase invoice: " + error.message);
