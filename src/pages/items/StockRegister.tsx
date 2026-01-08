@@ -196,16 +196,16 @@ const StockRegister = () => {
           }
         });
 
-        // Opening = initial stock + purchases before period - sales before period
-        const openingQty = (Number(item.opening_stock) || 0) + beforePurchaseQty - beforeSaleQty;
+        // Opening = initial stock + purchases before period - sales before period (never negative)
+        const openingQty = Math.max(0, (Number(item.opening_stock) || 0) + beforePurchaseQty - beforeSaleQty);
         const openingAvgPrice = openingQty > 0 ? (Number(item.purchase_price) || 0) : 0;
         const openingAmt = openingQty * openingAvgPrice;
 
         // Purchase average price
         const purchaseAvgPrice = purchaseQty > 0 ? purchaseAmt / purchaseQty : 0;
 
-        // Closing = Opening + Purchase - Sale
-        const closingQty = openingQty + purchaseQty - saleQty;
+        // Closing = Opening + Purchase - Sale (never negative)
+        const closingQty = Math.max(0, openingQty + purchaseQty - saleQty);
         const closingPrice = closingQty > 0 ? (purchaseQty > 0 ? purchaseAvgPrice : openingAvgPrice) : 0;
 
         // Sale average price
