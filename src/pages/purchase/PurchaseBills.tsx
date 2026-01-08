@@ -223,7 +223,7 @@ export default function PurchaseBills() {
                           <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}`)}>
                             View Invoice
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => navigate(`/purchase/payment-out?invoice=${bill.id}`)}>
+                          <DropdownMenuItem onSelect={() => navigate(`/purchase/payment-out/new?invoice=${bill.id}`)}>
                             Record Payment
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}/edit`)}>

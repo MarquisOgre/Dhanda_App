@@ -52,7 +52,7 @@ export default function EditSaleInvoice() {
 
       // Fetch items linked to this sale invoice
       const { data: itemsData } = await supabase
-        .from("invoice_items")
+        .from("sale_invoice_items")
         .select("*")
         .eq("sale_invoice_id", id);
       
@@ -114,7 +114,7 @@ export default function EditSaleInvoice() {
       if (invoiceError) throw invoiceError;
 
       // Delete existing items
-      await supabase.from("invoice_items").delete().eq("sale_invoice_id", id);
+      await supabase.from("sale_invoice_items").delete().eq("sale_invoice_id", id);
 
       // Insert updated items
       const itemsToInsert = items.map(item => {
@@ -140,7 +140,7 @@ export default function EditSaleInvoice() {
       });
 
       const { error: itemsError } = await supabase
-        .from("invoice_items")
+        .from("sale_invoice_items")
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;

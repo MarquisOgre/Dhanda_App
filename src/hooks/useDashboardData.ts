@@ -172,27 +172,25 @@ export function useDashboardData() {
 
     // Fetch all purchase invoice items
     const { data: purchaseItems } = await supabase
-      .from('invoice_items')
-      .select('item_id, quantity')
-      .not('purchase_invoice_id', 'is', null);
+      .from('purchase_invoice_items')
+      .select('item_id, quantity');
 
     // Fetch all sale invoice items  
     const { data: saleItems } = await supabase
-      .from('invoice_items')
-      .select('item_id, quantity')
-      .not('sale_invoice_id', 'is', null);
+      .from('sale_invoice_items')
+      .select('item_id, quantity');
 
     // Create lookup maps for purchased and sold quantities
     const purchasedQty: Record<string, number> = {};
     const soldQty: Record<string, number> = {};
 
-    purchaseItems?.forEach(item => {
+    purchaseItems?.forEach((item: any) => {
       if (item.item_id) {
         purchasedQty[item.item_id] = (purchasedQty[item.item_id] || 0) + (Number(item.quantity) || 0);
       }
     });
 
-    saleItems?.forEach(item => {
+    saleItems?.forEach((item: any) => {
       if (item.item_id) {
         soldQty[item.item_id] = (soldQty[item.item_id] || 0) + (Number(item.quantity) || 0);
       }

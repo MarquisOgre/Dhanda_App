@@ -323,82 +323,6 @@ export type Database = {
         }
         Relationships: []
       }
-      invoice_items: {
-        Row: {
-          created_at: string
-          discount_amount: number | null
-          discount_percent: number | null
-          hsn_code: string | null
-          id: string
-          item_id: string | null
-          item_name: string
-          purchase_invoice_id: string | null
-          quantity: number
-          rate: number
-          sale_invoice_id: string | null
-          tax_amount: number | null
-          tax_rate: number | null
-          total: number
-          unit: string | null
-        }
-        Insert: {
-          created_at?: string
-          discount_amount?: number | null
-          discount_percent?: number | null
-          hsn_code?: string | null
-          id?: string
-          item_id?: string | null
-          item_name: string
-          purchase_invoice_id?: string | null
-          quantity?: number
-          rate?: number
-          sale_invoice_id?: string | null
-          tax_amount?: number | null
-          tax_rate?: number | null
-          total?: number
-          unit?: string | null
-        }
-        Update: {
-          created_at?: string
-          discount_amount?: number | null
-          discount_percent?: number | null
-          hsn_code?: string | null
-          id?: string
-          item_id?: string | null
-          item_name?: string
-          purchase_invoice_id?: string | null
-          quantity?: number
-          rate?: number
-          sale_invoice_id?: string | null
-          tax_amount?: number | null
-          tax_rate?: number | null
-          total?: number
-          unit?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "invoice_items_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoice_items_purchase_invoice_id_fkey"
-            columns: ["purchase_invoice_id"]
-            isOneToOne: false
-            referencedRelation: "purchase_invoices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoice_items_sale_invoice_id_fkey"
-            columns: ["sale_invoice_id"]
-            isOneToOne: false
-            referencedRelation: "sale_invoices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       items: {
         Row: {
           category_id: string | null
@@ -681,6 +605,72 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_invoice_items: {
+        Row: {
+          created_at: string
+          discount_amount: number | null
+          discount_percent: number | null
+          hsn_code: string | null
+          id: string
+          item_id: string | null
+          item_name: string
+          purchase_invoice_id: string
+          quantity: number
+          rate: number
+          tax_amount: number | null
+          tax_rate: number | null
+          total: number
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          hsn_code?: string | null
+          id?: string
+          item_id?: string | null
+          item_name: string
+          purchase_invoice_id: string
+          quantity?: number
+          rate?: number
+          tax_amount?: number | null
+          tax_rate?: number | null
+          total?: number
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          hsn_code?: string | null
+          id?: string
+          item_id?: string | null
+          item_name?: string
+          purchase_invoice_id?: string
+          quantity?: number
+          rate?: number
+          tax_amount?: number | null
+          tax_rate?: number | null
+          total?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoice_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoice_items_purchase_invoice_id_fkey"
+            columns: ["purchase_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_invoices: {
         Row: {
           balance_due: number | null
@@ -754,6 +744,72 @@ export type Database = {
             columns: ["party_id"]
             isOneToOne: false
             referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_invoice_items: {
+        Row: {
+          created_at: string
+          discount_amount: number | null
+          discount_percent: number | null
+          hsn_code: string | null
+          id: string
+          item_id: string | null
+          item_name: string
+          quantity: number
+          rate: number
+          sale_invoice_id: string
+          tax_amount: number | null
+          tax_rate: number | null
+          total: number
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          hsn_code?: string | null
+          id?: string
+          item_id?: string | null
+          item_name: string
+          quantity?: number
+          rate?: number
+          sale_invoice_id: string
+          tax_amount?: number | null
+          tax_rate?: number | null
+          total?: number
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percent?: number | null
+          hsn_code?: string | null
+          id?: string
+          item_id?: string | null
+          item_name?: string
+          quantity?: number
+          rate?: number
+          sale_invoice_id?: string
+          tax_amount?: number | null
+          tax_rate?: number | null
+          total?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_invoice_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_invoice_items_sale_invoice_id_fkey"
+            columns: ["sale_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sale_invoices"
             referencedColumns: ["id"]
           },
         ]

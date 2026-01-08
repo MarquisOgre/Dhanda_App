@@ -80,7 +80,7 @@ export default function SaleInvoices() {
     try {
       // First, get invoice items to restore stock
       const { data: invoiceItems } = await supabase
-        .from("invoice_items")
+        .from("sale_invoice_items")
         .select("item_id, quantity")
         .eq("sale_invoice_id", id);
 
@@ -273,7 +273,7 @@ export default function SaleInvoices() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={async () => {
                             const { data: items } = await supabase
-                              .from("invoice_items")
+                              .from("sale_invoice_items")
                               .select("*")
                               .eq("sale_invoice_id", invoice.id);
                             
