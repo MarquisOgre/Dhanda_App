@@ -36,11 +36,12 @@ export function useSessionTracking(userId: string | undefined) {
 
       const maxLogins = licenseSettings?.max_simultaneous_logins || 3;
 
-      // Clean up old sessions (older than 5 minutes without activity)
+      // Clean up old sessions for THIS user only (older than 5 minutes without activity)
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       await supabase
         .from("active_sessions")
         .delete()
+        .eq("user_id", userId)
         .lt("last_activity", fiveMinutesAgo);
 
       // Count current active sessions for this user
@@ -51,11 +52,36 @@ export function useSessionTracking(userId: string | undefined) {
 
       // Check if adding a new session would exceed the limit
       if (count !== null && count >= maxLogins) {
-        return { 
-          success: false, 
-          error: `Maximum ${maxLogins} simultaneous login(s) allowed. Please log out from another device.` 
+        return {
+          success: false,
+          error: `Maximum ${maxLogins} simultaneous login(s) allowed. Please log out from another device.`,
         };
       }
+
+      // Generate new session ID
+      const sessionId = generateSessionId();
+      sessionIdRef.current = sessionId;
+      sessionStorage.setItem(SESSION_ID_KEY, sessionId);
+
+      // Register the session
+      const { error } = await supabase.from("active_sessions").insert({
+        user_id: userId,
+        session_id: sessionId,
+        device_info: getDeviceInfo(),
+        last_activity: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error("Error registering session:", error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Session registration error:", error);
+      return { success: false, error: error.message };
+    }
+  }, [userId]);
 
       // Generate new session ID
       const sessionId = generateSessionId();
