@@ -4,11 +4,6 @@ import {
   Plus,
   Search,
   MoreHorizontal,
-  Phone,
-  Mail,
-  MapPin,
-  ArrowUpCircle,
-  ArrowDownCircle,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +14,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,12 +38,18 @@ interface Party {
   gstin: string | null;
 }
 
+interface PartyWithTotals extends Party {
+  purchasedAmount: number;
+  paymentsOut: number;
+  netDue: number;
+}
+
 export default function PartiesList() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "customer" | "supplier">("all");
-  const [parties, setParties] = useState<Party[]>([]);
+  const [parties, setParties] = useState<PartyWithTotals[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,13 +60,61 @@ export default function PartiesList() {
 
   const fetchParties = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch parties
+      const { data: partiesData, error: partiesError } = await supabase
         .from("parties")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setParties(data || []);
+      if (partiesError) throw partiesError;
+
+      // Fetch purchase invoices totals per party
+      const { data: purchaseData, error: purchaseError } = await supabase
+        .from("purchase_invoices")
+        .select("party_id, total_amount")
+        .eq("is_deleted", false);
+
+      if (purchaseError) throw purchaseError;
+
+      // Fetch payment out totals per party
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from("payments")
+        .select("party_id, amount")
+        .eq("payment_type", "payment_out");
+
+      if (paymentsError) throw paymentsError;
+
+      // Calculate totals per party
+      const purchaseTotals: Record<string, number> = {};
+      purchaseData?.forEach((inv) => {
+        if (inv.party_id) {
+          purchaseTotals[inv.party_id] = (purchaseTotals[inv.party_id] || 0) + (inv.total_amount || 0);
+        }
+      });
+
+      const paymentTotals: Record<string, number> = {};
+      paymentsData?.forEach((pay) => {
+        if (pay.party_id) {
+          paymentTotals[pay.party_id] = (paymentTotals[pay.party_id] || 0) + (pay.amount || 0);
+        }
+      });
+
+      // Combine data
+      const partiesWithTotals: PartyWithTotals[] = (partiesData || []).map((party) => {
+        const openingBalance = party.opening_balance || 0;
+        const purchasedAmount = purchaseTotals[party.id] || 0;
+        const paymentsOut = paymentTotals[party.id] || 0;
+        const netDue = openingBalance + purchasedAmount - paymentsOut;
+
+        return {
+          ...party,
+          purchasedAmount,
+          paymentsOut,
+          netDue,
+        };
+      });
+
+      setParties(partiesWithTotals);
     } catch (error: any) {
       toast.error("Failed to fetch parties: " + error.message);
     } finally {
@@ -132,7 +189,7 @@ export default function PartiesList() {
         </div>
       </div>
 
-      {/* Parties Grid */}
+      {/* Parties Table */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -145,103 +202,102 @@ export default function PartiesList() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredParties.map((party) => {
-            const balance = party.opening_balance || 0;
-            const balanceType = balance > 0 ? "receivable" : balance < 0 ? "payable" : "settled";
-            
-            return (
-              <div key={party.id} className="metric-card">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold",
-                        party.party_type === "customer"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-accent/10 text-accent"
-                      )}
-                    >
-                      {party.name.charAt(0)}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{party.name}</h3>
-                      <span
+        <div className="rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Party Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead className="text-right">Opening Balance</TableHead>
+                <TableHead className="text-right">Purchased Amount</TableHead>
+                <TableHead className="text-right">Payments Out</TableHead>
+                <TableHead className="text-right">Net Due</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredParties.map((party) => (
+                <TableRow 
+                  key={party.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate(`/parties/${party.id}`)}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-3">
+                      <div
                         className={cn(
-                          "text-xs px-2 py-0.5 rounded-full capitalize",
+                          "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
                           party.party_type === "customer"
                             ? "bg-primary/10 text-primary"
                             : "bg-accent/10 text-accent"
                         )}
                       >
-                        {party.party_type || "customer"}
-                      </span>
+                        {party.name.charAt(0)}
+                      </div>
+                      {party.name}
                     </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}`)}>
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate(`/parties/edit/${party.id}`)}>
-                        Edit Party
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}/transactions`)}>
-                        View Transactions
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-destructive"
-                        onClick={() => handleDelete(party.id)}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="w-4 h-4" />
-                    <span>{party.phone || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="w-4 h-4" />
-                    <span>{party.email || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{party.billing_address || "-"}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Balance</span>
-                  <div className="flex items-center gap-2">
-                    {balanceType === "receivable" && (
-                      <ArrowUpCircle className="w-4 h-4 text-success" />
-                    )}
-                    {balanceType === "payable" && (
-                      <ArrowDownCircle className="w-4 h-4 text-warning" />
-                    )}
+                  </TableCell>
+                  <TableCell>
                     <span
                       className={cn(
-                        "font-semibold",
-                        balanceType === "receivable" && "text-success",
-                        balanceType === "payable" && "text-warning"
+                        "text-xs px-2 py-1 rounded-full capitalize",
+                        party.party_type === "customer"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-accent/10 text-accent"
                       )}
                     >
-                      ₹{Math.abs(balance).toLocaleString()}
+                      {party.party_type || "customer"}
                     </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {party.phone || "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ₹{(party.opening_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ₹{party.purchasedAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-right text-success">
+                    ₹{party.paymentsOut.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className={cn(
+                    "text-right font-semibold",
+                    party.netDue > 0 ? "text-destructive" : party.netDue < 0 ? "text-success" : ""
+                  )}>
+                    ₹{party.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}`)}>
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/parties/edit/${party.id}`)}>
+                          Edit Party
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}/transactions`)}>
+                          View Transactions
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleDelete(party.id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
