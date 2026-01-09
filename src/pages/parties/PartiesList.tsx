@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -21,6 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,8 +40,8 @@ interface Party {
 }
 
 interface PartyWithTotals extends Party {
-  purchasedAmount: number;
-  paymentsOut: number;
+  invoiceAmount: number;
+  paymentsAmount: number;
   netDue: number;
 }
 
@@ -68,7 +69,7 @@ export default function PartiesList() {
 
       if (partiesError) throw partiesError;
 
-      // Fetch purchase invoices totals per party
+      // Fetch purchase invoices totals per party (for suppliers)
       const { data: purchaseData, error: purchaseError } = await supabase
         .from("purchase_invoices")
         .select("party_id, total_amount")
@@ -76,15 +77,31 @@ export default function PartiesList() {
 
       if (purchaseError) throw purchaseError;
 
-      // Fetch payment out totals per party
-      const { data: paymentsData, error: paymentsError } = await supabase
+      // Fetch sale invoices totals per party (for customers)
+      const { data: saleData, error: saleError } = await supabase
+        .from("sale_invoices")
+        .select("party_id, total_amount")
+        .eq("is_deleted", false);
+
+      if (saleError) throw saleError;
+
+      // Fetch payment out totals per party (for suppliers)
+      const { data: paymentsOutData, error: paymentsOutError } = await supabase
         .from("payments")
         .select("party_id, amount")
         .eq("payment_type", "payment_out");
 
-      if (paymentsError) throw paymentsError;
+      if (paymentsOutError) throw paymentsOutError;
 
-      // Calculate totals per party
+      // Fetch payment in totals per party (for customers)
+      const { data: paymentsInData, error: paymentsInError } = await supabase
+        .from("payments")
+        .select("party_id, amount")
+        .eq("payment_type", "payment_in");
+
+      if (paymentsInError) throw paymentsInError;
+
+      // Calculate purchase totals per party
       const purchaseTotals: Record<string, number> = {};
       purchaseData?.forEach((inv) => {
         if (inv.party_id) {
@@ -92,24 +109,51 @@ export default function PartiesList() {
         }
       });
 
-      const paymentTotals: Record<string, number> = {};
-      paymentsData?.forEach((pay) => {
+      // Calculate sale totals per party
+      const saleTotals: Record<string, number> = {};
+      saleData?.forEach((inv) => {
+        if (inv.party_id) {
+          saleTotals[inv.party_id] = (saleTotals[inv.party_id] || 0) + (inv.total_amount || 0);
+        }
+      });
+
+      // Calculate payment out totals per party
+      const paymentOutTotals: Record<string, number> = {};
+      paymentsOutData?.forEach((pay) => {
         if (pay.party_id) {
-          paymentTotals[pay.party_id] = (paymentTotals[pay.party_id] || 0) + (pay.amount || 0);
+          paymentOutTotals[pay.party_id] = (paymentOutTotals[pay.party_id] || 0) + (pay.amount || 0);
+        }
+      });
+
+      // Calculate payment in totals per party
+      const paymentInTotals: Record<string, number> = {};
+      paymentsInData?.forEach((pay) => {
+        if (pay.party_id) {
+          paymentInTotals[pay.party_id] = (paymentInTotals[pay.party_id] || 0) + (pay.amount || 0);
         }
       });
 
       // Combine data
       const partiesWithTotals: PartyWithTotals[] = (partiesData || []).map((party) => {
         const openingBalance = party.opening_balance || 0;
-        const purchasedAmount = purchaseTotals[party.id] || 0;
-        const paymentsOut = paymentTotals[party.id] || 0;
-        const netDue = openingBalance + purchasedAmount - paymentsOut;
+        const isCustomer = party.party_type === "customer";
+        
+        // For customers: use sale invoices and payment in
+        // For suppliers: use purchase invoices and payment out
+        const invoiceAmount = isCustomer 
+          ? (saleTotals[party.id] || 0) 
+          : (purchaseTotals[party.id] || 0);
+        const paymentsAmount = isCustomer 
+          ? (paymentInTotals[party.id] || 0) 
+          : (paymentOutTotals[party.id] || 0);
+        
+        // Net Due = Opening Balance + Invoice Amount - Payments
+        const netDue = openingBalance + invoiceAmount - paymentsAmount;
 
         return {
           ...party,
-          purchasedAmount,
-          paymentsOut,
+          invoiceAmount,
+          paymentsAmount,
           netDue,
         };
       });
@@ -143,6 +187,19 @@ export default function PartiesList() {
     const matchesFilter = filter === "all" || party.party_type === filter;
     return matchesSearch && matchesFilter;
   });
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    return filteredParties.reduce(
+      (acc, party) => ({
+        openingBalance: acc.openingBalance + (party.opening_balance || 0),
+        invoiceAmount: acc.invoiceAmount + (party.invoiceAmount || 0),
+        paymentsAmount: acc.paymentsAmount + (party.paymentsAmount || 0),
+        netDue: acc.netDue + (party.netDue || 0),
+      }),
+      { openingBalance: 0, invoiceAmount: 0, paymentsAmount: 0, netDue: 0 }
+    );
+  }, [filteredParties]);
 
   return (
     <div className="space-y-6">
@@ -210,8 +267,8 @@ export default function PartiesList() {
                 <TableHead>Type</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead className="text-right">Opening Balance</TableHead>
-                <TableHead className="text-right">Purchased Amount</TableHead>
-                <TableHead className="text-right">Payments Out</TableHead>
+                <TableHead className="text-right">Invoice Amount</TableHead>
+                <TableHead className="text-right">Payments</TableHead>
                 <TableHead className="text-right">Net Due</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -257,10 +314,10 @@ export default function PartiesList() {
                     ₹{(party.opening_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="text-right">
-                    ₹{(party.purchasedAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{(party.invoiceAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="text-right text-success">
-                    ₹{(party.paymentsOut || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{(party.paymentsAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className={cn(
                     "text-right font-semibold",
@@ -297,6 +354,30 @@ export default function PartiesList() {
                 </TableRow>
               ))}
             </TableBody>
+            <TableFooter>
+              <TableRow className="bg-muted/50 font-semibold">
+                <TableCell colSpan={3}>Total</TableCell>
+                <TableCell className="text-right">
+                  ₹{totals.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className="text-right">
+                  ₹{totals.invoiceAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className="text-right text-success">
+                  ₹{totals.paymentsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className={cn(
+                  "text-right font-bold",
+                  totals.netDue > 0 ? "text-destructive" : totals.netDue < 0 ? "text-success" : ""
+                )}>
+                  ₹{totals.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  <div className="text-xs font-normal">
+                    {totals.netDue > 0 ? "Net Receivable" : totals.netDue < 0 ? "Net Payable" : "Settled"}
+                  </div>
+                </TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableFooter>
           </Table>
         </div>
       )}
