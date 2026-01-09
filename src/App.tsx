@@ -21,7 +21,7 @@ import ItemsList from "./pages/items/ItemsList";
 import AddItem from "./pages/items/AddItem";
 import EditItem from "./pages/items/EditItem";
 import Categories from "./pages/items/Categories";
-import StockRegister from "./pages/items/StockRegister";
+
 import SaleInvoices from "./pages/sale/SaleInvoices";
 import CreateSaleInvoice from "./pages/sale/CreateSaleInvoice";
 import ViewSaleInvoice from "./pages/sale/ViewSaleInvoice";
@@ -50,11 +50,9 @@ import PurchaseReport from "./pages/reports/PurchaseReport";
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import BillWisePnL from "./pages/reports/BillWisePnL";
 import BalanceSheet from "./pages/reports/BalanceSheet";
-import StockSummary from "./pages/reports/StockSummary";
-import ItemWisePnL from "./pages/reports/ItemWisePnL";
-import StockDetail from "./pages/reports/StockDetail";
-import ItemDetail from "./pages/reports/ItemDetail";
+import StockReport from "./pages/reports/StockReport";
 import TaxesReport from "./pages/reports/TaxesReport";
+import ItemWisePnL from "./pages/reports/ItemWisePnL";
 import ExpenseReport from "./pages/reports/ExpenseReport";
 // Backup
 import SyncShare from "./pages/backup/SyncShare";
@@ -107,7 +105,6 @@ const AppRoutes = () => {
       <Route path="/items/add" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
       <Route path="/items/edit/:id" element={<ProtectedRoute><EditItem /></ProtectedRoute>} />
       <Route path="/items/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-      <Route path="/items/stock-register" element={<ProtectedRoute><StockRegister /></ProtectedRoute>} />
       {/* Sale */}
       <Route path="/sale/invoices" element={<ProtectedRoute><SaleInvoices /></ProtectedRoute>} />
       <Route path="/sale/invoices/new" element={<ProtectedRoute><CreateSaleInvoice /></ProtectedRoute>} />
@@ -139,10 +136,8 @@ const AppRoutes = () => {
       <Route path="/reports/pnl" element={<ProtectedRoute><ProfitLoss /></ProtectedRoute>} />
       <Route path="/reports/bill-wise-pnl" element={<ProtectedRoute><BillWisePnL /></ProtectedRoute>} />
       <Route path="/reports/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
-      <Route path="/reports/stock-summary" element={<ProtectedRoute><StockSummary /></ProtectedRoute>} />
+      <Route path="/reports/stock" element={<ProtectedRoute><StockReport /></ProtectedRoute>} />
       <Route path="/reports/item-wise-pnl" element={<ProtectedRoute><ItemWisePnL /></ProtectedRoute>} />
-      <Route path="/reports/stock-detail" element={<ProtectedRoute><StockDetail /></ProtectedRoute>} />
-      <Route path="/reports/item-detail" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
       <Route path="/reports/taxes" element={<ProtectedRoute><TaxesReport /></ProtectedRoute>} />
       <Route path="/reports/expense" element={<ProtectedRoute><ExpenseReport /></ProtectedRoute>} />
       {/* Backup */}

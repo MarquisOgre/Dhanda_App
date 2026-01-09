@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { DateRangeFilter, getDefaultDateRange, DateRange } from "@/components/DateRangeFilter";
 
 interface TaxSummary { period: string; taxableValue: number; cgst: number; sgst: number; igst: number; total: number; }
-interface TCSDetail { id: string; date: string; party: string; invoice: string; amount: number; tcsRate: number; tcsAmount: number; }
+interface TCSDetail { id: string; date: string; party: string; invoice: string; amount: number; tcsAmount: number; type: 'sale' | 'purchase'; }
 
 export default function TaxesReport() {
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
@@ -21,11 +21,17 @@ export default function TaxesReport() {
     try {
       setLoading(true);
 
-      const { data: invoices } = await supabase.from('sale_invoices').select(`id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, party_id, parties (name)`)
+      // Fetch sale invoices with TCS
+      const { data: saleInvoices } = await supabase.from('sale_invoices').select(`id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, tcs_amount, party_id, parties (name)`)
         .eq('is_deleted', false).gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd')).lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd')).order('invoice_date', { ascending: false });
 
+      // Fetch purchase invoices with TCS
+      const { data: purchaseInvoices } = await supabase.from('purchase_invoices').select(`id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, tcs_amount, party_id, parties (name)`)
+        .eq('is_deleted', false).gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd')).lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd')).order('invoice_date', { ascending: false });
+
+      // GST Summary from sale invoices
       const monthlyTotals: { [key: string]: TaxSummary } = {};
-      (invoices || []).forEach((inv: any) => {
+      (saleInvoices || []).forEach((inv: any) => {
         const monthKey = format(new Date(inv.invoice_date), 'MMM yyyy');
         if (!monthlyTotals[monthKey]) { monthlyTotals[monthKey] = { period: monthKey, taxableValue: 0, cgst: 0, sgst: 0, igst: 0, total: 0 }; }
         const taxAmount = inv.tax_amount || 0;
@@ -36,9 +42,26 @@ export default function TaxesReport() {
       });
       setGstData(Object.values(monthlyTotals));
 
-      const tcsDetails = (invoices || []).filter((inv: any) => (inv.total_amount || 0) >= 50000).map((inv: any) => ({
-        id: inv.id, date: inv.invoice_date, party: inv.parties?.name || 'Unknown', invoice: inv.invoice_number, amount: inv.total_amount || 0, tcsRate: 0.1, tcsAmount: ((inv.total_amount || 0) * 0.1) / 100,
-      }));
+      // TCS from both sale and purchase invoices
+      const tcsDetails: TCSDetail[] = [];
+      
+      (saleInvoices || []).filter((inv: any) => (inv.tcs_amount || 0) > 0).forEach((inv: any) => {
+        tcsDetails.push({
+          id: inv.id, date: inv.invoice_date, party: inv.parties?.name || 'Unknown', 
+          invoice: inv.invoice_number, amount: inv.total_amount || 0, 
+          tcsAmount: inv.tcs_amount || 0, type: 'sale'
+        });
+      });
+
+      (purchaseInvoices || []).filter((inv: any) => (inv.tcs_amount || 0) > 0).forEach((inv: any) => {
+        tcsDetails.push({
+          id: inv.id, date: inv.invoice_date, party: inv.parties?.name || 'Unknown',
+          invoice: inv.invoice_number, amount: inv.total_amount || 0,
+          tcsAmount: inv.tcs_amount || 0, type: 'purchase'
+        });
+      });
+
+      tcsDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setTcsData(tcsDetails);
     } catch (error) { console.error('Error fetching tax data:', error); } finally { setLoading(false); }
   };
@@ -77,9 +100,9 @@ export default function TaxesReport() {
         </TabsContent>
         <TabsContent value="tcs">
           <div className="metric-card overflow-hidden p-0">
-            <table className="data-table"><thead><tr><th>Date</th><th>Party</th><th>Invoice</th><th className="text-right">Invoice Amount</th><th className="text-center">TCS Rate</th><th className="text-right">TCS Amount</th></tr></thead>
-              <tbody>{tcsData.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No TCS data found</td></tr> : tcsData.map((tcs) => (<tr key={tcs.id}><td className="text-muted-foreground">{format(new Date(tcs.date), 'dd MMM yyyy')}</td><td className="font-medium">{tcs.party}</td><td>{tcs.invoice}</td><td className="text-right">₹{tcs.amount.toLocaleString()}</td><td className="text-center">{tcs.tcsRate}%</td><td className="text-right font-medium text-warning">₹{tcs.tcsAmount.toLocaleString()}</td></tr>))}</tbody>
-              {tcsData.length > 0 && <tfoot><tr className="bg-muted/50 font-semibold"><td colSpan={5}>Total TCS Collected</td><td className="text-right text-warning">₹{totalTCS.toLocaleString()}</td></tr></tfoot>}
+            <table className="data-table"><thead><tr><th>Date</th><th>Type</th><th>Party</th><th>Invoice</th><th className="text-right">Invoice Amount</th><th className="text-right">TCS Amount</th></tr></thead>
+              <tbody>{tcsData.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No TCS data found</td></tr> : tcsData.map((tcs) => (<tr key={tcs.id}><td className="text-muted-foreground">{format(new Date(tcs.date), 'dd MMM yyyy')}</td><td><span className={`px-2 py-1 text-xs font-medium rounded-full ${tcs.type === 'sale' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>{tcs.type === 'sale' ? 'Sale' : 'Purchase'}</span></td><td className="font-medium">{tcs.party}</td><td>{tcs.invoice}</td><td className="text-right">₹{tcs.amount.toLocaleString()}</td><td className="text-right font-medium text-warning">₹{tcs.tcsAmount.toLocaleString()}</td></tr>))}</tbody>
+              {tcsData.length > 0 && <tfoot><tr className="bg-muted/50 font-semibold"><td colSpan={5}>Total TCS</td><td className="text-right text-warning">₹{totalTCS.toLocaleString()}</td></tr></tfoot>}
             </table>
           </div>
         </TabsContent>

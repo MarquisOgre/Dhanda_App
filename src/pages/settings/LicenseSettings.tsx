@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Shield, Phone, Mail, MessageCircle, Save, AlertTriangle } from "lucide-react";
+import { Calendar, Shield, Phone, Mail, MessageCircle, Save, AlertTriangle, Users, UserCheck } from "lucide-react";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,6 +19,8 @@ export function LicenseSettings() {
     support_email: "",
     support_phone: "",
     support_whatsapp: "",
+    max_users: 5,
+    max_simultaneous_logins: 3,
   });
 
   useEffect(() => {
@@ -30,6 +32,8 @@ export function LicenseSettings() {
         support_email: licenseSettings.support_email || "",
         support_phone: licenseSettings.support_phone || "",
         support_whatsapp: licenseSettings.support_whatsapp || "",
+        max_users: (licenseSettings as any).max_users || 5,
+        max_simultaneous_logins: (licenseSettings as any).max_simultaneous_logins || 3,
       });
     }
   }, [licenseSettings]);
@@ -165,9 +169,39 @@ export function LicenseSettings() {
                   onChange={(e) => setFormData({ ...formData, support_whatsapp: e.target.value })}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="max_users" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Maximum Users Allowed
+                </Label>
+                <Input
+                  id="max_users"
+                  type="number"
+                  min="1"
+                  value={formData.max_users}
+                  onChange={(e) => setFormData({ ...formData, max_users: parseInt(e.target.value) || 1 })}
+                />
+                <p className="text-xs text-muted-foreground">Total number of users that can be created for this license</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="max_simultaneous_logins" className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4" />
+                  Simultaneous Logins
+                </Label>
+                <Input
+                  id="max_simultaneous_logins"
+                  type="number"
+                  min="1"
+                  value={formData.max_simultaneous_logins}
+                  onChange={(e) => setFormData({ ...formData, max_simultaneous_logins: parseInt(e.target.value) || 1 })}
+                />
+                <p className="text-xs text-muted-foreground">Maximum number of users that can be logged in at the same time</p>
+              </div>
             </div>
 
-            <Button 
+            <Button
               onClick={handleSave} 
               className="btn-gradient"
               disabled={updateLicenseSettings.isPending}
