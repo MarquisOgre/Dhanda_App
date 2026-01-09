@@ -83,33 +83,6 @@ export function useSessionTracking(userId: string | undefined) {
     }
   }, [userId]);
 
-      // Generate new session ID
-      const sessionId = generateSessionId();
-      sessionIdRef.current = sessionId;
-      sessionStorage.setItem(SESSION_ID_KEY, sessionId);
-
-      // Register the session
-      const { error } = await supabase
-        .from("active_sessions")
-        .insert({
-          user_id: userId,
-          session_id: sessionId,
-          device_info: getDeviceInfo(),
-          last_activity: new Date().toISOString(),
-        });
-
-      if (error) {
-        console.error("Error registering session:", error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error("Session registration error:", error);
-      return { success: false, error: error.message };
-    }
-  }, [userId]);
-
   const updateHeartbeat = useCallback(async () => {
     const sessionId = sessionIdRef.current || sessionStorage.getItem(SESSION_ID_KEY);
     if (!sessionId || !userId) return;

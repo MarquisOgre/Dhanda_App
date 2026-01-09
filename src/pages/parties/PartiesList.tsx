@@ -252,6 +252,35 @@ export default function PartiesList() {
         </Button>
       </div>
 
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="metric-card">
+          <div className="text-sm text-muted-foreground">Total Receivable</div>
+          <div className="mt-2 text-2xl font-bold text-success">
+            ₹{Math.abs(totals.customer.netDue).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">Customers</div>
+        </div>
+
+        <div className="metric-card">
+          <div className="text-sm text-muted-foreground">Total Payable</div>
+          <div className="mt-2 text-2xl font-bold text-destructive">
+            ₹{Math.abs(totals.supplier.netDue).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">Suppliers</div>
+        </div>
+
+        <div className="metric-card">
+          <div className="text-sm text-muted-foreground">
+            {totals.netBalance >= 0 ? "Net Receivable" : "Net Payable"}
+          </div>
+          <div className={cn("mt-2 text-2xl font-bold", totals.netBalance >= 0 ? "text-success" : "text-destructive")}>
+            ₹{Math.abs(totals.netBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">Overall</div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
