@@ -22,9 +22,17 @@ function getDeviceInfo(): string {
 export function useSessionTracking(userId: string | undefined) {
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const registeredRef = useRef<boolean>(false);
 
   const registerSession = useCallback(async () => {
     if (!userId) return { success: false, error: "No user" };
+
+    // Check if we already have a registered session for this browser tab
+    const existingSessionId = sessionStorage.getItem(SESSION_ID_KEY);
+    if (existingSessionId && registeredRef.current) {
+      // Already registered in this tab, just update heartbeat
+      return { success: true };
+    }
 
     try {
       // Get license settings for max simultaneous logins
@@ -43,6 +51,28 @@ export function useSessionTracking(userId: string | undefined) {
         .delete()
         .eq("user_id", userId)
         .lt("last_activity", fiveMinutesAgo);
+
+      // If we have an existing session ID from this tab, check if it still exists
+      if (existingSessionId) {
+        const { data: existingSession } = await supabase
+          .from("active_sessions")
+          .select("id")
+          .eq("session_id", existingSessionId)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (existingSession) {
+          // Session still exists, just mark as registered and update heartbeat
+          sessionIdRef.current = existingSessionId;
+          registeredRef.current = true;
+          await supabase
+            .from("active_sessions")
+            .update({ last_activity: new Date().toISOString() })
+            .eq("session_id", existingSessionId)
+            .eq("user_id", userId);
+          return { success: true };
+        }
+      }
 
       // Count current active sessions for this user
       const { count } = await supabase
@@ -76,6 +106,7 @@ export function useSessionTracking(userId: string | undefined) {
         return { success: false, error: error.message };
       }
 
+      registeredRef.current = true;
       return { success: true };
     } catch (error: any) {
       console.error("Session registration error:", error);
