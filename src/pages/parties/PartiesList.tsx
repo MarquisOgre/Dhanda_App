@@ -188,9 +188,33 @@ export default function PartiesList() {
     return matchesSearch && matchesFilter;
   });
 
-  // Calculate totals
+  // Calculate totals - separate for suppliers (payable) and customers (receivable)
   const totals = useMemo(() => {
-    return filteredParties.reduce(
+    const supplierTotals = filteredParties
+      .filter(p => p.party_type === "supplier")
+      .reduce(
+        (acc, party) => ({
+          openingBalance: acc.openingBalance + (party.opening_balance || 0),
+          invoiceAmount: acc.invoiceAmount + (party.invoiceAmount || 0),
+          paymentsAmount: acc.paymentsAmount + (party.paymentsAmount || 0),
+          netDue: acc.netDue + (party.netDue || 0),
+        }),
+        { openingBalance: 0, invoiceAmount: 0, paymentsAmount: 0, netDue: 0 }
+      );
+
+    const customerTotals = filteredParties
+      .filter(p => p.party_type === "customer" || !p.party_type)
+      .reduce(
+        (acc, party) => ({
+          openingBalance: acc.openingBalance + (party.opening_balance || 0),
+          invoiceAmount: acc.invoiceAmount + (party.invoiceAmount || 0),
+          paymentsAmount: acc.paymentsAmount + (party.paymentsAmount || 0),
+          netDue: acc.netDue + (party.netDue || 0),
+        }),
+        { openingBalance: 0, invoiceAmount: 0, paymentsAmount: 0, netDue: 0 }
+      );
+
+    const allTotals = filteredParties.reduce(
       (acc, party) => ({
         openingBalance: acc.openingBalance + (party.opening_balance || 0),
         invoiceAmount: acc.invoiceAmount + (party.invoiceAmount || 0),
@@ -199,6 +223,17 @@ export default function PartiesList() {
       }),
       { openingBalance: 0, invoiceAmount: 0, paymentsAmount: 0, netDue: 0 }
     );
+
+    // Supplier is Payable (Red), Customer is Receivable (Green)
+    // Net = Customer Receivable - Supplier Payable
+    const netBalance = customerTotals.netDue - supplierTotals.netDue;
+
+    return {
+      all: allTotals,
+      supplier: supplierTotals,
+      customer: customerTotals,
+      netBalance, // Positive = Net Receivable, Negative = Net Payable
+    };
   }, [filteredParties]);
 
   return (
@@ -355,25 +390,50 @@ export default function PartiesList() {
               ))}
             </TableBody>
             <TableFooter>
-              <TableRow className="bg-muted/50 font-semibold">
-                <TableCell colSpan={3}>Total</TableCell>
-                <TableCell className="text-right">
-                  ₹{totals.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              {/* Supplier Totals - Payable (Red) */}
+              <TableRow className="bg-red-50 dark:bg-red-950/20">
+                <TableCell colSpan={3} className="font-semibold text-destructive">Supplier (Payable)</TableCell>
+                <TableCell className="text-right text-destructive">
+                  ₹{totals.supplier.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </TableCell>
-                <TableCell className="text-right">
-                  ₹{totals.invoiceAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                <TableCell className="text-right text-destructive">
+                  ₹{totals.supplier.invoiceAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className="text-right text-destructive">
+                  ₹{totals.supplier.paymentsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className="text-right font-bold text-destructive">
+                  ₹{totals.supplier.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+              {/* Customer Totals - Receivable (Green) */}
+              <TableRow className="bg-green-50 dark:bg-green-950/20">
+                <TableCell colSpan={3} className="font-semibold text-success">Customer (Receivable)</TableCell>
+                <TableCell className="text-right text-success">
+                  ₹{totals.customer.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell className="text-right text-success">
-                  ₹{totals.paymentsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{totals.customer.invoiceAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className="text-right text-success">
+                  ₹{totals.customer.paymentsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className="text-right font-bold text-success">
+                  ₹{totals.customer.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+              {/* Net Balance Row */}
+              <TableRow className="bg-muted font-bold">
+                <TableCell colSpan={6} className="text-right text-lg">
+                  {totals.netBalance >= 0 ? "Net Receivable" : "Net Payable"}
                 </TableCell>
                 <TableCell className={cn(
-                  "text-right font-bold",
-                  totals.netDue > 0 ? "text-destructive" : totals.netDue < 0 ? "text-success" : ""
+                  "text-right text-lg",
+                  totals.netBalance >= 0 ? "text-success" : "text-destructive"
                 )}>
-                  ₹{totals.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  <div className="text-xs font-normal">
-                    {totals.netDue > 0 ? "Net Receivable" : totals.netDue < 0 ? "Net Payable" : "Settled"}
-                  </div>
+                  ₹{Math.abs(totals.netBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell></TableCell>
               </TableRow>
