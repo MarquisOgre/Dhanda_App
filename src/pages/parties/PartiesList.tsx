@@ -257,16 +257,16 @@ export default function PartiesList() {
                     ₹{(party.opening_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="text-right">
-                    ₹{party.purchasedAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{(party.purchasedAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="text-right text-success">
-                    ₹{party.paymentsOut.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{(party.paymentsOut || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className={cn(
                     "text-right font-semibold",
-                    party.netDue > 0 ? "text-destructive" : party.netDue < 0 ? "text-success" : ""
+                    (party.netDue || 0) > 0 ? "text-destructive" : (party.netDue || 0) < 0 ? "text-success" : ""
                   )}>
-                    ₹{party.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{(party.netDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
