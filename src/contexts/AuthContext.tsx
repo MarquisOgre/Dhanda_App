@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { useSessionTracking } from '@/hooks/useSessionTracking';
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { useSessionTracking } from "@/hooks/useSessionTracking";
 
-type AppRole = 'admin' | 'supervisor' | 'viewer';
+type AppRole = "admin" | "supervisor" | "viewer";
 
 interface AuthContextType {
   user: User | null;
@@ -12,7 +12,11 @@ interface AuthContextType {
   loading: boolean;
   sessionError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   canWrite: boolean;
   isAdmin: boolean;
@@ -27,68 +31,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
-  const { registerSession, removeSession } = useSessionTracking(user?.id);
+  // IMPORTANT: session tracking must run only when an authenticated session exists
+  // to avoid RLS errors caused by missing auth context.
+  const { registerSession, removeSession } = useSessionTracking(session?.user?.id);
 
   const fetchUserRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching user role:', error);
+        console.error("Error fetching user role:", error);
         return null;
       }
-      return data?.role as AppRole | null;
+      return (data?.role as AppRole | null) ?? null;
     } catch (error) {
-      console.error('Error fetching user role:', error);
+      console.error("Error fetching user role:", error);
       return null;
     }
   };
 
   // Register session after successful login
   const handleSessionRegistration = useCallback(async () => {
-    if (!user) return;
-    
+    if (!session?.user) return;
+
     const result = await registerSession();
+
     if (!result.success && result.error !== "No user") {
       setSessionError(result.error || "Session limit reached");
-      // Sign out the user if session limit is reached
-      await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      setRole(null);
+
+      // Only force sign-out if it's clearly a session-limit issue.
+      // For transient/permission errors (e.g., RLS), keep the user logged in
+      // and show the error instead of causing a logout loop.
+      const isLimitError = (result.error || "").toLowerCase().includes("maximum");
+      if (isLimitError) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        setRole(null);
+      }
     } else {
       setSessionError(null);
     }
-  }, [user, registerSession]);
+  }, [session, registerSession]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer role fetching
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id).then(setRole);
-          }, 0);
-        } else {
-          setRole(null);
-        }
-        setLoading(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      // Defer role fetching
+      if (session?.user) {
+        setTimeout(() => {
+          fetchUserRole(session.user.id).then(setRole);
+        }, 0);
+      } else {
+        setRole(null);
       }
-    );
+      setLoading(false);
+    });
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchUserRole(session.user.id).then(setRole);
       }
@@ -100,10 +113,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Register session when user logs in
   useEffect(() => {
-    if (user && !loading) {
+    if (session?.user && !loading) {
       handleSessionRegistration();
     }
-  }, [user, loading, handleSessionRegistration]);
+  }, [session, loading, handleSessionRegistration]);
 
   const signIn = async (email: string, password: string) => {
     setSessionError(null);
@@ -116,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -139,22 +152,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionError(null);
   };
 
-  const canWrite = role === 'admin' || role === 'supervisor';
-  const isAdmin = role === 'admin';
+  const canWrite = role === "admin" || role === "supervisor";
+  const isAdmin = role === "admin";
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      role,
-      loading,
-      sessionError,
-      signIn,
-      signUp,
-      signOut,
-      canWrite,
-      isAdmin,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        role,
+        loading,
+        sessionError,
+        signIn,
+        signUp,
+        signOut,
+        canWrite,
+        isAdmin,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -163,7 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
+

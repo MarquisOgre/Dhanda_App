@@ -390,50 +390,85 @@ export default function PartiesList() {
               ))}
             </TableBody>
             <TableFooter>
-              {/* Supplier Totals - Payable (Red) */}
-              <TableRow className="bg-red-50 dark:bg-red-950/20">
-                <TableCell colSpan={3} className="font-semibold text-destructive">Supplier (Payable)</TableCell>
-                <TableCell className="text-right text-destructive">
-                  ₹{totals.supplier.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              {/* Supplier Totals - Payable */}
+              <TableRow className="bg-destructive/5">
+                <TableCell colSpan={3} className="font-semibold text-destructive">
+                  Supplier (Payable)
                 </TableCell>
                 <TableCell className="text-right text-destructive">
-                  ₹{totals.supplier.invoiceAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹
+                  {totals.supplier.openingBalance.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                 </TableCell>
                 <TableCell className="text-right text-destructive">
-                  ₹{totals.supplier.paymentsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹
+                  {totals.supplier.invoiceAmount.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </TableCell>
+                <TableCell className="text-right text-destructive">
+                  ₹
+                  {totals.supplier.paymentsAmount.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                 </TableCell>
                 <TableCell className="text-right font-bold text-destructive">
-                  ₹{totals.supplier.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹
+                  {totals.supplier.netDue.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                 </TableCell>
                 <TableCell></TableCell>
               </TableRow>
-              {/* Customer Totals - Receivable (Green) */}
-              <TableRow className="bg-green-50 dark:bg-green-950/20">
-                <TableCell colSpan={3} className="font-semibold text-success">Customer (Receivable)</TableCell>
-                <TableCell className="text-right text-success">
-                  ₹{totals.customer.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+
+              {/* Customer Totals - Receivable */}
+              <TableRow className="bg-success/5">
+                <TableCell colSpan={3} className="font-semibold text-success">
+                  Customer (Receivable)
                 </TableCell>
                 <TableCell className="text-right text-success">
-                  ₹{totals.customer.invoiceAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹
+                  {totals.customer.openingBalance.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                 </TableCell>
                 <TableCell className="text-right text-success">
-                  ₹{totals.customer.paymentsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹
+                  {totals.customer.invoiceAmount.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </TableCell>
+                <TableCell className="text-right text-success">
+                  ₹
+                  {totals.customer.paymentsAmount.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                 </TableCell>
                 <TableCell className="text-right font-bold text-success">
-                  ₹{totals.customer.netDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹
+                  {totals.customer.netDue.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                 </TableCell>
                 <TableCell></TableCell>
               </TableRow>
+
               {/* Net Balance Row */}
               <TableRow className="bg-muted font-bold">
                 <TableCell colSpan={6} className="text-right text-lg">
                   {totals.netBalance >= 0 ? "Net Receivable" : "Net Payable"}
                 </TableCell>
-                <TableCell className={cn(
-                  "text-right text-lg",
-                  totals.netBalance >= 0 ? "text-success" : "text-destructive"
-                )}>
-                  ₹{Math.abs(totals.netBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                <TableCell
+                  className={cn(
+                    "text-right text-lg",
+                    totals.netBalance >= 0 ? "text-success" : "text-destructive"
+                  )}
+                >
+                  ₹
+                  {Math.abs(totals.netBalance).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                 </TableCell>
                 <TableCell></TableCell>
               </TableRow>
