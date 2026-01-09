@@ -395,6 +395,8 @@ export type Database = {
           id: string
           license_type: string
           licensed_to: string | null
+          max_simultaneous_logins: number | null
+          max_users: number | null
           support_email: string | null
           support_phone: string | null
           support_whatsapp: string | null
@@ -406,6 +408,8 @@ export type Database = {
           id?: string
           license_type?: string
           licensed_to?: string | null
+          max_simultaneous_logins?: number | null
+          max_users?: number | null
           support_email?: string | null
           support_phone?: string | null
           support_whatsapp?: string | null
@@ -417,6 +421,8 @@ export type Database = {
           id?: string
           license_type?: string
           licensed_to?: string | null
+          max_simultaneous_logins?: number | null
+          max_users?: number | null
           support_email?: string | null
           support_phone?: string | null
           support_whatsapp?: string | null
@@ -689,6 +695,7 @@ export type Database = {
           status: string | null
           subtotal: number | null
           tax_amount: number | null
+          tcs_amount: number | null
           terms: string | null
           total_amount: number | null
           updated_at: string
@@ -711,6 +718,7 @@ export type Database = {
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
+          tcs_amount?: number | null
           terms?: string | null
           total_amount?: number | null
           updated_at?: string
@@ -733,6 +741,7 @@ export type Database = {
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
+          tcs_amount?: number | null
           terms?: string | null
           total_amount?: number | null
           updated_at?: string
@@ -832,6 +841,7 @@ export type Database = {
           status: string | null
           subtotal: number | null
           tax_amount: number | null
+          tcs_amount: number | null
           terms: string | null
           total_amount: number | null
           updated_at: string
@@ -854,6 +864,7 @@ export type Database = {
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
+          tcs_amount?: number | null
           terms?: string | null
           total_amount?: number | null
           updated_at?: string
@@ -876,6 +887,7 @@ export type Database = {
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
+          tcs_amount?: number | null
           terms?: string | null
           total_amount?: number | null
           updated_at?: string

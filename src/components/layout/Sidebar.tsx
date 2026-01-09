@@ -59,11 +59,6 @@ const navItems: NavItem[] = [
       { title: "Categories", href: "/items/categories" },
     ],
   },
-    {
-    title: "Stock Register",
-    href: "/items/stock-register",
-    icon: <FolderOpen className="w-5 h-5" />,
-  },
   {
     title: "Sales",
     icon: <ShoppingCart className="w-5 h-5" />,
@@ -99,10 +94,8 @@ const navItems: NavItem[] = [
       { title: "Profit & Loss", href: "/reports/pnl" },
       { title: "Bill Wise P&L", href: "/reports/bill-wise-pnl" },
       { title: "Balance Sheet", href: "/reports/balance-sheet" },
-      { title: "Stock Summary", href: "/reports/stock-summary" },
+      { title: "Stock Report", href: "/reports/stock" },
       { title: "Item Wise P&L", href: "/reports/item-wise-pnl" },
-      { title: "Stock Detail", href: "/reports/stock-detail" },
-      { title: "Item Detail", href: "/reports/item-detail" },
       { title: "Taxes - TCS", href: "/reports/taxes" },
       { title: "Expense Report", href: "/reports/expense" },
     ],
