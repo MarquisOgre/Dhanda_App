@@ -20,14 +20,11 @@ export default function ProfitLoss() {
   const fetchProfitLossData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
 
       // Get sales revenue from sale_invoices within date range
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
         .select('total_amount, subtotal, invoice_date')
-        .eq('user_id', user.id)
         .eq('is_deleted', false)
         .gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
@@ -39,7 +36,6 @@ export default function ProfitLoss() {
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
         .select('total_amount, invoice_date')
-        .eq('user_id', user.id)
         .eq('is_deleted', false)
         .gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
@@ -50,7 +46,6 @@ export default function ProfitLoss() {
       const { data: expenses } = await supabase
         .from('expenses')
         .select('category, amount, expense_date')
-        .eq('user_id', user.id)
         .gte('expense_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('expense_date', format(dateRange.to, 'yyyy-MM-dd'));
 

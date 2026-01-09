@@ -20,13 +20,11 @@ export default function ItemWisePnL() {
 
   const fetchItemPnL = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
       const { data: saleInvoiceItems } = await supabase.from('sale_invoice_items').select(`item_name, quantity, rate, total, sale_invoice_id`);
-      const { data: saleInvoices } = await supabase.from('sale_invoices').select('id, user_id, invoice_type').eq('user_id', user.id).in('invoice_type', ['sale', 'sale_invoice']);
+      const { data: saleInvoices } = await supabase.from('sale_invoices').select('id, invoice_type').in('invoice_type', ['sale', 'sale_invoice']);
       const userInvoiceIds = new Set(saleInvoices?.map(inv => inv.id) || []);
       const salesItems = (saleInvoiceItems || []).filter((item: any) => userInvoiceIds.has(item.sale_invoice_id));
-      const { data: items } = await supabase.from('items').select('name, purchase_price').eq('user_id', user.id);
+      const { data: items } = await supabase.from('items').select('name, purchase_price');
       const itemPrices: { [key: string]: number } = {};
       (items || []).forEach(item => { itemPrices[item.name] = item.purchase_price || 0; });
       const itemAggregates: { [key: string]: { sold: number; revenue: number; cost: number } } = {};

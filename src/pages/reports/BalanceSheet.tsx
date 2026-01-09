@@ -23,14 +23,11 @@ export default function BalanceSheet() {
   const fetchBalanceSheetData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
 
       // Get cash transactions up to the end date
       const { data: cashTxns } = await supabase
         .from('cash_transactions')
         .select('amount, transaction_type, transaction_date')
-        .eq('user_id', user.id)
         .lte('transaction_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       let cash = 0;
@@ -46,8 +43,7 @@ export default function BalanceSheet() {
       // Get bank accounts balance
       const { data: bankAccounts } = await supabase
         .from('bank_accounts')
-        .select('current_balance')
-        .eq('user_id', user.id);
+        .select('current_balance');
 
       const bankTotal = (bankAccounts || []).reduce((sum, acc) => sum + (acc.current_balance || 0), 0);
       setBankBalance(bankTotal);
@@ -56,7 +52,6 @@ export default function BalanceSheet() {
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
         .select('balance_due, invoice_date')
-        .eq('user_id', user.id)
         .eq('is_deleted', false)
         .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
 
@@ -67,7 +62,6 @@ export default function BalanceSheet() {
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
         .select('balance_due, invoice_date')
-        .eq('user_id', user.id)
         .eq('is_deleted', false)
         .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
 
@@ -78,7 +72,6 @@ export default function BalanceSheet() {
       const { data: items } = await supabase
         .from('items')
         .select('current_stock, purchase_price')
-        .eq('user_id', user.id)
         .eq('is_deleted', false);
 
       const inventoryValue = (items || []).reduce((sum, item) => 

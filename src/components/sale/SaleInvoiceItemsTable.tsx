@@ -63,6 +63,7 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
   }, [user]);
 
   const fetchItems = async () => {
+    // Fetch items with current_stock which already includes opening_stock + purchases - sales
     const { data } = await supabase
       .from("items")
       .select("id, name, hsn_code, sale_price, current_stock, unit, tax_rate")

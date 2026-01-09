@@ -42,16 +42,12 @@ export default function StockDetail() {
 
   const fetchStockMovements = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const movements: StockMovement[] = [];
 
       // Fetch all items with opening stock
       const { data: items } = await supabase
         .from('items')
         .select('id, name, opening_stock')
-        .eq('user_id', user.id)
         .eq('is_deleted', false);
 
       const openingStocks: ItemOpeningStock = {};
@@ -62,8 +58,7 @@ export default function StockDetail() {
 
       const { data: saleInvoices } = await supabase
         .from('sale_invoices')
-        .select('id, invoice_number, invoice_date, user_id')
-        .eq('user_id', user.id)
+        .select('id, invoice_number, invoice_date')
         .eq('is_deleted', false)
         .order('invoice_date', { ascending: false });
 
@@ -94,8 +89,7 @@ export default function StockDetail() {
 
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
-        .select('id, invoice_number, invoice_date, user_id')
-        .eq('user_id', user.id)
+        .select('id, invoice_number, invoice_date')
         .eq('is_deleted', false)
         .order('invoice_date', { ascending: false });
 

@@ -20,11 +20,9 @@ export default function TaxesReport() {
   const fetchTaxData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
 
       const { data: invoices } = await supabase.from('sale_invoices').select(`id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, party_id, parties (name)`)
-        .eq('user_id', user.id).eq('is_deleted', false).gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd')).lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd')).order('invoice_date', { ascending: false });
+        .eq('is_deleted', false).gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd')).lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd')).order('invoice_date', { ascending: false });
 
       const monthlyTotals: { [key: string]: TaxSummary } = {};
       (invoices || []).forEach((inv: any) => {

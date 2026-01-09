@@ -30,9 +30,6 @@ export default function BillWisePnL() {
 
   const fetchBillData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data: invoices, error } = await supabase
         .from('sale_invoices')
         .select(`
@@ -44,7 +41,6 @@ export default function BillWisePnL() {
           party_id,
           parties (name)
         `)
-        .eq('user_id', user.id)
         .eq('is_deleted', false)
         .order('invoice_date', { ascending: false });
 
