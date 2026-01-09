@@ -20,9 +20,7 @@ export default function ExpenseReport() {
 
   const fetchExpenseData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: expenses } = await supabase.from('expenses').select('*').eq('user_id', user.id).order('expense_date', { ascending: false });
+      const { data: expenses } = await supabase.from('expenses').select('*').order('expense_date', { ascending: false });
       const formattedData = (expenses || []).map(exp => ({ id: exp.id, date: exp.expense_date, category: exp.category, description: exp.notes || exp.expense_number, amount: exp.amount }));
       setExpenseData(formattedData);
       setCategories([...new Set(formattedData.map(e => e.category))]);

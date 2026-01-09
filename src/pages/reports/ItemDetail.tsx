@@ -21,9 +21,7 @@ export default function ItemDetail() {
 
   const fetchItemsData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: items } = await supabase.from('items').select(`id, name, hsn_code, current_stock, purchase_price, sale_price, updated_at, category_id, categories (name)`).eq('user_id', user.id).eq('is_deleted', false).order('name');
+      const { data: items } = await supabase.from('items').select(`id, name, hsn_code, current_stock, purchase_price, sale_price, updated_at, category_id, categories (name)`).eq('is_deleted', false).order('name');
       const formattedData = (items || []).map(item => ({ id: item.id, name: item.name, hsn: item.hsn_code || '-', category: (item.categories as any)?.name || 'Uncategorized', stock: item.current_stock || 0, purchaseRate: item.purchase_price || 0, saleRate: item.sale_price || 0, updatedAt: item.updated_at }));
       setItemsData(formattedData);
       const uniqueCategories = [...new Set(formattedData.map(i => i.category))];
