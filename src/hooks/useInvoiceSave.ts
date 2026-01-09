@@ -122,6 +122,7 @@ export function useInvoiceSave() {
           subtotal,
           tax_amount: taxAmount,
           discount_amount: discountAmount,
+          tcs_amount: tcsAmount,
           total_amount: totalAmount,
           balance_due: totalAmount,
           notes: notes || null,
