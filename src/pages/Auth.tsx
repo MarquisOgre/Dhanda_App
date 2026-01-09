@@ -16,7 +16,7 @@ const passwordSchema = z.string().min(6, "Password must be at least 6 characters
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn, loading } = useAuth();
+  const { user, signIn, loading, sessionError } = useAuth();
   const { resolvedTheme } = useTheme();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,10 +31,17 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState("");
 
   useEffect(() => {
-    if (user) {
+    if (user && !sessionError) {
       navigate("/");
     }
-  }, [user, navigate]);
+  }, [user, navigate, sessionError]);
+
+  // Show session error toast
+  useEffect(() => {
+    if (sessionError) {
+      toast.error(sessionError);
+    }
+  }, [sessionError]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +66,7 @@ export default function Auth() {
       } else {
         toast.error(error.message);
       }
-    } else {
+    } else if (!sessionError) {
       toast.success("Welcome back!");
       navigate("/");
     }

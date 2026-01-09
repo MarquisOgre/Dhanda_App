@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useSessionTracking } from '@/hooks/useSessionTracking';
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
 
@@ -9,6 +10,7 @@ interface AuthContextType {
   session: Session | null;
   role: AppRole | null;
   loading: boolean;
+  sessionError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -23,6 +25,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  const { registerSession, removeSession } = useSessionTracking(user?.id);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -42,6 +47,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   };
+
+  // Register session after successful login
+  const handleSessionRegistration = useCallback(async () => {
+    if (!user) return;
+    
+    const result = await registerSession();
+    if (!result.success && result.error !== "No user") {
+      setSessionError(result.error || "Session limit reached");
+      // Sign out the user if session limit is reached
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      setRole(null);
+    } else {
+      setSessionError(null);
+    }
+  }, [user, registerSession]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -76,7 +98,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Register session when user logs in
+  useEffect(() => {
+    if (user && !loading) {
+      handleSessionRegistration();
+    }
+  }, [user, loading, handleSessionRegistration]);
+
   const signIn = async (email: string, password: string) => {
+    setSessionError(null);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -101,10 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    await removeSession();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
     setRole(null);
+    setSessionError(null);
   };
 
   const canWrite = role === 'admin' || role === 'supervisor';
@@ -116,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       role,
       loading,
+      sessionError,
       signIn,
       signUp,
       signOut,

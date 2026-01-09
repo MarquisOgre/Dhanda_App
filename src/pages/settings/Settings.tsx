@@ -76,6 +76,7 @@ import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { LicenseSettings } from "./LicenseSettings";
+import { checkMaxUsers } from "@/hooks/useSessionTracking";
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
 
@@ -546,6 +547,14 @@ export default function Settings() {
 
     setAddingUser(true);
     try {
+      // Check max users limit before adding
+      const { allowed, error: limitError } = await checkMaxUsers();
+      if (!allowed) {
+        toast.error(limitError || 'User limit reached');
+        setAddingUser(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: newUserEmail.trim(),
         password: newUserPassword,
