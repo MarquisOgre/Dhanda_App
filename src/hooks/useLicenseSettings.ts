@@ -10,6 +10,8 @@ export interface LicenseSettings {
   support_email: string | null;
   support_phone: string | null;
   support_whatsapp: string | null;
+  max_users: number | null;
+  max_simultaneous_logins: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -17,7 +19,7 @@ export interface LicenseSettings {
 export function useLicenseSettings() {
   const queryClient = useQueryClient();
 
-  const { data: licenseSettings, isLoading } = useQuery({
+  const { data: licenseSettings, isLoading, refetch } = useQuery({
     queryKey: ["license-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -32,6 +34,7 @@ export function useLicenseSettings() {
       }
       return data as LicenseSettings;
     },
+    staleTime: 0, // Always fetch fresh data
   });
 
   const updateLicenseSettings = useMutation({
@@ -45,8 +48,10 @@ export function useLicenseSettings() {
 
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["license-settings"] });
+    onSuccess: async () => {
+      // Force refetch to get fresh data
+      await queryClient.invalidateQueries({ queryKey: ["license-settings"] });
+      await refetch();
       toast.success("License settings updated successfully");
     },
     onError: (error) => {
@@ -84,5 +89,6 @@ export function useLicenseSettings() {
     isLicenseValid,
     getDaysRemaining,
     formatExpiryDate,
+    refetch,
   };
 }
