@@ -391,7 +391,11 @@ export default function PartiesList() {
                   </TableCell>
                   <TableCell className={cn(
                     "text-right font-semibold",
-                    (party.netDue || 0) > 0 ? "text-destructive" : (party.netDue || 0) < 0 ? "text-success" : ""
+                    // For customers: positive net due = receivable = green
+                    // For suppliers: positive net due = payable = red
+                    party.party_type === "customer"
+                      ? (party.netDue || 0) > 0 ? "text-success" : (party.netDue || 0) < 0 ? "text-destructive" : ""
+                      : (party.netDue || 0) > 0 ? "text-destructive" : (party.netDue || 0) < 0 ? "text-success" : ""
                   )}>
                     ₹{(party.netDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
