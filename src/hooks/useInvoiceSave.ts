@@ -54,6 +54,14 @@ export function useInvoiceSave() {
       return null;
     }
 
+    // Validate that all items have quantity > 0
+    for (const item of validItems) {
+      if (item.quantity <= 0) {
+        toast.error(`Quantity must be greater than 0 for "${item.name || 'selected item'}"`);
+        return null;
+      }
+    }
+
     // Stock validation for sale invoices
     if (invoiceType === "sale_invoice") {
       for (const item of validItems) {

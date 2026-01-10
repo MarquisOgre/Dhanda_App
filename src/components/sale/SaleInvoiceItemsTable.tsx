@@ -89,15 +89,16 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
   };
 
   const addItem = () => {
+    const defaultUnit = unitOptions.length > 0 ? unitOptions[0].name : "Bottles";
     const newItem: InvoiceItem = {
       id: Date.now(),
       itemId: "",
       name: "",
       hsn: "",
-      quantity: 1,
+      quantity: 0,
       availableStock: 0,
       closingStock: 0,
-      unit: "pcs",
+      unit: defaultUnit,
       rate: 0,
       discount: 0,
       taxRate: defaultTaxRate,
@@ -119,10 +120,10 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
             updatedItem.hsn = selectedItem.hsn_code || "";
             updatedItem.rate = selectedItem.sale_price || 0;
             updatedItem.availableStock = selectedItem.current_stock || 0;
-            // Default closing stock = 0, so sale qty = available stock
-            updatedItem.closingStock = 0;
-            updatedItem.quantity = selectedItem.current_stock || 0;
-            updatedItem.unit = selectedItem.unit || "pcs";
+            // Default closing stock = available, so sale qty = 0 initially
+            updatedItem.closingStock = selectedItem.current_stock || 0;
+            updatedItem.quantity = 0;
+            updatedItem.unit = selectedItem.unit || "Bottles";
             // Always use the app default GST (from Settings) when creating invoices
             updatedItem.taxRate = defaultTaxRate;
           }
@@ -211,8 +212,9 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.closingStock}
+                    value={item.closingStock || ""}
                     onChange={(e) => updateItem(item.id, "closingStock", Number(e.target.value))}
+                    onFocus={(e) => e.target.value === "0" && (e.target.value = "")}
                     className="h-9 w-20"
                     min={0}
                     max={item.availableStock}
@@ -243,8 +245,9 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.rate}
+                    value={item.rate || ""}
                     onChange={(e) => updateItem(item.id, "rate", Number(e.target.value))}
+                    onFocus={(e) => e.target.value === "0" && (e.target.value = "")}
                     className="h-9 w-24"
                     min={0}
                   />
@@ -252,8 +255,9 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.discount}
+                    value={item.discount || ""}
                     onChange={(e) => updateItem(item.id, "discount", Number(e.target.value))}
+                    onFocus={(e) => e.target.value === "0" && (e.target.value = "")}
                     className="h-9 w-16"
                     min={0}
                     max={100}

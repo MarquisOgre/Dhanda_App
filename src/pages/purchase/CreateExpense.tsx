@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const expenseCategories = [
@@ -34,13 +34,42 @@ export default function CreateExpense() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   
-  const [expenseNumber, setExpenseNumber] = useState("EXP-026");
+  const [expenseNumber, setExpenseNumber] = useState("");
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split("T")[0]);
   const [category, setCategory] = useState("");
   const [paymentMode, setPaymentMode] = useState("");
   const [amount, setAmount] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      generateExpenseNumber();
+    }
+  }, [user]);
+
+  const generateExpenseNumber = async () => {
+    if (!user) return;
+    
+    // Get the last expense number
+    const { data } = await supabase
+      .from("expenses")
+      .select("expense_number")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    
+    let nextNumber = 1;
+    if (data && data.length > 0) {
+      const lastNumber = data[0].expense_number;
+      const match = lastNumber.match(/(\d+)$/);
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1;
+      }
+    }
+    
+    setExpenseNumber(`EXP-${nextNumber.toString().padStart(2, "0")}`);
+  };
 
   const handleSave = async () => {
     if (!user) {

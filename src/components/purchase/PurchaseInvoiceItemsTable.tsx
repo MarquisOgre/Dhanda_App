@@ -91,7 +91,7 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
       itemId: "",
       name: "",
       hsn: "",
-      quantity: 1,
+      quantity: 0,
       unit: defaultUnit,
       rate: 0,
       discount: 0,
@@ -113,7 +113,7 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
             updatedItem.name = selectedItem.name;
             updatedItem.hsn = selectedItem.hsn_code || "";
             updatedItem.rate = selectedItem.purchase_price || 0; // Use purchase_price
-            updatedItem.unit = selectedItem.unit || "pcs";
+            updatedItem.unit = selectedItem.unit || "Bottles";
             // Always use the app default GST (from Settings) when creating invoices
             updatedItem.taxRate = defaultTaxRate;
           }
@@ -188,10 +188,11 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.quantity}
+                    value={item.quantity || ""}
                     onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
+                    onFocus={(e) => e.target.value === "0" && (e.target.value = "")}
                     className="h-9 w-16"
-                    min={1}
+                    min={0}
                   />
                 </td>
                 <td className="py-2 px-2">
@@ -214,8 +215,9 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.rate}
+                    value={item.rate || ""}
                     onChange={(e) => updateItem(item.id, "rate", Number(e.target.value))}
+                    onFocus={(e) => e.target.value === "0" && (e.target.value = "")}
                     className="h-9 w-24"
                     min={0}
                   />
@@ -223,8 +225,9 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.discount}
+                    value={item.discount || ""}
                     onChange={(e) => updateItem(item.id, "discount", Number(e.target.value))}
+                    onFocus={(e) => e.target.value === "0" && (e.target.value = "")}
                     className="h-9 w-16"
                     min={0}
                     max={100}
