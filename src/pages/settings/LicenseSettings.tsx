@@ -42,6 +42,13 @@ export function LicenseSettings() {
     fetchPlans();
   }, []);
 
+  // Keep dropdown selection in sync with saved license type
+  useEffect(() => {
+    if (!plans.length || !licenseSettings?.license_type) return;
+    const matched = plans.find((p) => p.plan_name === licenseSettings.license_type);
+    setSelectedPlanId(matched?.id ?? "");
+  }, [plans, licenseSettings?.license_type]);
+
   useEffect(() => {
     if (licenseSettings) {
       setFormData({
@@ -75,20 +82,30 @@ export function LicenseSettings() {
 
   const handlePlanSelect = (planId: string) => {
     setSelectedPlanId(planId);
-    const plan = plans.find(p => p.id === planId);
-    if (plan) {
-      const newExpiryDate = addDays(new Date(), plan.duration_days);
-      setFormData(prev => ({
-        ...prev,
-        expiry_date: format(newExpiryDate, "yyyy-MM-dd"),
-        license_type: plan.plan_name,
-        licensed_to: businessSettings?.business_name || prev.licensed_to,
-      }));
-    }
+
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+
+    const newExpiryDate = addDays(new Date(), plan.duration_days);
+    const updates = {
+      expiry_date: format(newExpiryDate, "yyyy-MM-dd"),
+      license_type: plan.plan_name,
+      licensed_to: businessSettings?.business_name || formData.licensed_to,
+    };
+
+    // Update UI immediately
+    setFormData((prev) => ({ ...prev, ...updates }));
+
+    // Persist immediately so footer + status update without extra steps
+    updateLicenseSettings.mutate(updates);
   };
 
   const handleSave = () => {
-    updateLicenseSettings.mutate(formData);
+    updateLicenseSettings.mutate({
+      ...formData,
+      // ensure license is issued to business name if present
+      licensed_to: businessSettings?.business_name || formData.licensed_to,
+    });
   };
 
   const daysRemaining = getDaysRemaining();
@@ -202,8 +219,14 @@ export function LicenseSettings() {
                 <Input
                   id="licensed_to"
                   value={formData.licensed_to}
+                  disabled={!!businessSettings?.business_name}
                   onChange={(e) => setFormData({ ...formData, licensed_to: e.target.value })}
                 />
+                {businessSettings?.business_name && (
+                  <p className="text-xs text-muted-foreground">
+                    This license is issued to your Business Name.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
