@@ -56,20 +56,38 @@ export default function EditSaleInvoice() {
         .select("*")
         .eq("sale_invoice_id", id);
       
-      setItems((itemsData || []).map((item, index) => ({
-        id: Date.now() + index,
-        itemId: item.item_id || "",
-        name: item.item_name,
-        quantity: item.quantity,
-        rate: item.rate,
-        taxRate: item.tax_rate || 0,
-        discount: item.discount_percent || 0,
-        amount: item.total,
-        availableStock: 0,
-        closingStock: 0,
-        hsn: item.hsn_code || "",
-        unit: item.unit || "pcs",
-      })));
+      // Fetch current stock for all items to display available stock
+      const { data: allDbItems } = await supabase
+        .from("items")
+        .select("id, current_stock")
+        .eq("is_deleted", false);
+      
+      const stockMap: Record<string, number> = {};
+      allDbItems?.forEach(item => {
+        stockMap[item.id] = item.current_stock || 0;
+      });
+      
+      setItems((itemsData || []).map((item, index) => {
+        // Available stock = current stock + quantity sold (since the sale already deducted it)
+        const currentStock = item.item_id ? (stockMap[item.item_id] || 0) : 0;
+        const availableStock = currentStock + item.quantity;
+        const closingStock = availableStock - item.quantity;
+        
+        return {
+          id: Date.now() + index,
+          itemId: item.item_id || "",
+          name: item.item_name,
+          quantity: item.quantity,
+          rate: item.rate,
+          taxRate: item.tax_rate || 0,
+          discount: item.discount_percent || 0,
+          amount: item.total,
+          availableStock: availableStock,
+          closingStock: closingStock,
+          hsn: item.hsn_code || "",
+          unit: item.unit || "Bottles",
+        };
+      }));
     } catch (error: any) {
       toast.error("Failed to fetch invoice: " + error.message);
       navigate("/sale/invoices");

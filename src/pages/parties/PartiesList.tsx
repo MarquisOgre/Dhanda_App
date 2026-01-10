@@ -86,18 +86,20 @@ export default function PartiesList() {
       if (saleError) throw saleError;
 
       // Fetch payment out totals per party (for suppliers)
+      // Note: payment_type can be 'out' or 'payment_out' depending on how it was created
       const { data: paymentsOutData, error: paymentsOutError } = await supabase
         .from("payments")
-        .select("party_id, amount")
-        .eq("payment_type", "payment_out");
+        .select("party_id, amount, payment_type")
+        .or("payment_type.eq.payment_out,payment_type.eq.out");
 
       if (paymentsOutError) throw paymentsOutError;
 
       // Fetch payment in totals per party (for customers)
+      // Note: payment_type can be 'in' or 'payment_in' depending on how it was created
       const { data: paymentsInData, error: paymentsInError } = await supabase
         .from("payments")
-        .select("party_id, amount")
-        .eq("payment_type", "payment_in");
+        .select("party_id, amount, payment_type")
+        .or("payment_type.eq.payment_in,payment_type.eq.in");
 
       if (paymentsInError) throw paymentsInError;
 
