@@ -191,7 +191,7 @@ export function InvoicePreview({
                   <th className="text-left py-3 px-4 font-medium">HSN</th>
                   <th className="text-center py-3 px-4 font-medium">Qty</th>
                   <th className="text-right py-3 px-4 font-medium">Rate</th>
-                  <th className="text-right py-3 px-4 font-medium">Tax</th>
+                  <th className="text-right py-3 px-4 font-medium">Tax (GST)</th>
                   <th className="text-right py-3 px-4 font-medium">Amount</th>
                 </tr>
               </thead>

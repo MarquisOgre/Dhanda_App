@@ -182,10 +182,10 @@ export default function ViewParty() {
           </CardContent>
         </Card>
 
-        {/* Tax Info */}
+        {/* Tax (GST) Info */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tax Information</CardTitle>
+            <CardTitle className="text-lg">Tax (GST) Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">

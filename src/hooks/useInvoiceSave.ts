@@ -111,7 +111,7 @@ export function useInvoiceSave() {
         ? ((taxableAmount + taxAmount) * tcsRate) / 100 
         : 0;
 
-      const totalAmount = Math.round(subtotal - discountAmount + taxAmount + tcsAmount);
+      const totalAmount = Math.round(taxableAmount + taxAmount + tcsAmount);
 
       // Determine which table to use based on invoice type
       const isSaleType = ["sale", "sale_invoice", "sale_return", "sale_order", "estimation", "proforma", "delivery_challan"].includes(invoiceType);

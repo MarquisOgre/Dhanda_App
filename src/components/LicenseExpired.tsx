@@ -1,8 +1,22 @@
+import { useState } from "react";
 import { AlertTriangle, Mail, Phone, Calendar, Shield, RefreshCw } from "lucide-react";
-import { LICENSE_CONFIG, formatExpiryDate } from "@/lib/license";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function LicenseExpired() {
+  const { licenseSettings, formatExpiryDate } = useLicenseSettings();
+  const [showPhonePopup, setShowPhonePopup] = useState(false);
+  
+  const supportEmail = licenseSettings?.support_email || "support@dhandaapp.com";
+  const supportPhone = licenseSettings?.support_phone || "+91 98765 43210";
+  const licenseType = licenseSettings?.license_type || "Professional";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
@@ -35,7 +49,7 @@ export function LicenseExpired() {
                   <Shield className="w-4 h-4" />
                   <span className="text-sm">License Type</span>
                 </div>
-                <p className="font-semibold">{LICENSE_CONFIG.licenseType}</p>
+                <p className="font-semibold">{licenseType}</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -54,18 +68,20 @@ export function LicenseExpired() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href={`mailto:${LICENSE_CONFIG.supportEmail}`}>
+                <a href={`mailto:${supportEmail}`}>
                   <Button className="btn-gradient gap-2 w-full sm:w-auto">
                     <Mail className="w-4 h-4" />
-                    {LICENSE_CONFIG.supportEmail}
+                    {supportEmail}
                   </Button>
                 </a>
-                <a href={`tel:${LICENSE_CONFIG.supportPhone.replace(/\s/g, "")}`}>
-                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                    <Phone className="w-4 h-4" />
-                    {LICENSE_CONFIG.supportPhone}
-                  </Button>
-                </a>
+                <Button 
+                  variant="outline" 
+                  className="gap-2 w-full sm:w-auto"
+                  onClick={() => setShowPhonePopup(true)}
+                >
+                  <Phone className="w-4 h-4" />
+                  Call Support
+                </Button>
               </div>
             </div>
 
@@ -81,6 +97,30 @@ export function LicenseExpired() {
           <img src="/logo.png" alt="Dhanda App" className="h-8 mx-auto opacity-50" />
         </div>
       </div>
+
+      {/* Phone Number Popup */}
+      <Dialog open={showPhonePopup} onOpenChange={setShowPhonePopup}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="w-5 h-5 text-primary" />
+              Support Phone Number
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <p className="text-2xl font-bold text-primary">{supportPhone}</p>
+            <p className="text-muted-foreground text-sm text-center">
+              Call this number to speak with our support team about license renewal.
+            </p>
+            <a href={`tel:${supportPhone.replace(/\s/g, "")}`}>
+              <Button className="btn-gradient gap-2">
+                <Phone className="w-4 h-4" />
+                Call Now
+              </Button>
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

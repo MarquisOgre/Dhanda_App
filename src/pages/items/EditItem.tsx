@@ -255,17 +255,7 @@ export default function EditItem() {
           {/* Stock */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Stock</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="openingStock">Opening Stock</Label>
-                <Input
-                  id="openingStock"
-                  type="number"
-                  value={formData.openingStock}
-                  onChange={(e) => handleChange("openingStock", e.target.value)}
-                  placeholder="0"
-                />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="currentStock">Current Stock</Label>
                 <Input
