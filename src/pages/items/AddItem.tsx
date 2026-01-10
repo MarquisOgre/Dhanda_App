@@ -36,6 +36,8 @@ export default function AddItem() {
     minStock: "",
     hsn: "",
     gst: "0",
+    tcs: "",
+    tds: "",
   });
 
   useEffect(() => {
@@ -267,6 +269,34 @@ export default function AddItem() {
                     <SelectItem value="28">28%</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tcs">TCS (%)</Label>
+                <Input
+                  id="tcs"
+                  type="number"
+                  value={formData.tcs || ""}
+                  onChange={(e) => handleChange("tcs", e.target.value)}
+                  placeholder="0"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                />
+                <p className="text-xs text-muted-foreground">Tax Collected at Source</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tds">TDS (%)</Label>
+                <Input
+                  id="tds"
+                  type="number"
+                  value={formData.tds || ""}
+                  onChange={(e) => handleChange("tds", e.target.value)}
+                  placeholder="0"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                />
+                <p className="text-xs text-muted-foreground">Tax Deducted at Source</p>
               </div>
             </div>
           </div>
