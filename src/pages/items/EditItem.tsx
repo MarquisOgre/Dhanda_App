@@ -86,7 +86,7 @@ export default function EditItem() {
           categoryId: data.category_id || "",
           salePrice: data.sale_price?.toString() || "",
           purchasePrice: data.purchase_price?.toString() || "",
-          unit: data.unit || "PCS",
+          unit: data.unit || "Bottles",
           openingStock: data.opening_stock?.toString() || "",
           currentStock: data.current_stock?.toString() || "",
           minStock: data.low_stock_alert?.toString() || "",
@@ -289,9 +289,9 @@ export default function EditItem() {
             </div>
           </div>
 
-          {/* Tax Info */}
+          {/* Tax (GST) Info */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Tax Information</h3>
+            <h3 className="font-semibold text-lg mb-4">Tax (GST) Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="hsn">HSN/SAC Code</Label>

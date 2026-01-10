@@ -32,10 +32,10 @@ export default function AddItem() {
     salePrice: "",
     purchasePrice: "",
     unit: "Bottles",
-    openingStock: "",
+    currentStock: "",
     minStock: "",
     hsn: "",
-    gst: "18",
+    gst: "0",
   });
 
   useEffect(() => {
@@ -82,9 +82,7 @@ export default function AddItem() {
 
     setLoading(true);
     try {
-      const openingStock = formData.openingStock ? parseFloat(formData.openingStock) : 0;
-      // Default current_stock to 0 (closing stock = 0 by default)
-      const currentStock = 0;
+      const currentStock = formData.currentStock ? parseFloat(formData.currentStock) : 0;
       
       const { error } = await supabase.from("items").insert({
         user_id: user.id,
@@ -93,7 +91,7 @@ export default function AddItem() {
         sale_price: formData.salePrice ? parseFloat(formData.salePrice) : 0,
         purchase_price: formData.purchasePrice ? parseFloat(formData.purchasePrice) : 0,
         unit: formData.unit || "Bottles",
-        opening_stock: openingStock,
+        opening_stock: 0,
         current_stock: currentStock,
         low_stock_alert: formData.minStock ? parseFloat(formData.minStock) : 10,
         hsn_code: formData.hsn || null,
@@ -217,12 +215,12 @@ export default function AddItem() {
             <h3 className="font-semibold text-lg mb-4">Stock</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="openingStock">Opening Stock</Label>
+                <Label htmlFor="currentStock">Current Stock</Label>
                 <Input
-                  id="openingStock"
+                  id="currentStock"
                   type="number"
-                  value={formData.openingStock}
-                  onChange={(e) => handleChange("openingStock", e.target.value)}
+                  value={formData.currentStock}
+                  onChange={(e) => handleChange("currentStock", e.target.value)}
                   placeholder="0"
                 />
               </div>
@@ -239,9 +237,9 @@ export default function AddItem() {
             </div>
           </div>
 
-          {/* Tax Info */}
+          {/* Tax (GST) Info */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Tax Information</h3>
+            <h3 className="font-semibold text-lg mb-4">Tax (GST) Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="hsn">HSN/SAC Code</Label>
