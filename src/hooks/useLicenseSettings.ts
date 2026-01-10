@@ -19,7 +19,7 @@ export interface LicenseSettings {
 export function useLicenseSettings() {
   const queryClient = useQueryClient();
 
-  const { data: licenseSettings, isLoading, refetch } = useQuery({
+  const { data: licenseSettings, isLoading } = useQuery({
     queryKey: ["license-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -40,18 +40,19 @@ export function useLicenseSettings() {
   const updateLicenseSettings = useMutation({
     mutationFn: async (updates: Partial<LicenseSettings>) => {
       if (!licenseSettings?.id) throw new Error("No license settings found");
-      
-      const { error } = await supabase
+
+      const { data, error } = await supabase
         .from("license_settings")
         .update(updates)
-        .eq("id", licenseSettings.id);
+        .eq("id", licenseSettings.id)
+        .select("*")
+        .single();
 
       if (error) throw error;
+      return data as LicenseSettings;
     },
-    onSuccess: async () => {
-      // Force refetch to get fresh data
-      await queryClient.invalidateQueries({ queryKey: ["license-settings"] });
-      await refetch();
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["license-settings"], updated);
       toast.success("License settings updated successfully");
     },
     onError: (error) => {
@@ -89,6 +90,5 @@ export function useLicenseSettings() {
     isLicenseValid,
     getDaysRemaining,
     formatExpiryDate,
-    refetch,
   };
 }
