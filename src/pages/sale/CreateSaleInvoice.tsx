@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Eye, Calendar, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Eye, Calendar, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import { InvoicePreview } from "@/components/sale/InvoicePreview";
 import { useInvoiceSave } from "@/hooks/useInvoiceSave";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CreateSaleInvoice() {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export default function CreateSaleInvoice() {
   const [selectedParty, setSelectedParty] = useState("");
   const [notes, setNotes] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<string>("");
 
   // Generate next invoice number on mount
   useEffect(() => {
@@ -203,6 +205,33 @@ export default function CreateSaleInvoice() {
           <div className="metric-card">
             <h2 className="text-lg font-semibold mb-4">Invoice Items</h2>
             <SaleInvoiceItemsTable items={items} onItemsChange={setItems} />
+          </div>
+
+          {/* Payment */}
+          <div className="metric-card">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Payment (Optional)
+            </h2>
+            <div className="space-y-2">
+              <Label>Payment Mode</Label>
+              <Select value={paymentMode} onValueChange={setPaymentMode}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment mode (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Payment</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="bank">Bank Transfer</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                If payment is received, select the mode. Leave empty for credit invoice.
+              </p>
+            </div>
           </div>
 
           {/* Notes */}

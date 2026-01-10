@@ -39,6 +39,8 @@ export default function EditItem() {
     minStock: "",
     hsn: "",
     gst: "18",
+    tcs: "",
+    tds: "",
   });
 
   useEffect(() => {
@@ -92,6 +94,8 @@ export default function EditItem() {
           minStock: data.low_stock_alert?.toString() || "",
           hsn: data.hsn_code || "",
           gst: data.tax_rate?.toString() || "18",
+          tcs: data.tcs_rate?.toString() || "",
+          tds: data.tds_rate?.toString() || "",
         });
       }
     } catch (error: any) {
@@ -129,6 +133,8 @@ export default function EditItem() {
           low_stock_alert: formData.minStock ? parseFloat(formData.minStock) : 10,
           hsn_code: formData.hsn || null,
           tax_rate: parseFloat(formData.gst),
+          tcs_rate: formData.tcs ? parseFloat(formData.tcs) : 0,
+          tds_rate: formData.tds ? parseFloat(formData.tds) : 0,
         })
         .eq("id", id);
 
@@ -309,6 +315,34 @@ export default function EditItem() {
                     <SelectItem value="28">28%</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tcs">TCS (%)</Label>
+                <Input
+                  id="tcs"
+                  type="number"
+                  value={formData.tcs || ""}
+                  onChange={(e) => handleChange("tcs", e.target.value)}
+                  placeholder="0"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                />
+                <p className="text-xs text-muted-foreground">Tax Collected at Source</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tds">TDS (%)</Label>
+                <Input
+                  id="tds"
+                  type="number"
+                  value={formData.tds || ""}
+                  onChange={(e) => handleChange("tds", e.target.value)}
+                  placeholder="0"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                />
+                <p className="text-xs text-muted-foreground">Tax Deducted at Source</p>
               </div>
             </div>
           </div>

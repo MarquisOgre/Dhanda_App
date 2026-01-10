@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Printer, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Printer, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PartySelector } from "@/components/sale/PartySelector";
 import { PurchaseInvoiceItemsTable, PurchaseInvoiceItem } from "@/components/purchase/PurchaseInvoiceItemsTable";
 import { TaxSummary } from "@/components/sale/TaxSummary";
@@ -31,6 +32,7 @@ export default function CreatePurchaseBill() {
     { id: 1, itemId: "", name: "", hsn: "", quantity: 1, unit: "Bottles", rate: 0, discount: 0, taxRate: 0, amount: 0 },
   ]);
   const [notes, setNotes] = useState("");
+  const [paymentMode, setPaymentMode] = useState<string>("");
 
   // Generate bill number on mount
   useEffect(() => {
@@ -158,6 +160,32 @@ export default function CreatePurchaseBill() {
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Items</h3>
             <PurchaseInvoiceItemsTable items={items} onItemsChange={setItems} />
+          </div>
+
+          {/* Payment */}
+          <div className="metric-card">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Payment (Optional)
+            </h3>
+            <div className="space-y-2">
+              <Label>Payment Mode</Label>
+              <Select value={paymentMode} onValueChange={setPaymentMode}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment mode (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Payment</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="bank">Bank Transfer</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                If payment is made, select the mode. Leave empty for credit invoice.
+              </p>
+            </div>
           </div>
 
           {/* Notes */}

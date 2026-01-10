@@ -352,13 +352,17 @@ export default function PartiesList() {
                         className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
                           party.party_type === "customer"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-accent/10 text-accent"
+                            ? "bg-success/10 text-success"
+                            : "bg-destructive/10 text-destructive"
                         )}
                       >
                         {party.name.charAt(0)}
                       </div>
-                      {party.name}
+                      <span className={cn(
+                        party.party_type === "customer" ? "text-success" : "text-destructive"
+                      )}>
+                        {party.name}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -366,8 +370,8 @@ export default function PartiesList() {
                       className={cn(
                         "text-xs px-2 py-1 rounded-full capitalize",
                         party.party_type === "customer"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-accent/10 text-accent"
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-destructive"
                       )}
                     >
                       {party.party_type || "customer"}

@@ -3,15 +3,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Shield, Phone, Mail, MessageCircle, Save, AlertTriangle, Users, UserCheck } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar, Shield, Phone, Mail, MessageCircle, Save, AlertTriangle, Users, UserCheck, CreditCard } from "lucide-react";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { addDays, format } from "date-fns";
+
+interface LicensePlan {
+  id: string;
+  plan_name: string;
+  duration_days: number;
+  price: number;
+  is_active: boolean;
+}
 
 export function LicenseSettings() {
   const { licenseSettings, isLoading, updateLicenseSettings, getDaysRemaining, formatExpiryDate, isLicenseValid } = useLicenseSettings();
+  const { businessSettings } = useBusinessSettings();
   const { user } = useAuth();
   const isSuperAdmin = user?.email === 'marquisogre@gmail.com';
   
+  const [plans, setPlans] = useState<LicensePlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [formData, setFormData] = useState({
     expiry_date: "",
     license_type: "",
@@ -22,6 +37,10 @@ export function LicenseSettings() {
     max_users: 5,
     max_simultaneous_logins: 3,
   });
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
 
   useEffect(() => {
     if (licenseSettings) {
@@ -37,6 +56,36 @@ export function LicenseSettings() {
       });
     }
   }, [licenseSettings]);
+
+  // Set licensed_to from business name if empty
+  useEffect(() => {
+    if (businessSettings?.business_name && !formData.licensed_to) {
+      setFormData(prev => ({ ...prev, licensed_to: businessSettings.business_name || "" }));
+    }
+  }, [businessSettings?.business_name]);
+
+  const fetchPlans = async () => {
+    const { data } = await supabase
+      .from("license_plans")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order");
+    if (data) setPlans(data);
+  };
+
+  const handlePlanSelect = (planId: string) => {
+    setSelectedPlanId(planId);
+    const plan = plans.find(p => p.id === planId);
+    if (plan) {
+      const newExpiryDate = addDays(new Date(), plan.duration_days);
+      setFormData(prev => ({
+        ...prev,
+        expiry_date: format(newExpiryDate, "yyyy-MM-dd"),
+        license_type: plan.plan_name,
+        licensed_to: businessSettings?.business_name || prev.licensed_to,
+      }));
+    }
+  };
 
   const handleSave = () => {
     updateLicenseSettings.mutate(formData);
@@ -100,6 +149,31 @@ export function LicenseSettings() {
         {/* Editable Fields - Only visible to super admin */}
         {isSuperAdmin && (
           <>
+            {/* Plan Selection */}
+            <div className="p-4 rounded-lg border bg-muted/20">
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2 text-base font-semibold">
+                  <CreditCard className="w-4 h-4" />
+                  Assign License Plan
+                </Label>
+                <Select value={selectedPlanId} onValueChange={handlePlanSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a license plan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.plan_name} - {plan.duration_days} Days {plan.price > 0 ? `(₹${plan.price.toLocaleString()})` : "(Free)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Selecting a plan will automatically update the expiry date and license type
+                </p>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="expiry_date" className="flex items-center gap-2">
