@@ -368,6 +368,8 @@ export type Database = {
           purchase_price: number | null
           sale_price: number | null
           tax_rate: number | null
+          tcs_rate: number | null
+          tds_rate: number | null
           unit: string | null
           updated_at: string
           user_id: string
@@ -386,6 +388,8 @@ export type Database = {
           purchase_price?: number | null
           sale_price?: number | null
           tax_rate?: number | null
+          tcs_rate?: number | null
+          tds_rate?: number | null
           unit?: string | null
           updated_at?: string
           user_id: string
@@ -404,6 +408,8 @@ export type Database = {
           purchase_price?: number | null
           sale_price?: number | null
           tax_rate?: number | null
+          tcs_rate?: number | null
+          tds_rate?: number | null
           unit?: string | null
           updated_at?: string
           user_id?: string
@@ -417,6 +423,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      license_plans: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          duration_days: number
+          id: string
+          is_active: boolean | null
+          plan_name: string
+          price: number
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          duration_days: number
+          id?: string
+          is_active?: boolean | null
+          plan_name: string
+          price?: number
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          duration_days?: number
+          id?: string
+          is_active?: boolean | null
+          plan_name?: string
+          price?: number
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       license_settings: {
         Row: {
