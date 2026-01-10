@@ -47,6 +47,8 @@ interface Item {
   low_stock_alert: number | null;
   tax_rate: number | null;
   category_id: string | null;
+  tcs_rate: number | null;
+  tds_rate: number | null;
 }
 
 export default function ItemsList() {
@@ -327,6 +329,14 @@ export default function ItemsList() {
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground">Low Stock Alert</p>
                   <p className="font-medium">{selectedItem.low_stock_alert || 10} {selectedItem.unit || "PCS"}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">TCS Rate</p>
+                  <p className="font-medium">{selectedItem.tcs_rate || 0}%</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">TDS Rate</p>
+                  <p className="font-medium">{selectedItem.tds_rate || 0}%</p>
                 </div>
               </div>
               <div className="flex gap-2 pt-4">

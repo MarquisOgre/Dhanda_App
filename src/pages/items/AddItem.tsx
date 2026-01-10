@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 interface UnitOption {
   id: string;
@@ -23,6 +24,7 @@ interface UnitOption {
 export default function AddItem() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { businessSettings } = useBusinessSettings();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
@@ -39,6 +41,13 @@ export default function AddItem() {
     tcs: "",
     tds: "",
   });
+
+  // Set default TCS from business settings
+  useEffect(() => {
+    if (businessSettings?.tcs_percent !== undefined && businessSettings.tcs_percent !== null) {
+      setFormData(prev => ({ ...prev, tcs: String(businessSettings.tcs_percent || 1) }));
+    }
+  }, [businessSettings?.tcs_percent]);
 
   useEffect(() => {
     if (user) {
@@ -98,6 +107,8 @@ export default function AddItem() {
         low_stock_alert: formData.minStock ? parseFloat(formData.minStock) : 10,
         hsn_code: formData.hsn || null,
         tax_rate: parseFloat(formData.gst),
+        tcs_rate: formData.tcs ? parseFloat(formData.tcs) : 0,
+        tds_rate: formData.tds ? parseFloat(formData.tds) : 0,
       });
 
       if (error) throw error;

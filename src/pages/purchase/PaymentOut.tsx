@@ -34,6 +34,7 @@ export default function PaymentOut() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoice | null>(null);
+  const [partyOutstanding, setPartyOutstanding] = useState<number>(0);
   
   const [receiptNumber, setReceiptNumber] = useState("");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
@@ -48,6 +49,41 @@ export default function PaymentOut() {
       fetchLinkedInvoice();
     }
   }, [invoiceId]);
+
+  // Fetch outstanding balance when party is selected (and no linked invoice)
+  const fetchPartyOutstanding = async (partyId: string) => {
+    if (!partyId || linkedInvoice) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("purchase_invoices")
+        .select("total_amount, paid_amount")
+        .eq("party_id", partyId)
+        .eq("is_deleted", false);
+
+      if (error) throw error;
+      
+      const totalOutstanding = (data || []).reduce((sum, inv) => {
+        const balance = (inv.total_amount || 0) - (inv.paid_amount || 0);
+        return sum + balance;
+      }, 0);
+      
+      setPartyOutstanding(totalOutstanding);
+      if (totalOutstanding > 0) {
+        setAmount(String(totalOutstanding));
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch party outstanding:", error);
+    }
+  };
+
+  // Handle party change
+  const handlePartyChange = (partyId: string) => {
+    setSelectedParty(partyId);
+    if (partyId && !linkedInvoice) {
+      fetchPartyOutstanding(partyId);
+    }
+  };
 
   const generateReceiptNumber = async () => {
     try {
@@ -216,11 +252,18 @@ export default function PaymentOut() {
             <h3 className="font-semibold mb-4">Supplier Details</h3>
             <PartySelector
               value={selectedParty}
-              onChange={setSelectedParty}
+              onChange={handlePartyChange}
               partyType="supplier"
               label="Select Supplier"
               disabled={!!linkedInvoice}
             />
+            {!linkedInvoice && partyOutstanding > 0 && (
+              <div className="mt-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
+                <p className="text-sm text-warning">
+                  Net Due: <span className="font-bold">₹{partyOutstanding.toLocaleString()}</span>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Payment Amount */}
