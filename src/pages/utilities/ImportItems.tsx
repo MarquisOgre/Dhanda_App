@@ -43,9 +43,9 @@ export default function ImportItems() {
       "HSN Code",
       "Sale Price",
       "Purchase Price",
-      "Opening Stock",
+      "Current Stock",
       "Low Stock Alert",
-      "Tax Rate (%)"
+      "Tax (GST) Rate (%)"
     ];
     
     const sampleData = [
@@ -95,7 +95,7 @@ export default function ImportItems() {
         hsn_code: getCol(["hsn", "hsn code"]) || undefined,
         sale_price: parseFloat(getCol(["sale price", "sale", "selling price"])) || 0,
         purchase_price: parseFloat(getCol(["purchase price", "purchase", "cost price", "cost"])) || 0,
-        opening_stock: parseFloat(getCol(["opening stock", "stock", "qty", "quantity"])) || 0,
+        opening_stock: parseFloat(getCol(["current stock", "opening stock", "stock", "qty", "quantity"])) || 0,
         low_stock_alert: parseFloat(getCol(["low stock", "min stock", "alert"])) || 10,
         tax_rate: parseFloat(getCol(["tax rate", "tax", "gst"])) || 0,
       });
@@ -251,7 +251,7 @@ export default function ImportItems() {
           <li>• Download the sample template to see the required format</li>
           <li>• Fill in your item data in the template</li>
           <li>• Required columns: Item Name</li>
-          <li>• Optional columns: Category, Unit, HSN Code, Sale Price, Purchase Price, Opening Stock, Low Stock Alert, Tax Rate</li>
+          <li>• Optional columns: Category, Unit, HSN Code, Sale Price, Purchase Price, Current Stock, Low Stock Alert, Tax (GST) Rate</li>
           <li>• Upload the completed file (CSV format)</li>
         </ul>
       </div>

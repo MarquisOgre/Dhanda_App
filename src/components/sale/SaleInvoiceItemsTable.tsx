@@ -212,9 +212,14 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
                 <td className="py-2 px-2">
                   <Input
                     type="number"
-                    value={item.closingStock || ""}
-                    onChange={(e) => updateItem(item.id, "closingStock", Number(e.target.value))}
-                    onFocus={(e) => e.target.value === "0" && (e.target.value = "")}
+                    value={item.closingStock === 0 ? "" : item.closingStock}
+                    onChange={(e) => updateItem(item.id, "closingStock", Number(e.target.value) || 0)}
+                    onFocus={(e) => {
+                      if (e.target.value === "0" || e.target.value === "") {
+                        e.target.value = "";
+                      }
+                    }}
+                    placeholder="0"
                     className="h-9 w-20"
                     min={0}
                     max={item.availableStock}
