@@ -47,11 +47,25 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { data, error } = await supabase
+      // First try to get the user's own settings
+      let { data, error } = await supabase
         .from('business_settings')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      // If no settings found for this user, get the first available settings (shared business)
+      if (!data) {
+        const { data: sharedData, error: sharedError } = await supabase
+          .from('business_settings')
+          .select('*')
+          .limit(1)
+          .maybeSingle();
+        
+        if (!sharedError && sharedData) {
+          data = sharedData;
+        }
+      }
 
       if (error) {
         console.error('Error fetching business settings:', error);

@@ -76,6 +76,8 @@ import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { LicenseSettings } from "./LicenseSettings";
+import { TwoFactorAuth } from "./TwoFactorAuth";
+import { LicensePlans } from "@/components/settings/LicensePlans";
 import { checkMaxUsers } from "@/hooks/useSessionTracking";
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
@@ -1620,16 +1622,7 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="metric-card">
-            <h3 className="font-semibold mb-4">Two-Factor Authentication</h3>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Enable 2FA</p>
-                <p className="text-sm text-muted-foreground">Add extra security to your account (coming soon)</p>
-              </div>
-              <Switch disabled />
-            </div>
-          </div>
+          <TwoFactorAuth />
 
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Session Management</h3>
@@ -1730,6 +1723,7 @@ export default function Settings() {
         {/* License Settings */}
         <TabsContent value="license" className="space-y-6">
           <LicenseSettings />
+          <LicensePlans />
         </TabsContent>
       </Tabs>
     </div>
