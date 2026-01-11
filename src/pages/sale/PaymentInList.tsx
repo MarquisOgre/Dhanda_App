@@ -16,7 +16,9 @@ interface Payment {
   payment_date: string;
   amount: number;
   payment_mode: string | null;
+  sale_invoice_id: string | null;
   parties?: { name: string } | null;
+  sale_invoices?: { invoice_number: string } | null;
 }
 
 export default function PaymentInList() {
@@ -46,7 +48,7 @@ export default function PaymentInList() {
     try {
       const { data, error } = await supabase
         .from("payments")
-        .select("*, parties(name)")
+        .select("*, parties(name), sale_invoices(invoice_number)")
         .eq("payment_type", "in")
         .order("created_at", { ascending: false });
 
@@ -74,7 +76,8 @@ export default function PaymentInList() {
 
   const filtered = payments.filter(
     (p) => p.payment_number.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (p.parties?.name && p.parties.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    (p.parties?.name && p.parties.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (p.sale_invoices?.invoice_number && p.sale_invoices.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getModeColor = (mode: string | null) => {
@@ -118,7 +121,7 @@ export default function PaymentInList() {
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search payments..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+        <Input placeholder="Search payments or invoices..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
       </div>
 
       {filtered.length === 0 ? (
@@ -131,13 +134,42 @@ export default function PaymentInList() {
       ) : (
         <div className="metric-card overflow-hidden p-0">
           <table className="data-table">
-            <thead><tr><th>Receipt</th><th>Date</th><th>Party</th><th className="text-right">Amount</th><th>Mode</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>Receipt</th>
+                <th>Date</th>
+                <th>Party</th>
+                <th>Reference</th>
+                <th className="text-right">Amount</th>
+                <th>Mode</th>
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
               {filtered.map((pay) => (
                 <tr key={pay.id} className="group">
-                  <td><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><Wallet className="w-5 h-5 text-success" /></div><span className="font-medium">{pay.payment_number}</span></div></td>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                        <Wallet className="w-5 h-5 text-success" />
+                      </div>
+                      <span className="font-medium">{pay.payment_number}</span>
+                    </div>
+                  </td>
                   <td className="text-muted-foreground">{format(new Date(pay.payment_date), "dd MMM yyyy")}</td>
                   <td className="font-medium">{pay.parties?.name || "-"}</td>
+                  <td>
+                    {pay.sale_invoice_id && pay.sale_invoices?.invoice_number ? (
+                      <button
+                        onClick={() => navigate(`/sale/invoices/${pay.sale_invoice_id}`)}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        {pay.sale_invoices.invoice_number}
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </td>
                   <td className="text-right font-medium text-success">+₹{pay.amount.toLocaleString()}</td>
                   <td><span className={cn("px-2 py-1 text-xs font-medium rounded-full capitalize", getModeColor(pay.payment_mode))}>{pay.payment_mode || "Cash"}</span></td>
                   <td>

@@ -284,6 +284,19 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
               </tr>
             ))}
           </tbody>
+          {items.length > 0 && (
+            <tfoot>
+              <tr className="bg-muted/50 font-semibold border-t">
+                <td colSpan={3} className="py-2 px-2 text-right">Totals:</td>
+                <td className="py-2 px-2 text-center">{items.reduce((sum, item) => sum + item.availableStock, 0)}</td>
+                <td className="py-2 px-2 text-center">{items.reduce((sum, item) => sum + item.closingStock, 0)}</td>
+                <td className="py-2 px-2 text-center text-primary">{items.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                <td colSpan={3}></td>
+                <td className="py-2 px-2 text-right">₹{items.reduce((sum, item) => sum + item.amount, 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
