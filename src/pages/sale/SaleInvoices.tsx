@@ -8,6 +8,7 @@ import {
   Download,
   Eye,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -292,6 +293,10 @@ export default function SaleInvoices() {
                           }}>
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in/new?invoice=${invoice.id}`)}>
+                            <CreditCard className="w-4 h-4 mr-2" />
+                            Record Payment
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => navigate(`/sale/invoices/${invoice.id}/edit`)}>
                             Edit Invoice

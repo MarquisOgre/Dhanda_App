@@ -14,6 +14,7 @@ interface BillData {
   party: string;
   sale: number;
   cost: number;
+  tcsTds: number;
   profit: number;
   margin: number;
 }
@@ -30,6 +31,7 @@ export default function BillWisePnL() {
 
   const fetchBillData = async () => {
     try {
+      // Fetch sale invoices with items to calculate cost from purchase_price
       const { data: invoices, error } = await supabase
         .from('sale_invoices')
         .select(`
@@ -38,6 +40,7 @@ export default function BillWisePnL() {
           invoice_date,
           total_amount,
           subtotal,
+          tcs_amount,
           party_id,
           parties (name)
         `)
@@ -46,10 +49,35 @@ export default function BillWisePnL() {
 
       if (error) throw error;
 
-      const bills = (invoices || []).map((inv: any) => {
+      // For each invoice, fetch the items and calculate cost from purchase_price
+      const billsWithCost = await Promise.all((invoices || []).map(async (inv: any) => {
+        // Fetch invoice items
+        const { data: items } = await supabase
+          .from('sale_invoice_items')
+          .select('item_id, quantity')
+          .eq('sale_invoice_id', inv.id);
+
+        // Calculate cost from purchase prices
+        let totalCost = 0;
+        if (items && items.length > 0) {
+          for (const item of items) {
+            if (item.item_id) {
+              const { data: itemData } = await supabase
+                .from('items')
+                .select('purchase_price')
+                .eq('id', item.item_id)
+                .single();
+              
+              if (itemData) {
+                totalCost += (itemData.purchase_price || 0) * item.quantity;
+              }
+            }
+          }
+        }
+
         const sale = inv.total_amount || 0;
-        const cost = inv.subtotal || 0;
-        const profit = sale - cost;
+        const tcsTds = inv.tcs_amount || 0;
+        const profit = sale - totalCost - tcsTds;
         const margin = sale > 0 ? (profit / sale) * 100 : 0;
 
         return {
@@ -58,13 +86,14 @@ export default function BillWisePnL() {
           date: inv.invoice_date,
           party: inv.parties?.name || 'Walk-in Customer',
           sale,
-          cost,
+          cost: totalCost,
+          tcsTds,
           profit,
           margin,
         };
-      });
+      }));
 
-      setBillData(bills);
+      setBillData(billsWithCost);
     } catch (error) {
       console.error('Error fetching bill data:', error);
     } finally {
@@ -81,6 +110,7 @@ export default function BillWisePnL() {
 
   const totalSale = filtered.reduce((sum, b) => sum + b.sale, 0);
   const totalCost = filtered.reduce((sum, b) => sum + b.cost, 0);
+  const totalTcsTds = filtered.reduce((sum, b) => sum + b.tcsTds, 0);
   const totalProfit = filtered.reduce((sum, b) => sum + b.profit, 0);
   const avgMargin = totalSale > 0 ? (totalProfit / totalSale) * 100 : 0;
 
@@ -106,7 +136,7 @@ export default function BillWisePnL() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Total Sales</p>
           <p className="text-2xl font-bold mt-2">₹{totalSale.toLocaleString()}</p>
@@ -114,6 +144,10 @@ export default function BillWisePnL() {
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Total Cost</p>
           <p className="text-2xl font-bold mt-2">₹{totalCost.toLocaleString()}</p>
+        </div>
+        <div className="metric-card">
+          <p className="text-sm text-muted-foreground">TCS/TDS</p>
+          <p className="text-2xl font-bold mt-2 text-warning">₹{totalTcsTds.toLocaleString()}</p>
         </div>
         <div className="metric-card">
           <p className="text-sm text-muted-foreground">Total Profit</p>
@@ -153,6 +187,7 @@ export default function BillWisePnL() {
               <th>Party</th>
               <th className="text-right">Sale Amount</th>
               <th className="text-right">Cost</th>
+              <th className="text-right">TCS/TDS</th>
               <th className="text-right">Profit/Loss</th>
               <th className="text-right">Margin</th>
             </tr>
@@ -160,7 +195,7 @@ export default function BillWisePnL() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                <td colSpan={8} className="text-center py-8 text-muted-foreground">
                   No invoices found
                 </td>
               </tr>
@@ -174,6 +209,7 @@ export default function BillWisePnL() {
                   <td>{bill.party}</td>
                   <td className="text-right">₹{bill.sale.toLocaleString()}</td>
                   <td className="text-right">₹{bill.cost.toLocaleString()}</td>
+                  <td className="text-right text-warning">₹{bill.tcsTds.toLocaleString()}</td>
                   <td className={cn("text-right font-medium", bill.profit >= 0 ? "text-success" : "text-destructive")}>
                     <div className="flex items-center justify-end gap-1">
                       {bill.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
@@ -193,6 +229,7 @@ export default function BillWisePnL() {
                 <td colSpan={3}>Total</td>
                 <td className="text-right">₹{totalSale.toLocaleString()}</td>
                 <td className="text-right">₹{totalCost.toLocaleString()}</td>
+                <td className="text-right text-warning">₹{totalTcsTds.toLocaleString()}</td>
                 <td className={cn("text-right", totalProfit >= 0 ? "text-success" : "text-destructive")}>
                   ₹{Math.abs(totalProfit).toLocaleString()}
                 </td>

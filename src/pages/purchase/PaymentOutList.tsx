@@ -22,7 +22,9 @@ interface Payment {
   amount: number;
   payment_mode: string | null;
   reference_number: string | null;
+  purchase_invoice_id: string | null;
   parties?: { name: string } | null;
+  purchase_invoices?: { invoice_number: string } | null;
 }
 
 export default function PaymentOutList() {
@@ -42,7 +44,7 @@ export default function PaymentOutList() {
     try {
       const { data, error } = await supabase
         .from("payments")
-        .select("*, parties(name)")
+        .select("*, parties(name), purchase_invoices(invoice_number)")
         .eq("payment_type", "out")
         .order("created_at", { ascending: false });
 
@@ -71,7 +73,8 @@ export default function PaymentOutList() {
   const filteredPayments = payments.filter(
     (payment) =>
       payment.payment_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (payment.parties?.name && payment.parties.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      (payment.parties?.name && payment.parties.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (payment.purchase_invoices?.invoice_number && payment.purchase_invoices.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -121,7 +124,7 @@ export default function PaymentOutList() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by receipt number or party..."
+          placeholder="Search by receipt number, party, or invoice..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
@@ -165,7 +168,18 @@ export default function PaymentOutList() {
                     {format(new Date(payment.payment_date), "dd MMM yyyy")}
                   </td>
                   <td className="font-medium">{payment.parties?.name || "-"}</td>
-                  <td className="text-muted-foreground">{payment.reference_number || "-"}</td>
+                  <td>
+                    {payment.purchase_invoice_id && payment.purchase_invoices?.invoice_number ? (
+                      <button
+                        onClick={() => navigate(`/purchase/invoices/${payment.purchase_invoice_id}`)}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        {payment.purchase_invoices.invoice_number}
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">{payment.reference_number || "-"}</span>
+                    )}
+                  </td>
                   <td className="text-muted-foreground capitalize">{payment.payment_mode || "Cash"}</td>
                   <td className="text-right font-semibold text-warning">
                     ₹{payment.amount.toLocaleString()}

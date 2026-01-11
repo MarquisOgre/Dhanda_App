@@ -57,125 +57,125 @@ export default function ResetDatabase() {
         .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Purchase invoice items deleted");
 
-      // 2. Delete payments (may reference invoices)
+      // 3. Delete payments (may reference invoices)
       addProgress("Deleting payments...");
-      const { error: paymentsError } = await supabase
+      await supabase
         .from('payments')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (paymentsError) console.error('Payments deletion error:', paymentsError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Payments deleted");
 
-      // 3. Delete sale invoices
+      // 4. Delete sale invoices
       addProgress("Deleting sale invoices...");
-      const { error: saleInvoicesError } = await supabase
+      await supabase
         .from('sale_invoices')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (saleInvoicesError) console.error('Sale invoices deletion error:', saleInvoicesError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Sale invoices deleted");
 
-      // 4. Delete purchase invoices
+      // 5. Delete purchase invoices
       addProgress("Deleting purchase invoices...");
-      const { error: purchaseInvoicesError } = await supabase
+      await supabase
         .from('purchase_invoices')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (purchaseInvoicesError) console.error('Purchase invoices deletion error:', purchaseInvoicesError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Purchase invoices deleted");
 
-      // 5. Delete expenses
+      // 6. Delete expenses
       addProgress("Deleting expenses...");
-      const { error: expensesError } = await supabase
+      await supabase
         .from('expenses')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (expensesError) console.error('Expenses deletion error:', expensesError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Expenses deleted");
 
-      // 6. Delete cash transactions
+      // 7. Delete cash transactions
       addProgress("Deleting cash transactions...");
-      const { error: cashError } = await supabase
+      await supabase
         .from('cash_transactions')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (cashError) console.error('Cash transactions deletion error:', cashError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Cash transactions deleted");
 
-      // 7. Delete items
+      // 8. Delete items
       addProgress("Deleting items...");
-      const { error: itemsError } = await supabase
+      await supabase
         .from('items')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (itemsError) console.error('Items deletion error:', itemsError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Items deleted");
 
-      // 8. Delete categories
+      // 9. Delete categories
       addProgress("Deleting categories...");
-      const { error: categoriesError } = await supabase
+      await supabase
         .from('categories')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (categoriesError) console.error('Categories deletion error:', categoriesError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Categories deleted");
 
-      // 9. Delete parties
+      // 10. Delete parties
       addProgress("Deleting parties...");
-      const { error: partiesError } = await supabase
+      await supabase
         .from('parties')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (partiesError) console.error('Parties deletion error:', partiesError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Parties deleted");
 
-      // 10. Delete bank accounts
+      // 11. Delete bank accounts
       addProgress("Deleting bank accounts...");
-      const { error: bankError } = await supabase
+      await supabase
         .from('bank_accounts')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (bankError) console.error('Bank accounts deletion error:', bankError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Bank accounts deleted");
 
-      // 11. Delete units
+      // 12. Delete units
       addProgress("Deleting units...");
-      const { error: unitsError } = await supabase
+      await supabase
         .from('units')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (unitsError) console.error('Units deletion error:', unitsError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Units deleted");
 
-      // 12. Delete notifications
+      // 13. Delete notifications
       addProgress("Deleting notifications...");
-      const { error: notificationsError } = await supabase
+      await supabase
         .from('notifications')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (notificationsError) console.error('Notifications deletion error:', notificationsError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Notifications deleted");
 
-      // 13. Delete backups
+      // 14. Delete backups
       addProgress("Deleting backups...");
-      const { error: backupsError } = await supabase
+      await supabase
         .from('backups')
         .delete()
-        .eq('user_id', user.id);
-      
-      if (backupsError) console.error('Backups deletion error:', backupsError);
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       addProgress("✓ Backups deleted");
+
+      // 15. Delete backup settings
+      addProgress("Deleting backup settings...");
+      await supabase
+        .from('backup_settings')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      addProgress("✓ Backup settings deleted");
+
+      // 16. Delete active sessions
+      addProgress("Deleting active sessions...");
+      await supabase
+        .from('active_sessions')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      addProgress("✓ Active sessions deleted");
+
+      // 17. Delete user roles (except current admin)
+      addProgress("Resetting user roles...");
+      await supabase
+        .from('user_roles')
+        .delete()
+        .neq('user_id', user.id);
+      addProgress("✓ User roles reset (keeping current admin)");
 
       addProgress("Database reset complete!");
       setResetComplete(true);
