@@ -30,6 +30,7 @@ export default function CreateSaleInvoice() {
   const [notes, setNotes] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [paymentMode, setPaymentMode] = useState<string>("");
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
 
   // Generate next invoice number on mount
   useEffect(() => {
@@ -213,25 +214,37 @@ export default function CreateSaleInvoice() {
               <CreditCard className="w-5 h-5" />
               Payment (Optional)
             </h2>
-            <div className="space-y-2">
-              <Label>Payment Mode</Label>
-              <Select value={paymentMode} onValueChange={setPaymentMode}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment mode (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Payment</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="bank">Bank Transfer</SelectItem>
-                  <SelectItem value="upi">UPI</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                If payment is received, select the mode. Leave empty for credit invoice.
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Payment Mode</Label>
+                <Select value={paymentMode} onValueChange={setPaymentMode}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Payment</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Amount</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                  disabled={!paymentMode || paymentMode === "none"}
+                />
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              If payment is received, select the mode and enter amount. Leave empty for credit invoice.
+            </p>
           </div>
 
           {/* Notes */}
@@ -250,7 +263,7 @@ export default function CreateSaleInvoice() {
         <div className="space-y-6">
           <div className="metric-card sticky top-6">
             <h2 className="text-lg font-semibold mb-4">Sales Invoice Summary</h2>
-            <TaxSummary items={items} />
+            <TaxSummary items={items} invoiceType="sale" paymentAmount={paymentAmount} />
           </div>
         </div>
       </div>
