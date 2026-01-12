@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, IndianRupee, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { PrintButton } from "@/components/PrintButton";
 import { generateReportPDF, downloadPDF } from "@/lib/pdf";
 import { printTable } from "@/lib/print";
@@ -7,11 +7,48 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { DateRangeFilter, getDefaultDateRange, DateRange } from "@/components/DateRangeFilter";
 
+interface PLData {
+  // Revenue / Receipts (+)
+  sale: number;
+  debitNote: number;
+  paymentOut: number;
+  closingStock: number;
+  gstReceivable: number;
+  tcsReceivable: number;
+  tdsReceivable: number;
+  otherIncomes: number;
+  // Expenses / Payments (-)
+  purchase: number;
+  creditNote: number;
+  paymentIn: number;
+  openingStock: number;
+  gstPayable: number;
+  tcsPayable: number;
+  tdsPayable: number;
+  otherExpense: number;
+}
+
 export default function ProfitLoss() {
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [loading, setLoading] = useState(true);
-  const [incomeData, setIncomeData] = useState<{ category: string; amount: number }[]>([]);
-  const [expenseData, setExpenseData] = useState<{ category: string; amount: number }[]>([]);
+  const [plData, setPlData] = useState<PLData>({
+    sale: 0,
+    debitNote: 0,
+    paymentOut: 0,
+    closingStock: 0,
+    gstReceivable: 0,
+    tcsReceivable: 0,
+    tdsReceivable: 0,
+    otherIncomes: 0,
+    purchase: 0,
+    creditNote: 0,
+    paymentIn: 0,
+    openingStock: 0,
+    gstPayable: 0,
+    tcsPayable: 0,
+    tdsPayable: 0,
+    otherExpense: 0,
+  });
 
   useEffect(() => {
     fetchProfitLossData();
@@ -20,57 +57,92 @@ export default function ProfitLoss() {
   const fetchProfitLossData = async () => {
     try {
       setLoading(true);
+      const startDate = format(dateRange.from, 'yyyy-MM-dd');
+      const endDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Get sales revenue from sale_invoices within date range
+      // Get sales data
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
-        .select('total_amount, subtotal, invoice_date')
+        .select('total_amount, tax_amount, tcs_amount')
         .eq('is_deleted', false)
-        .gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
+        .gte('invoice_date', startDate)
+        .lte('invoice_date', endDate);
 
-      const salesRevenue = (salesInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-      const costOfGoods = (salesInvoices || []).reduce((sum, inv) => sum + (inv.subtotal || 0), 0);
+      const saleTotal = (salesInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+      const saleTcsReceivable = (salesInvoices || []).reduce((sum, inv) => sum + (inv.tcs_amount || 0), 0);
 
-      // Get purchase costs from purchase_invoices within date range
+      // Get purchase data
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
-        .select('total_amount, invoice_date')
+        .select('total_amount, tax_amount, tcs_amount')
         .eq('is_deleted', false)
-        .gte('invoice_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('invoice_date', format(dateRange.to, 'yyyy-MM-dd'));
+        .gte('invoice_date', startDate)
+        .lte('invoice_date', endDate);
 
-      const purchaseCost = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+      const purchaseTotal = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+      const purchaseTdsPayable = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.tcs_amount || 0), 0);
 
-      // Get expenses by category within date range
+      // Get payment in (received from customers)
+      const { data: paymentsIn } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('payment_type', 'payment_in')
+        .gte('payment_date', startDate)
+        .lte('payment_date', endDate);
+
+      const paymentInTotal = (paymentsIn || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+
+      // Get payment out (paid to suppliers)
+      const { data: paymentsOut } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('payment_type', 'payment_out')
+        .gte('payment_date', startDate)
+        .lte('payment_date', endDate);
+
+      const paymentOutTotal = (paymentsOut || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+
+      // Get other expenses
       const { data: expenses } = await supabase
         .from('expenses')
-        .select('category, amount, expense_date')
-        .gte('expense_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('expense_date', format(dateRange.to, 'yyyy-MM-dd'));
+        .select('amount')
+        .gte('expense_date', startDate)
+        .lte('expense_date', endDate);
 
-      const expensesByCategory: { [key: string]: number } = {};
-      (expenses || []).forEach(exp => {
-        if (!expensesByCategory[exp.category]) {
-          expensesByCategory[exp.category] = 0;
-        }
-        expensesByCategory[exp.category] += exp.amount;
+      const expenseTotal = (expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+
+      // Get stock values - Opening stock is current_stock at start, Closing stock is current value
+      const { data: items } = await supabase
+        .from('items')
+        .select('current_stock, purchase_price, opening_stock')
+        .eq('is_deleted', false);
+
+      const closingStockValue = (items || []).reduce((sum, item) => {
+        return sum + ((item.current_stock || 0) * (item.purchase_price || 0));
+      }, 0);
+
+      const openingStockValue = (items || []).reduce((sum, item) => {
+        return sum + ((item.opening_stock || 0) * (item.purchase_price || 0));
+      }, 0);
+
+      setPlData({
+        sale: saleTotal,
+        debitNote: 0, // Purchase returns (not implemented yet)
+        paymentOut: paymentOutTotal,
+        closingStock: closingStockValue,
+        gstReceivable: 0, // GST receivable (input credit)
+        tcsReceivable: saleTcsReceivable,
+        tdsReceivable: 0, // TDS receivable
+        otherIncomes: 0,
+        purchase: purchaseTotal,
+        creditNote: 0, // Sale returns (not implemented yet)
+        paymentIn: paymentInTotal,
+        openingStock: openingStockValue,
+        gstPayable: 0, // GST payable (output tax)
+        tcsPayable: 0,
+        tdsPayable: purchaseTdsPayable,
+        otherExpense: expenseTotal,
       });
-
-      // Set income data
-      setIncomeData([
-        { category: "Sales Revenue", amount: salesRevenue },
-      ]);
-
-      // Set expense data
-      const expenseItems = [
-        { category: "Cost of Goods Sold", amount: costOfGoods || purchaseCost },
-        ...Object.entries(expensesByCategory).map(([category, amount]) => ({
-          category,
-          amount,
-        })),
-      ];
-      setExpenseData(expenseItems);
     } catch (error) {
       console.error('Error fetching P&L data:', error);
     } finally {
@@ -78,65 +150,114 @@ export default function ProfitLoss() {
     }
   };
 
-  const totalIncome = incomeData.reduce((sum, i) => sum + i.amount, 0);
-  const totalExpenses = expenseData.reduce((sum, e) => sum + e.amount, 0);
-  const netProfit = totalIncome - totalExpenses;
-  const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : "0";
+  const totalRevenue = plData.sale + plData.debitNote + plData.paymentOut + 
+    plData.closingStock + plData.gstReceivable + plData.tcsReceivable + 
+    plData.tdsReceivable + plData.otherIncomes;
+
+  const totalExpenses = plData.purchase + plData.creditNote + plData.paymentIn + 
+    plData.openingStock + plData.gstPayable + plData.tcsPayable + 
+    plData.tdsPayable + plData.otherExpense;
+
+  const netProfit = totalRevenue - totalExpenses;
 
   const dateRangeLabel = `${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`;
 
+  const revenueItems = [
+    { label: "Sale", amount: plData.sale },
+    { label: "Debit Note / Purchase Return", amount: plData.debitNote },
+    { label: "Payment Out", amount: plData.paymentOut },
+    { label: "Closing Stock", amount: plData.closingStock },
+    { label: "GST Receivable", amount: plData.gstReceivable },
+    { label: "TCS Receivable", amount: plData.tcsReceivable },
+    { label: "TDS Receivable", amount: plData.tdsReceivable },
+    { label: "Other Incomes", amount: plData.otherIncomes },
+  ];
+
+  const expenseItems = [
+    { label: "Purchase", amount: plData.purchase },
+    { label: "Credit Note / Sale Return", amount: plData.creditNote },
+    { label: "Payment In", amount: plData.paymentIn },
+    { label: "Opening Stock", amount: plData.openingStock },
+    { label: "GST Payable", amount: plData.gstPayable },
+    { label: "TCS Payable", amount: plData.tcsPayable },
+    { label: "TDS Payable", amount: plData.tdsPayable },
+    { label: "Other Expense", amount: plData.otherExpense },
+  ];
+
   const handlePrint = () => {
-    const allRows = [
-      ["INCOME", "", ""],
-      ...incomeData.map(i => ["", i.category, `₹${i.amount.toLocaleString()}`]),
-      ["", "Total Income", `₹${totalIncome.toLocaleString()}`],
-      ["", "", ""],
-      ["EXPENSES", "", ""],
-      ...expenseData.map(e => ["", e.category, `₹${e.amount.toLocaleString()}`]),
-      ["", "Total Expenses", `₹${totalExpenses.toLocaleString()}`],
-      ["", "", ""],
-      ["NET PROFIT", "", `₹${netProfit.toLocaleString()}`],
-    ];
+    const allRows: (string | number)[][] = [];
+    
+    // Build rows matching the side-by-side format
+    for (let i = 0; i < Math.max(revenueItems.length, expenseItems.length); i++) {
+      const rev = revenueItems[i] || { label: "", amount: 0 };
+      const exp = expenseItems[i] || { label: "", amount: 0 };
+      allRows.push([
+        rev.label,
+        rev.amount > 0 ? `₹${rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0",
+        exp.label,
+        exp.amount > 0 ? `₹${exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0",
+      ]);
+    }
+
+    // Add totals
+    allRows.push([
+      "Total Revenue / Receipts",
+      `₹${totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      "Total Expenses / Payments",
+      `₹${totalExpenses.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    ]);
+
+    allRows.push([
+      "",
+      "",
+      "Net Profit",
+      `₹${netProfit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    ]);
 
     printTable({
-      title: "Profit & Loss Statement",
+      title: "Profit & Loss Report",
       subtitle: dateRangeLabel,
-      columns: ["Section", "Particulars", "Amount"],
+      columns: ["Revenue / Receipts (+)", "Amount (₹)", "Expenses / Payments (−)", "Amount (₹)"],
       rows: allRows,
-      summary: [
-        { label: "Total Income", value: `₹${totalIncome.toLocaleString()}` },
-        { label: "Total Expenses", value: `₹${totalExpenses.toLocaleString()}` },
-        { label: "Net Profit", value: `₹${netProfit.toLocaleString()}` },
-        { label: "Profit Margin", value: `${profitMargin}%` },
-      ]
+      summary: []
     });
   };
 
   const handleExportPDF = () => {
-    const allRows = [
-      ["INCOME", "", ""],
-      ...incomeData.map(i => ["", i.category, `₹${i.amount.toLocaleString()}`]),
-      ["", "Total Income", `₹${totalIncome.toLocaleString()}`],
-      ["", "", ""],
-      ["EXPENSES", "", ""],
-      ...expenseData.map(e => ["", e.category, `₹${e.amount.toLocaleString()}`]),
-      ["", "Total Expenses", `₹${totalExpenses.toLocaleString()}`],
-      ["", "", ""],
-      ["NET PROFIT", "", `₹${netProfit.toLocaleString()}`],
-    ];
+    const allRows: (string | number)[][] = [];
+    
+    for (let i = 0; i < Math.max(revenueItems.length, expenseItems.length); i++) {
+      const rev = revenueItems[i] || { label: "", amount: 0 };
+      const exp = expenseItems[i] || { label: "", amount: 0 };
+      allRows.push([
+        rev.label,
+        rev.amount > 0 ? `₹${rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0",
+        exp.label,
+        exp.amount > 0 ? `₹${exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0",
+      ]);
+    }
+
+    allRows.push([
+      "Total Revenue / Receipts",
+      `₹${totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      "Total Expenses / Payments",
+      `₹${totalExpenses.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    ]);
+
+    allRows.push([
+      "",
+      "",
+      "Net Profit",
+      `₹${netProfit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    ]);
 
     const doc = generateReportPDF({
-      title: "Profit & Loss Statement",
+      title: "Profit & Loss Report",
       subtitle: "Dhandha App",
       dateRange: dateRangeLabel,
-      columns: ["Section", "Particulars", "Amount"],
+      columns: ["Revenue / Receipts (+)", "Amount (₹)", "Expenses / Payments (−)", "Amount (₹)"],
       rows: allRows,
-      summary: [
-        { label: "Total Income", value: `₹${totalIncome.toLocaleString()}` },
-        { label: "Total Expenses", value: `₹${totalExpenses.toLocaleString()}` },
-        { label: "Net Profit", value: `₹${netProfit.toLocaleString()}` },
-        { label: "Profit Margin", value: `${profitMargin}%` },
-      ]
+      summary: []
     });
     downloadPDF(doc, `profit-loss-${new Date().toISOString().split('T')[0]}`);
   };
@@ -153,7 +274,7 @@ export default function ProfitLoss() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Profit & Loss Statement</h1>
+          <h1 className="text-2xl font-bold">Profit & Loss Report</h1>
           <p className="text-muted-foreground">Financial performance overview</p>
         </div>
         <div className="flex gap-3">
@@ -166,99 +287,57 @@ export default function ProfitLoss() {
         <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Total Income</p>
-            <TrendingUp className="w-4 h-4 text-success" />
-          </div>
-          <p className="text-2xl font-bold mt-2 text-success">₹{totalIncome.toLocaleString()}</p>
+      {/* P&L Statement Table */}
+      <div className="metric-card overflow-hidden p-0">
+        <div className="bg-muted/50 py-3 px-4 text-center font-semibold border-b border-border">
+          Profit & Loss Report
         </div>
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Total Expenses</p>
-            <TrendingDown className="w-4 h-4 text-destructive" />
-          </div>
-          <p className="text-2xl font-bold mt-2 text-destructive">₹{totalExpenses.toLocaleString()}</p>
-        </div>
-        <div className="metric-card bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Net Profit</p>
-            <IndianRupee className="w-4 h-4 text-primary" />
-          </div>
-          <p className={`text-2xl font-bold mt-2 ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-            ₹{Math.abs(netProfit).toLocaleString()}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">Profit Margin: {profitMargin}%</p>
-        </div>
-      </div>
-
-      {/* P&L Statement */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Income */}
-        <div className="metric-card">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-success" />
-            Income
-          </h3>
-          <div className="space-y-3">
-            {incomeData.length === 0 ? (
-              <p className="text-muted-foreground py-4">No income recorded</p>
-            ) : (
-              incomeData.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                  <span className="text-muted-foreground">{item.category}</span>
-                  <span className="font-medium">₹{item.amount.toLocaleString()}</span>
-                </div>
-              ))
-            )}
-            <div className="flex justify-between items-center py-3 bg-success/10 rounded-lg px-3 mt-4">
-              <span className="font-semibold">Total Income</span>
-              <span className="font-bold text-success">₹{totalIncome.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Expenses */}
-        <div className="metric-card">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <TrendingDown className="w-5 h-5 text-destructive" />
-            Expenses
-          </h3>
-          <div className="space-y-3">
-            {expenseData.length === 0 ? (
-              <p className="text-muted-foreground py-4">No expenses recorded</p>
-            ) : (
-              expenseData.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                  <span className="text-muted-foreground">{item.category}</span>
-                  <span className="font-medium">₹{item.amount.toLocaleString()}</span>
-                </div>
-              ))
-            )}
-            <div className="flex justify-between items-center py-3 bg-destructive/10 rounded-lg px-3 mt-4">
-              <span className="font-semibold">Total Expenses</span>
-              <span className="font-bold text-destructive">₹{totalExpenses.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Net Result */}
-      <div className="metric-card bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-xl font-semibold">Net {netProfit >= 0 ? 'Profit' : 'Loss'}</h3>
-            <p className="text-sm text-muted-foreground">Total Income - Total Expenses</p>
-          </div>
-          <div className="text-right">
-            <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-              ₹{Math.abs(netProfit).toLocaleString()}
-            </p>
-            <p className="text-sm text-muted-foreground">Margin: {profitMargin}%</p>
-          </div>
-        </div>
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border bg-muted/30">
+              <th className="text-left py-3 px-4 font-medium w-1/4">Revenue / Receipts (+)</th>
+              <th className="text-right py-3 px-4 font-medium w-1/4">Amount (₹)</th>
+              <th className="text-left py-3 px-4 font-medium w-1/4">Expenses / Payments (−)</th>
+              <th className="text-right py-3 px-4 font-medium w-1/4">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {revenueItems.map((rev, idx) => {
+              const exp = expenseItems[idx] || { label: "", amount: 0 };
+              return (
+                <tr key={idx} className="border-b border-border">
+                  <td className="py-2.5 px-4">{rev.label}</td>
+                  <td className="py-2.5 px-4 text-right font-mono">
+                    {rev.amount > 0 ? rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
+                  </td>
+                  <td className="py-2.5 px-4">{exp.label}</td>
+                  <td className="py-2.5 px-4 text-right font-mono">
+                    {exp.amount > 0 ? exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
+                  </td>
+                </tr>
+              );
+            })}
+            {/* Totals Row */}
+            <tr className="border-b border-border bg-muted/50 font-semibold">
+              <td className="py-3 px-4">Total Revenue / Receipts</td>
+              <td className="py-3 px-4 text-right font-mono text-success">
+                {totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </td>
+              <td className="py-3 px-4">Total Expenses / Payments</td>
+              <td className="py-3 px-4 text-right font-mono text-destructive">
+                {totalExpenses.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </td>
+            </tr>
+            {/* Net Profit Row */}
+            <tr className="bg-primary/10">
+              <td colSpan={2}></td>
+              <td className="py-4 px-4 font-bold text-lg">Net Profit</td>
+              <td className={`py-4 px-4 text-right font-bold text-lg font-mono ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {netProfit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );

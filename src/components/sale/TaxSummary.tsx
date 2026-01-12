@@ -17,6 +17,7 @@ interface TaxSummaryProps {
   enableTds?: boolean;
   tdsPercent?: number;
   invoiceType?: "sale" | "purchase";
+  paymentAmount?: number;
 }
 
 interface TaxBreakdown {
@@ -36,7 +37,8 @@ export function TaxSummary({
   tcsPercent,
   enableTds,
   tdsPercent,
-  invoiceType = "sale"
+  invoiceType = "sale",
+  paymentAmount = 0
 }: TaxSummaryProps) {
   const { businessSettings } = useBusinessSettings();
   
@@ -107,6 +109,7 @@ export function TaxSummary({
   const grandTotalBeforeRound = taxableAmount + totalTax + additionalCharges + tcsAmount - tdsAmount;
   const roundOffAmount = roundOff ? Math.round(grandTotalBeforeRound) - grandTotalBeforeRound : 0;
   const grandTotal = roundOff ? Math.round(grandTotalBeforeRound) : grandTotalBeforeRound;
+  const netPayable = grandTotal - paymentAmount;
 
   return (
     <div className="space-y-4">
@@ -186,6 +189,20 @@ export function TaxSummary({
           <span>Grand Total</span>
           <span className="text-primary">₹{grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
         </div>
+        {paymentAmount > 0 && (
+          <>
+            <div className="flex justify-between text-sm text-success">
+              <span>Payment Received</span>
+              <span>-₹{paymentAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
+              <span>Net {invoiceType === "purchase" ? "Payable" : "Receivable"}</span>
+              <span className={netPayable > 0 ? "text-destructive" : "text-success"}>
+                ₹{netPayable.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

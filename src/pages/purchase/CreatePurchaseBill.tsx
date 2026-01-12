@@ -33,6 +33,7 @@ export default function CreatePurchaseBill() {
   ]);
   const [notes, setNotes] = useState("");
   const [paymentMode, setPaymentMode] = useState<string>("");
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
 
   // Generate bill number on mount
   useEffect(() => {
@@ -168,24 +169,36 @@ export default function CreatePurchaseBill() {
               <CreditCard className="w-5 h-5" />
               Payment (Optional)
             </h3>
-            <div className="space-y-2">
-              <Label>Payment Mode</Label>
-              <Select value={paymentMode} onValueChange={setPaymentMode}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment mode (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Payment</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="bank">Bank Transfer</SelectItem>
-                  <SelectItem value="upi">UPI</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                If payment is made, select the mode. Leave empty for credit invoice.
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Payment Mode</Label>
+                <Select value={paymentMode} onValueChange={setPaymentMode}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Payment</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Amount</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                  disabled={!paymentMode || paymentMode === "none"}
+                />
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              If payment is made, select the mode and enter amount. Leave empty for credit invoice.
+            </p>
           </div>
 
           {/* Notes */}
@@ -202,7 +215,7 @@ export default function CreatePurchaseBill() {
 
         {/* Summary Sidebar */}
         <div className="space-y-6">
-          <TaxSummary items={items} invoiceType="purchase" />
+          <TaxSummary items={items} invoiceType="purchase" paymentAmount={paymentAmount} />
         </div>
       </div>
 
