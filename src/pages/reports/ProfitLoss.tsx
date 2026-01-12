@@ -60,7 +60,9 @@ export default function ProfitLoss() {
       const startDate = format(dateRange.from, 'yyyy-MM-dd');
       const endDate = format(dateRange.to, 'yyyy-MM-dd');
 
+      // =====================
       // Get sales data
+      // =====================
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
         .select('total_amount, tax_amount, tcs_amount')
@@ -68,10 +70,22 @@ export default function ProfitLoss() {
         .gte('invoice_date', startDate)
         .lte('invoice_date', endDate);
 
-      const saleTotal = (salesInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-      const saleTcsReceivable = (salesInvoices || []).reduce((sum, inv) => sum + (inv.tcs_amount || 0), 0);
+      // Sales total WITHOUT TCS
+      const saleTotal = (salesInvoices || []).reduce(
+        (sum, inv) =>
+          sum + ((inv.total_amount || 0) - (inv.tcs_amount || 0)),
+        0
+      );
 
-      // Get purchase data
+      // TCS Receivable (separate)
+      const saleTcsReceivable = (salesInvoices || []).reduce(
+        (sum, inv) => sum + (inv.tcs_amount || 0),
+        0
+      );
+
+      // =====================
+      // PURCHASES
+      // =====================
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
         .select('total_amount, tax_amount, tcs_amount')
@@ -79,8 +93,19 @@ export default function ProfitLoss() {
         .gte('invoice_date', startDate)
         .lte('invoice_date', endDate);
 
-      const purchaseTotal = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-      const purchaseTcsPayable = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.tcs_amount || 0), 0);
+      // Purchase total WITHOUT TCS
+      const purchaseTotal = (purchaseInvoices || []).reduce(
+        (sum, inv) =>
+          sum + ((inv.total_amount || 0) - (inv.tcs_amount || 0)),
+        0
+      );
+
+      // TCS Payable (separate)
+      const purchaseTcsPayable = (purchaseInvoices || []).reduce(
+        (sum, inv) => sum + (inv.tcs_amount || 0),
+        0
+      );
+
 
       // Get payment in (received from customers)
       const { data: paymentsIn } = await supabase
@@ -139,8 +164,8 @@ export default function ProfitLoss() {
         paymentIn: paymentInTotal,
         openingStock: openingStockValue,
         gstPayable: 0, // GST payable (output tax)
-        tcsPayable: 0,
-        tdsPayable: purchaseTcsPayable,
+        tcsPayable: purchaseTcsPayable,
+        tdsPayable: 0,
         otherExpense: expenseTotal,
       });
     } catch (error) {
@@ -179,8 +204,8 @@ export default function ProfitLoss() {
     { label: "Payment In", amount: plData.paymentIn },
     { label: "Opening Stock", amount: plData.openingStock },
     { label: "GST Payable", amount: plData.gstPayable },
-    { label: "TCS Payable", amount: plData.tcsPayable },
-    { label: "TCS on Purchase", amount: plData.tdsPayable },
+    { label: "TCS on Purchase", amount: plData.tcsPayable },
+    { label: "TDS Payable", amount: plData.tdsPayable },
     { label: "Other Expense", amount: plData.otherExpense },
   ];
 
