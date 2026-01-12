@@ -215,7 +215,10 @@ export default function CreatePurchaseBill() {
 
         {/* Summary Sidebar */}
         <div className="space-y-6">
-          <TaxSummary items={items} invoiceType="purchase" paymentAmount={paymentAmount} />
+          <div className="metric-card sticky top-6">
+            <h2 className="text-lg font-semibold mb-4">Purchase Invoice Summary</h2>
+            <TaxSummary items={items} invoiceType="purchase" paymentAmount={paymentAmount} />
+          </div>
         </div>
       </div>
 

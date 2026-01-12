@@ -34,6 +34,7 @@ export default function AddItem() {
     salePrice: "",
     purchasePrice: "",
     unit: "Bottles",
+    openingStock: "",
     currentStock: "",
     minStock: "",
     hsn: "",
@@ -93,7 +94,8 @@ export default function AddItem() {
 
     setLoading(true);
     try {
-      const currentStock = formData.currentStock ? parseFloat(formData.currentStock) : 0;
+      const openingStock = formData.openingStock ? parseFloat(formData.openingStock) : 0;
+      const currentStock = formData.currentStock ? parseFloat(formData.currentStock) : openingStock;
       
       const { error } = await supabase.from("items").insert({
         user_id: user.id,
@@ -102,7 +104,7 @@ export default function AddItem() {
         sale_price: formData.salePrice ? parseFloat(formData.salePrice) : 0,
         purchase_price: formData.purchasePrice ? parseFloat(formData.purchasePrice) : 0,
         unit: formData.unit || "Bottles",
-        opening_stock: 0,
+        opening_stock: openingStock,
         current_stock: currentStock,
         low_stock_alert: formData.minStock ? parseFloat(formData.minStock) : 10,
         hsn_code: formData.hsn || null,
@@ -226,7 +228,17 @@ export default function AddItem() {
           {/* Stock */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Stock</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="openingStock">Opening Stock</Label>
+                <Input
+                  id="openingStock"
+                  type="number"
+                  value={formData.openingStock}
+                  onChange={(e) => handleChange("openingStock", e.target.value)}
+                  placeholder="0"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="currentStock">Current Stock</Label>
                 <Input
