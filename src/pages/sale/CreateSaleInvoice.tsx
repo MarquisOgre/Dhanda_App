@@ -127,7 +127,7 @@ export default function CreateSaleInvoice() {
         <div className="lg:col-span-2 space-y-6">
           {/* Invoice Details */}
           <div className="metric-card">
-            <h2 className="text-lg font-semibold mb-4">Invoice Details</h2>
+            <h2 className="text-lg font-semibold mb-4">Sales Invoice Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Invoice Number</Label>
@@ -203,7 +203,7 @@ export default function CreateSaleInvoice() {
 
           {/* Items */}
           <div className="metric-card">
-            <h2 className="text-lg font-semibold mb-4">Invoice Items</h2>
+            <h2 className="text-lg font-semibold mb-4">Sales Invoice Items</h2>
             <SaleInvoiceItemsTable items={items} onItemsChange={setItems} />
           </div>
 
@@ -249,7 +249,7 @@ export default function CreateSaleInvoice() {
         {/* Sidebar - Tax Summary */}
         <div className="space-y-6">
           <div className="metric-card sticky top-6">
-            <h2 className="text-lg font-semibold mb-4">Invoice Summary</h2>
+            <h2 className="text-lg font-semibold mb-4">Sales Invoice Summary</h2>
             <TaxSummary items={items} />
           </div>
         </div>

@@ -113,7 +113,7 @@ export default function CreatePurchaseBill() {
           </Button>
           <Button className="btn-gradient gap-2" onClick={handleSave} disabled={loading}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Bill
+            Save Invoice
           </Button>
         </div>
       </div>
@@ -123,14 +123,14 @@ export default function CreatePurchaseBill() {
         <div className="lg:col-span-2 space-y-6">
           {/* Bill Details */}
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">Bill Details</h3>
+            <h3 className="font-semibold mb-4">Purchase Invocie Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="billNo">Bill Number</Label>
+                <Label htmlFor="billNo">Purchase Invocie Number</Label>
                 <Input id="billNo" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="billDate">Bill Date</Label>
+                <Label htmlFor="billDate">Invoice Date</Label>
                 <Input
                   id="billDate"
                   type="date"
