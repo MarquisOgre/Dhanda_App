@@ -1,9 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
+/* ================================
+   Base Theme Variables
+================================ */
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -71,44 +74,23 @@
   .dark {
     --background: 222 47% 8%;
     --foreground: 210 40% 98%;
-
     --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-
-    --primary: 199 89% 48%;
-    --primary-foreground: 0 0% 100%;
-
     --secondary: 222 47% 18%;
     --secondary-foreground: 210 40% 98%;
-
     --muted: 222 47% 18%;
     --muted-foreground: 215 20% 65%;
-
-    --accent: 172 66% 50%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 98%;
-
     --border: 222 47% 18%;
     --input: 222 47% 18%;
-    --ring: 199 89% 48%;
-
     --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 47% 15%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 222 47% 15%;
-    --sidebar-ring: 199 89% 48%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
@@ -123,9 +105,12 @@
   }
 }
 
+/* ================================
+   Components
+================================ */
 @layer components {
   .metric-card {
-    @apply bg-card rounded-xl p-6 border border-border transition-all duration-300;
+    @apply bg-card rounded-xl p-6 border transition-all duration-300;
     box-shadow: var(--shadow-md);
   }
 
@@ -155,7 +140,7 @@
   }
 
   .data-table td {
-    @apply py-3 px-4 border-b border-border;
+    @apply py-3 px-4 border-b;
   }
 
   .data-table tr:hover td {
@@ -179,6 +164,9 @@
   }
 }
 
+/* ================================
+   Utilities & Animations
+================================ */
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;

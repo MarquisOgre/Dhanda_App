@@ -1,0 +1,31 @@
+{
+  // Disable default CSS validation (causes Tailwind false errors)
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+
+  // Enable Tailwind IntelliSense everywhere
+  "tailwindCSS.includeLanguages": {
+    "plaintext": "html",
+    "javascript": "javascriptreact",
+    "typescript": "typescriptreact"
+  },
+
+  // Better class detection
+  "tailwindCSS.experimental.classRegex": [
+    ["clsx\\(([^)]*)\\)", "'([^']*)'"],
+    ["classnames\\(([^)]*)\\)", "'([^']*)'"],
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+
+  // Improve suggestions ordering
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+
+  // Prevent duplicate CSS suggestions
+  "editor.suggest.showWords": false,
+
+  // Optional: cleaner UI
+  "editor.hover.delay": 300
+}
