@@ -80,7 +80,7 @@ export default function ProfitLoss() {
         .lte('invoice_date', endDate);
 
       const purchaseTotal = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-      const purchaseTdsPayable = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.tcs_amount || 0), 0);
+      const purchaseTcsPayable = (purchaseInvoices || []).reduce((sum, inv) => sum + (inv.tcs_amount || 0), 0);
 
       // Get payment in (received from customers)
       const { data: paymentsIn } = await supabase
@@ -140,7 +140,7 @@ export default function ProfitLoss() {
         openingStock: openingStockValue,
         gstPayable: 0, // GST payable (output tax)
         tcsPayable: 0,
-        tdsPayable: purchaseTdsPayable,
+        tdsPayable: purchaseTcsPayable,
         otherExpense: expenseTotal,
       });
     } catch (error) {
@@ -180,7 +180,7 @@ export default function ProfitLoss() {
     { label: "Opening Stock", amount: plData.openingStock },
     { label: "GST Payable", amount: plData.gstPayable },
     { label: "TCS Payable", amount: plData.tcsPayable },
-    { label: "TDS Payable", amount: plData.tdsPayable },
+    { label: "TCS on Purchase", amount: plData.tdsPayable },
     { label: "Other Expense", amount: plData.otherExpense },
   ];
 
