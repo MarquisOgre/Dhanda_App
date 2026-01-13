@@ -8,18 +8,26 @@ import { format } from "date-fns";
 import { DateRangeFilter, getDefaultDateRange, DateRange } from "@/components/DateRangeFilter";
 
 interface PLData {
-  // Revenue / Receipts (+)
+  // Revenue / Receipts (+) - main items (included in total)
   sale: number;
   debitNote: number;
   paymentOut: number;
   closingStock: number;
   otherIncomes: number;
-  // Expenses / Payments (-)
+  // Revenue info items (NOT included in total)
+  gstReceivable: number;
+  tcsReceivable: number;
+  tdsReceivable: number;
+  // Expenses / Payments (-) - main items (included in total)
   purchase: number;
   creditNote: number;
   paymentIn: number;
   openingStock: number;
   otherExpense: number;
+  // Expense info items (NOT included in total)
+  gstPayable: number;
+  tcsOnPurchase: number;
+  tdsPayable: number;
 }
 
 export default function ProfitLoss() {
@@ -31,11 +39,17 @@ export default function ProfitLoss() {
     paymentOut: 0,
     closingStock: 0,
     otherIncomes: 0,
+    gstReceivable: 0,
+    tcsReceivable: 0,
+    tdsReceivable: 0,
     purchase: 0,
     creditNote: 0,
     paymentIn: 0,
     openingStock: 0,
     otherExpense: 0,
+    gstPayable: 0,
+    tcsOnPurchase: 0,
+    tdsPayable: 0,
   });
 
   useEffect(() => {
@@ -49,7 +63,7 @@ export default function ProfitLoss() {
       const endDate = format(dateRange.to, 'yyyy-MM-dd');
 
       // =====================
-      // Get sales data (excluding TCS)
+      // Get sales data
       // =====================
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
@@ -58,15 +72,26 @@ export default function ProfitLoss() {
         .gte('invoice_date', startDate)
         .lte('invoice_date', endDate);
 
-      // Sales total WITHOUT TCS
+      // Sale total (total_amount includes TCS, so use it for matching Bill-wise P&L)
       const saleTotal = (salesInvoices || []).reduce(
-        (sum, inv) =>
-          sum + ((inv.total_amount || 0) - (inv.tcs_amount || 0)),
+        (sum, inv) => sum + (inv.total_amount || 0),
+        0
+      );
+
+      // GST Receivable (tax collected on sales)
+      const gstReceivable = (salesInvoices || []).reduce(
+        (sum, inv) => sum + (inv.tax_amount || 0),
+        0
+      );
+
+      // TCS Receivable (TCS collected on sales)
+      const tcsReceivable = (salesInvoices || []).reduce(
+        (sum, inv) => sum + (inv.tcs_amount || 0),
         0
       );
 
       // =====================
-      // PURCHASES (excluding TCS)
+      // PURCHASES
       // =====================
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
@@ -75,10 +100,21 @@ export default function ProfitLoss() {
         .gte('invoice_date', startDate)
         .lte('invoice_date', endDate);
 
-      // Purchase total WITHOUT TCS
+      // Purchase total (use total_amount for consistency)
       const purchaseTotal = (purchaseInvoices || []).reduce(
-        (sum, inv) =>
-          sum + ((inv.total_amount || 0) - (inv.tcs_amount || 0)),
+        (sum, inv) => sum + (inv.total_amount || 0),
+        0
+      );
+
+      // GST Payable (tax paid on purchases)
+      const gstPayable = (purchaseInvoices || []).reduce(
+        (sum, inv) => sum + (inv.tax_amount || 0),
+        0
+      );
+
+      // TCS on Purchase
+      const tcsOnPurchase = (purchaseInvoices || []).reduce(
+        (sum, inv) => sum + (inv.tcs_amount || 0),
         0
       );
 
@@ -131,11 +167,17 @@ export default function ProfitLoss() {
         paymentOut: paymentOutTotal,
         closingStock: closingStockValue,
         otherIncomes: 0,
+        gstReceivable,
+        tcsReceivable,
+        tdsReceivable: 0, // TDS receivable (not implemented yet)
         purchase: purchaseTotal,
         creditNote: 0, // Sale returns (not implemented yet)
         paymentIn: paymentInTotal,
         openingStock: openingStockValue,
         otherExpense: expenseTotal,
+        gstPayable,
+        tcsOnPurchase,
+        tdsPayable: 0, // TDS payable (not implemented yet)
       });
     } catch (error) {
       console.error('Error fetching P&L data:', error);
@@ -144,6 +186,7 @@ export default function ProfitLoss() {
     }
   };
 
+  // Calculate totals EXCLUDING GST/TCS/TDS items to match Bill-wise P&L
   const totalRevenue = plData.sale + plData.debitNote + plData.paymentOut + 
     plData.closingStock + plData.otherIncomes;
 
@@ -154,6 +197,7 @@ export default function ProfitLoss() {
 
   const dateRangeLabel = `${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`;
 
+  // Main items that are included in totals
   const revenueItems = [
     { label: "Sale", amount: plData.sale },
     { label: "Debit Note / Purchase Return", amount: plData.debitNote },
@@ -162,6 +206,14 @@ export default function ProfitLoss() {
     { label: "Other Incomes", amount: plData.otherIncomes },
   ];
 
+  // Info items (shown but NOT included in totals)
+  const revenueInfoItems = [
+    { label: "GST Receivable", amount: plData.gstReceivable },
+    { label: "TCS Receivable", amount: plData.tcsReceivable },
+    { label: "TDS Receivable", amount: plData.tdsReceivable },
+  ];
+
+  // Main expense items that are included in totals
   const expenseItems = [
     { label: "Purchase", amount: plData.purchase },
     { label: "Credit Note / Sale Return", amount: plData.creditNote },
@@ -170,13 +222,24 @@ export default function ProfitLoss() {
     { label: "Other Expense", amount: plData.otherExpense },
   ];
 
+  // Expense info items (shown but NOT included in totals)
+  const expenseInfoItems = [
+    { label: "GST Payable", amount: plData.gstPayable },
+    { label: "TCS on Purchase", amount: plData.tcsOnPurchase },
+    { label: "TDS Payable", amount: plData.tdsPayable },
+  ];
+
+  // Combined items for rendering (main + info)
+  const allRevenueItems = [...revenueItems, ...revenueInfoItems];
+  const allExpenseItems = [...expenseItems, ...expenseInfoItems];
+
   const handlePrint = () => {
     const allRows: (string | number)[][] = [];
     
     // Build rows matching the side-by-side format
-    for (let i = 0; i < Math.max(revenueItems.length, expenseItems.length); i++) {
-      const rev = revenueItems[i] || { label: "", amount: 0 };
-      const exp = expenseItems[i] || { label: "", amount: 0 };
+    for (let i = 0; i < Math.max(allRevenueItems.length, allExpenseItems.length); i++) {
+      const rev = allRevenueItems[i] || { label: "", amount: 0 };
+      const exp = allExpenseItems[i] || { label: "", amount: 0 };
       allRows.push([
         rev.label,
         rev.amount > 0 ? `₹${rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0",
@@ -212,9 +275,9 @@ export default function ProfitLoss() {
   const handleExportPDF = () => {
     const allRows: (string | number)[][] = [];
     
-    for (let i = 0; i < Math.max(revenueItems.length, expenseItems.length); i++) {
-      const rev = revenueItems[i] || { label: "", amount: 0 };
-      const exp = expenseItems[i] || { label: "", amount: 0 };
+    for (let i = 0; i < Math.max(allRevenueItems.length, allExpenseItems.length); i++) {
+      const rev = allRevenueItems[i] || { label: "", amount: 0 };
+      const exp = allExpenseItems[i] || { label: "", amount: 0 };
       allRows.push([
         rev.label,
         rev.amount > 0 ? `₹${rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "0",
@@ -289,6 +352,7 @@ export default function ProfitLoss() {
               </tr>
             </thead>
             <tbody>
+              {/* Main items (included in totals) */}
               {revenueItems.map((rev, idx) => {
                 const exp = expenseItems[idx] || { label: "", amount: 0 };
                 return (
@@ -299,6 +363,22 @@ export default function ProfitLoss() {
                     </td>
                     <td className="py-2.5 px-4">{exp.label}</td>
                     <td className="py-2.5 px-4 text-right font-mono">
+                      {exp.amount > 0 ? exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Info items (NOT included in totals) - shown with muted styling */}
+              {revenueInfoItems.map((rev, idx) => {
+                const exp = expenseInfoItems[idx] || { label: "", amount: 0 };
+                return (
+                  <tr key={`info-${idx}`} className="border-b border-border bg-muted/20">
+                    <td className="py-2.5 px-4 text-muted-foreground italic">{rev.label}</td>
+                    <td className="py-2.5 px-4 text-right font-mono text-muted-foreground">
+                      {rev.amount > 0 ? rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
+                    </td>
+                    <td className="py-2.5 px-4 text-muted-foreground italic">{exp.label}</td>
+                    <td className="py-2.5 px-4 text-right font-mono text-muted-foreground">
                       {exp.amount > 0 ? exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
                     </td>
                   </tr>

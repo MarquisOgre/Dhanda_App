@@ -52,7 +52,7 @@ export function Header() {
       {isMobile && (
         <Link to="/" className="flex-shrink-0">
           <img
-            src="/logo.png"
+            src="/dark_logo.png"
             alt="Dhanda App"
             className="h-10 w-auto object-contain"
           />
