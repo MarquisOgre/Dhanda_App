@@ -13,18 +13,12 @@ interface PLData {
   debitNote: number;
   paymentOut: number;
   closingStock: number;
-  gstReceivable: number;
-  tcsReceivable: number;
-  tdsReceivable: number;
   otherIncomes: number;
   // Expenses / Payments (-)
   purchase: number;
   creditNote: number;
   paymentIn: number;
   openingStock: number;
-  gstPayable: number;
-  tcsPayable: number;
-  tdsPayable: number;
   otherExpense: number;
 }
 
@@ -36,17 +30,11 @@ export default function ProfitLoss() {
     debitNote: 0,
     paymentOut: 0,
     closingStock: 0,
-    gstReceivable: 0,
-    tcsReceivable: 0,
-    tdsReceivable: 0,
     otherIncomes: 0,
     purchase: 0,
     creditNote: 0,
     paymentIn: 0,
     openingStock: 0,
-    gstPayable: 0,
-    tcsPayable: 0,
-    tdsPayable: 0,
     otherExpense: 0,
   });
 
@@ -61,7 +49,7 @@ export default function ProfitLoss() {
       const endDate = format(dateRange.to, 'yyyy-MM-dd');
 
       // =====================
-      // Get sales data
+      // Get sales data (excluding TCS)
       // =====================
       const { data: salesInvoices } = await supabase
         .from('sale_invoices')
@@ -77,14 +65,8 @@ export default function ProfitLoss() {
         0
       );
 
-      // TCS Receivable (separate)
-      const saleTcsReceivable = (salesInvoices || []).reduce(
-        (sum, inv) => sum + (inv.tcs_amount || 0),
-        0
-      );
-
       // =====================
-      // PURCHASES
+      // PURCHASES (excluding TCS)
       // =====================
       const { data: purchaseInvoices } = await supabase
         .from('purchase_invoices')
@@ -99,13 +81,6 @@ export default function ProfitLoss() {
           sum + ((inv.total_amount || 0) - (inv.tcs_amount || 0)),
         0
       );
-
-      // TCS Payable (separate)
-      const purchaseTcsPayable = (purchaseInvoices || []).reduce(
-        (sum, inv) => sum + (inv.tcs_amount || 0),
-        0
-      );
-
 
       // Get payment in (received from customers)
       const { data: paymentsIn } = await supabase
@@ -155,17 +130,11 @@ export default function ProfitLoss() {
         debitNote: 0, // Purchase returns (not implemented yet)
         paymentOut: paymentOutTotal,
         closingStock: closingStockValue,
-        gstReceivable: 0, // GST receivable (input credit)
-        tcsReceivable: saleTcsReceivable,
-        tdsReceivable: 0, // TDS receivable
         otherIncomes: 0,
         purchase: purchaseTotal,
         creditNote: 0, // Sale returns (not implemented yet)
         paymentIn: paymentInTotal,
         openingStock: openingStockValue,
-        gstPayable: 0, // GST payable (output tax)
-        tcsPayable: purchaseTcsPayable,
-        tdsPayable: 0,
         otherExpense: expenseTotal,
       });
     } catch (error) {
@@ -176,12 +145,10 @@ export default function ProfitLoss() {
   };
 
   const totalRevenue = plData.sale + plData.debitNote + plData.paymentOut + 
-    plData.closingStock + plData.gstReceivable + plData.tcsReceivable + 
-    plData.tdsReceivable + plData.otherIncomes;
+    plData.closingStock + plData.otherIncomes;
 
   const totalExpenses = plData.purchase + plData.creditNote + plData.paymentIn + 
-    plData.openingStock + plData.gstPayable + plData.tcsPayable + 
-    plData.tdsPayable + plData.otherExpense;
+    plData.openingStock + plData.otherExpense;
 
   const netProfit = totalRevenue - totalExpenses;
 
@@ -192,9 +159,6 @@ export default function ProfitLoss() {
     { label: "Debit Note / Purchase Return", amount: plData.debitNote },
     { label: "Payment Out", amount: plData.paymentOut },
     { label: "Closing Stock", amount: plData.closingStock },
-    { label: "GST Receivable", amount: plData.gstReceivable },
-    { label: "TCS Receivable", amount: plData.tcsReceivable },
-    { label: "TDS Receivable", amount: plData.tdsReceivable },
     { label: "Other Incomes", amount: plData.otherIncomes },
   ];
 
@@ -203,9 +167,6 @@ export default function ProfitLoss() {
     { label: "Credit Note / Sale Return", amount: plData.creditNote },
     { label: "Payment In", amount: plData.paymentIn },
     { label: "Opening Stock", amount: plData.openingStock },
-    { label: "GST Payable", amount: plData.gstPayable },
-    { label: "TCS on Purchase", amount: plData.tcsPayable },
-    { label: "TDS Payable", amount: plData.tdsPayable },
     { label: "Other Expense", amount: plData.otherExpense },
   ];
 
@@ -297,7 +258,7 @@ export default function ProfitLoss() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Profit & Loss Report</h1>
           <p className="text-muted-foreground">Financial performance overview</p>
@@ -317,52 +278,54 @@ export default function ProfitLoss() {
         <div className="bg-muted/50 py-3 px-4 text-center font-semibold border-b border-border">
           Profit & Loss Report
         </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/30">
-              <th className="text-left py-3 px-4 font-medium w-1/4">Revenue / Receipts (+)</th>
-              <th className="text-right py-3 px-4 font-medium w-1/4">Amount (₹)</th>
-              <th className="text-left py-3 px-4 font-medium w-1/4">Expenses / Payments (−)</th>
-              <th className="text-right py-3 px-4 font-medium w-1/4">Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {revenueItems.map((rev, idx) => {
-              const exp = expenseItems[idx] || { label: "", amount: 0 };
-              return (
-                <tr key={idx} className="border-b border-border">
-                  <td className="py-2.5 px-4">{rev.label}</td>
-                  <td className="py-2.5 px-4 text-right font-mono">
-                    {rev.amount > 0 ? rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
-                  </td>
-                  <td className="py-2.5 px-4">{exp.label}</td>
-                  <td className="py-2.5 px-4 text-right font-mono">
-                    {exp.amount > 0 ? exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
-                  </td>
-                </tr>
-              );
-            })}
-            {/* Totals Row */}
-            <tr className="border-b border-border bg-muted/50 font-semibold">
-              <td className="py-3 px-4">Total Revenue / Receipts</td>
-              <td className="py-3 px-4 text-right font-mono text-success">
-                {totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </td>
-              <td className="py-3 px-4">Total Expenses / Payments</td>
-              <td className="py-3 px-4 text-right font-mono text-destructive">
-                {totalExpenses.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </td>
-            </tr>
-            {/* Net Profit Row */}
-            <tr className="bg-primary/10">
-              <td colSpan={2}></td>
-              <td className="py-4 px-4 font-bold text-lg">Net Profit</td>
-              <td className={`py-4 px-4 text-right font-bold text-lg font-mono ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {netProfit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left py-3 px-4 font-medium w-1/4">Revenue / Receipts (+)</th>
+                <th className="text-right py-3 px-4 font-medium w-1/4">Amount (₹)</th>
+                <th className="text-left py-3 px-4 font-medium w-1/4">Expenses / Payments (−)</th>
+                <th className="text-right py-3 px-4 font-medium w-1/4">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenueItems.map((rev, idx) => {
+                const exp = expenseItems[idx] || { label: "", amount: 0 };
+                return (
+                  <tr key={idx} className="border-b border-border">
+                    <td className="py-2.5 px-4">{rev.label}</td>
+                    <td className="py-2.5 px-4 text-right font-mono">
+                      {rev.amount > 0 ? rev.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
+                    </td>
+                    <td className="py-2.5 px-4">{exp.label}</td>
+                    <td className="py-2.5 px-4 text-right font-mono">
+                      {exp.amount > 0 ? exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0"}
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Totals Row */}
+              <tr className="border-b border-border bg-muted/50 font-semibold">
+                <td className="py-3 px-4">Total Revenue / Receipts</td>
+                <td className="py-3 px-4 text-right font-mono text-success">
+                  {totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-3 px-4">Total Expenses / Payments</td>
+                <td className="py-3 px-4 text-right font-mono text-destructive">
+                  {totalExpenses.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+              {/* Net Profit Row */}
+              <tr className="bg-primary/10">
+                <td colSpan={2}></td>
+                <td className="py-4 px-4 font-bold text-lg">Net Profit</td>
+                <td className={`py-4 px-4 text-right font-bold text-lg font-mono ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {netProfit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

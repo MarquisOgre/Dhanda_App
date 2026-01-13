@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { BusinessProvider } from "@/contexts/BusinessContext";
+import { useAutoLogout } from "@/hooks/useAutoLogout";
 import { ThemeProvider } from "next-themes";
 import { Loader2 } from "lucide-react";
 
@@ -73,6 +74,9 @@ const queryClient = new QueryClient();
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  
+  // Auto logout when window/app closes
+  useAutoLogout();
 
   if (loading) {
     return (
