@@ -13,21 +13,13 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
-  Receipt,
-  CreditCard,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  Building2,
-  Banknote,
-  PieChart,
-  Database,
-  RefreshCw,
-  Trash2,
-  Upload,
-  FolderOpen,
-  Tag,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface NavItem {
   title: string;
@@ -122,7 +114,7 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+function SidebarContent({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Sale"]);
   const { businessSettings, getCurrentFinancialYear } = useBusinessSettings();
@@ -145,11 +137,15 @@ export function Sidebar() {
     return children.some((child) => location.pathname.startsWith(child.href));
   };
 
+  const handleLinkClick = () => {
+    if (onClose) onClose();
+  };
+
   return (
-    <aside className="fixed left-0 top-0 h-[calc(100vh-3rem)] w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
+    <div className="h-full bg-sidebar text-sidebar-foreground flex flex-col">
       {/* Logo */}
       <div className="p-4 border-b border-sidebar-border">
-        <Link to="/" className="flex justify-start">
+        <Link to="/" className="flex justify-start" onClick={handleLinkClick}>
           <img
             src="/logo.png"
             alt="Dhanda App Logo"
@@ -184,6 +180,7 @@ export function Sidebar() {
                 <Link
                   to={item.href}
                   className={cn("sidebar-link", isActive(item.href) && "active")}
+                  onClick={handleLinkClick}
                 >
                   {item.icon}
                   <span className="font-medium">{item.title}</span>
@@ -217,6 +214,7 @@ export function Sidebar() {
                               "sidebar-link pl-8 text-sm",
                               isActive(child.href) && "active"
                             )}
+                            onClick={handleLinkClick}
                           >
                             {child.title}
                           </Link>
@@ -230,6 +228,36 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="fixed top-3 right-3 z-50 md:hidden"
+          >
+            <Menu className="h-6 w-6" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0">
+          <SidebarContent onClose={() => setOpen(false)} />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <aside className="fixed left-0 top-0 h-[calc(100vh-3rem)] w-64 z-50 hidden md:block">
+      <SidebarContent />
     </aside>
   );
 }
