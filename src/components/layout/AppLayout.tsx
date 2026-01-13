@@ -27,7 +27,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <Header />
         <main className="p-4 md:p-6 animate-fade-in">{children}</main>
       </div>
-      <Footer />
+      {/* Hide footer on mobile app view */}
+      {!isMobile && <Footer />}
     </div>
   );
 }
