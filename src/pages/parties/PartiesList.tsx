@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { RoleGuard, useRoleAccess } from "@/components/RoleGuard";
 import { toast } from "sonner";
 
 interface Party {
@@ -47,6 +48,7 @@ interface PartyWithTotals extends Party {
 
 export default function PartiesList() {
   const { user } = useAuth();
+  const { canWrite } = useRoleAccess();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "customer" | "supplier">("all");
@@ -246,12 +248,14 @@ export default function PartiesList() {
           <h1 className="text-2xl font-bold">Parties</h1>
           <p className="text-muted-foreground">Manage your customers and suppliers</p>
         </div>
-        <Button asChild className="btn-gradient gap-2">
-          <Link to="/parties/add">
-            <Plus className="w-4 h-4" />
-            Add Party
-          </Link>
-        </Button>
+        <RoleGuard requireWrite>
+          <Button asChild className="btn-gradient gap-2">
+            <Link to="/parties/add">
+              <Plus className="w-4 h-4" />
+              Add Party
+            </Link>
+          </Button>
+        </RoleGuard>
       </div>
 
       {/* Summary Cards */}
@@ -410,18 +414,22 @@ export default function PartiesList() {
                         <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}`)}>
                           View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate(`/parties/edit/${party.id}`)}>
-                          Edit Party
-                        </DropdownMenuItem>
+                        {canWrite && (
+                          <DropdownMenuItem onClick={() => navigate(`/parties/edit/${party.id}`)}>
+                            Edit Party
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => navigate(`/parties/${party.id}/transactions`)}>
                           View Transactions
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => handleDelete(party.id)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
+                        {canWrite && (
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDelete(party.id)}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
+import { useRoleAccess } from "@/components/RoleGuard";
 import {
   LayoutDashboard,
   Users,
@@ -21,11 +22,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+type AppRole = "admin" | "supervisor" | "viewer";
+
 interface NavItem {
   title: string;
   href?: string;
   icon: React.ReactNode;
-  children?: { title: string; href: string }[];
+  children?: { title: string; href: string; requireWrite?: boolean; requireAdmin?: boolean }[];
+  /** Only show for these roles */
+  allowedRoles?: AppRole[];
+  /** Only show for admin/supervisor */
+  requireWrite?: boolean;
+  /** Only show for admin */
+  requireAdmin?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -39,7 +48,7 @@ const navItems: NavItem[] = [
     icon: <Users className="w-5 h-5" />,
     children: [
       { title: "All Parties", href: "/parties" },
-      { title: "Add Party", href: "/parties/add" },
+      { title: "Add Party", href: "/parties/add", requireWrite: true },
     ],
   },
   {
@@ -47,7 +56,7 @@ const navItems: NavItem[] = [
     icon: <Package className="w-5 h-5" />,
     children: [
       { title: "All Items", href: "/items" },
-      { title: "Add Item", href: "/items/add" },
+      { title: "Add Item", href: "/items/add", requireWrite: true },
       { title: "Categories", href: "/items/categories" },
     ],
   },
@@ -95,6 +104,7 @@ const navItems: NavItem[] = [
   {
     title: "Sync & Backup",
     icon: <Cloud className="w-5 h-5" />,
+    requireAdmin: true, // Only admin can access backup options
     children: [
       { title: "Sync & Share", href: "/backup/sync" },
       { title: "Auto Backup", href: "/backup/auto" },
@@ -105,6 +115,7 @@ const navItems: NavItem[] = [
   {
     title: "Utilities",
     icon: <Settings className="w-5 h-5" />,
+    requireAdmin: true, // Only admin can access utilities
     children: [
       { title: "Import Items", href: "/utilities/import" },
       { title: "Update Items in Bulk", href: "/utilities/bulk-update" },
@@ -118,6 +129,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Sale"]);
   const { businessSettings, getCurrentFinancialYear } = useBusinessSettings();
+  const { canWrite, isAdmin } = useRoleAccess();
 
   const toggleExpand = (title: string) => {
     setExpandedItems((prev) =>
@@ -139,6 +151,23 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
   const handleLinkClick = () => {
     if (onClose) onClose();
+  };
+
+  // Filter nav items based on role
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.requireAdmin && !isAdmin) return false;
+    if (item.requireWrite && !canWrite) return false;
+    return true;
+  });
+
+  // Filter children based on role
+  const getFilteredChildren = (children?: { title: string; href: string; requireWrite?: boolean; requireAdmin?: boolean }[]) => {
+    if (!children) return [];
+    return children.filter((child) => {
+      if (child.requireAdmin && !isAdmin) return false;
+      if (child.requireWrite && !canWrite) return false;
+      return true;
+    });
   };
 
   return (
@@ -174,58 +203,62 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <ul className="space-y-1">
-          {navItems.map((item) => (
-            <li key={item.title}>
-              {item.href ? (
-                <Link
-                  to={item.href}
-                  className={cn("sidebar-link", isActive(item.href) && "active")}
-                  onClick={handleLinkClick}
-                >
-                  {item.icon}
-                  <span className="font-medium">{item.title}</span>
-                </Link>
-              ) : (
-                <>
-                  <button
-                    onClick={() => toggleExpand(item.title)}
-                    className={cn(
-                      "sidebar-link w-full justify-between",
-                      isParentActive(item.children) && "bg-sidebar-accent"
-                    )}
+          {filteredNavItems.map((item) => {
+            const filteredChildren = getFilteredChildren(item.children);
+            
+            return (
+              <li key={item.title}>
+                {item.href ? (
+                  <Link
+                    to={item.href}
+                    className={cn("sidebar-link", isActive(item.href) && "active")}
+                    onClick={handleLinkClick}
                   >
-                    <div className="flex items-center gap-3">
-                      {item.icon}
-                      <span className="font-medium">{item.title}</span>
-                    </div>
-                    {expandedItems.includes(item.title) ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
+                    {item.icon}
+                    <span className="font-medium">{item.title}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => toggleExpand(item.title)}
+                      className={cn(
+                        "sidebar-link w-full justify-between",
+                        isParentActive(item.children) && "bg-sidebar-accent"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        {item.icon}
+                        <span className="font-medium">{item.title}</span>
+                      </div>
+                      {expandedItems.includes(item.title) ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </button>
+                    {expandedItems.includes(item.title) && filteredChildren.length > 0 && (
+                      <ul className="ml-4 mt-1 space-y-1 animate-fade-in">
+                        {filteredChildren.map((child) => (
+                          <li key={child.href}>
+                            <Link
+                              to={child.href}
+                              className={cn(
+                                "sidebar-link pl-8 text-sm",
+                                isActive(child.href) && "active"
+                              )}
+                              onClick={handleLinkClick}
+                            >
+                              {child.title}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
                     )}
-                  </button>
-                  {expandedItems.includes(item.title) && item.children && (
-                    <ul className="ml-4 mt-1 space-y-1 animate-fade-in">
-                      {item.children.map((child) => (
-                        <li key={child.href}>
-                          <Link
-                            to={child.href}
-                            className={cn(
-                              "sidebar-link pl-8 text-sm",
-                              isActive(child.href) && "active"
-                            )}
-                            onClick={handleLinkClick}
-                          >
-                            {child.title}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              )}
-            </li>
-          ))}
+                  </>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
     </div>
