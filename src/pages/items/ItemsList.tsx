@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { RoleGuard, useRoleAccess } from "@/components/RoleGuard";
 import { toast } from "sonner";
 
 interface Item {
@@ -53,6 +54,7 @@ interface Item {
 
 export default function ItemsList() {
   const { user } = useAuth();
+  const { canWrite } = useRoleAccess();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<Item[]>([]);
@@ -152,15 +154,17 @@ export default function ItemsList() {
           <Button variant="outline" asChild>
             <Link to="/items/categories">Categories</Link>
           </Button>
-          <Button variant="outline" asChild>
-            <Link to="/utilities/import">Bulk Import</Link>
-          </Button>
-          <Button asChild className="btn-gradient gap-2">
-            <Link to="/items/add">
-              <Plus className="w-4 h-4" />
-              Add Item
-            </Link>
-          </Button>
+          <RoleGuard requireWrite>
+            <Button variant="outline" asChild>
+              <Link to="/utilities/import">Bulk Import</Link>
+            </Button>
+            <Button asChild className="btn-gradient gap-2">
+              <Link to="/items/add">
+                <Plus className="w-4 h-4" />
+                Add Item
+              </Link>
+            </Button>
+          </RoleGuard>
         </div>
       </div>
 
@@ -257,21 +261,25 @@ export default function ItemsList() {
                           }}>
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/items/edit/${item.id}`)}>
-                            Edit Item
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedItem(item);
-                            setShowAdjustStock(true);
-                          }}>
-                            Adjust Stock
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            Delete
-                          </DropdownMenuItem>
+                          {canWrite && (
+                            <>
+                              <DropdownMenuItem onClick={() => navigate(`/items/edit/${item.id}`)}>
+                                Edit Item
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedItem(item);
+                                setShowAdjustStock(true);
+                              }}>
+                                Adjust Stock
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => handleDelete(item.id)}
+                              >
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
+import { RoleGuard, useRoleAccess } from "@/components/RoleGuard";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateInvoicePDF } from "@/lib/invoicePdf";
@@ -46,6 +47,7 @@ interface Invoice {
 export default function SaleInvoices() {
   const { user } = useAuth();
   const { businessSettings } = useBusinessSettings();
+  const { canWrite } = useRoleAccess();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -155,12 +157,14 @@ export default function SaleInvoices() {
           <h1 className="text-2xl font-bold">Sale Invoices</h1>
           <p className="text-muted-foreground">Manage your sales and invoices</p>
         </div>
-        <Button asChild className="btn-gradient gap-2">
-          <Link to="/sale/invoices/new">
-            <Plus className="w-4 h-4" />
-            New Invoice
-          </Link>
-        </Button>
+        <RoleGuard requireWrite>
+          <Button asChild className="btn-gradient gap-2">
+            <Link to="/sale/invoices/new">
+              <Plus className="w-4 h-4" />
+              New Invoice
+            </Link>
+          </Button>
+        </RoleGuard>
       </div>
 
       {/* Summary Cards */}
@@ -294,19 +298,23 @@ export default function SaleInvoices() {
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in/new?invoice=${invoice.id}`)}>
-                            <CreditCard className="w-4 h-4 mr-2" />
-                            Record Payment
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => navigate(`/sale/invoices/${invoice.id}/edit`)}>
-                            Edit Invoice
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onSelect={() => handleDelete(invoice.id)}
-                          >
-                            Delete
-                          </DropdownMenuItem>
+                          {canWrite && (
+                            <>
+                              <DropdownMenuItem onSelect={() => navigate(`/sale/payment-in/new?invoice=${invoice.id}`)}>
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                Record Payment
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => navigate(`/sale/invoices/${invoice.id}/edit`)}>
+                                Edit Invoice
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onSelect={() => handleDelete(invoice.id)}
+                              >
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
