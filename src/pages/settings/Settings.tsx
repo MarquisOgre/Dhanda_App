@@ -78,7 +78,7 @@ import { toast } from "sonner";
 import { LicenseSettings } from "./LicenseSettings";
 import { TwoFactorAuth } from "./TwoFactorAuth";
 import { LicensePlans } from "@/components/settings/LicensePlans";
-import { checkMaxUsers } from "@/hooks/useSessionTracking";
+import { UserManagement } from "@/components/settings/UserManagement";
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
 
@@ -87,13 +87,6 @@ interface UnitOfMeasure {
   name: string;
   symbol: string | null;
   is_default: boolean;
-}
-
-interface UserWithRole {
-  user_id: string;
-  email: string;
-  full_name: string | null;
-  role: AppRole;
 }
 
 // All Indian states and union territories
@@ -189,16 +182,6 @@ export default function Settings() {
   const [showQrCode, setShowQrCode] = useState(false);
   const [autoPrintOnSave, setAutoPrintOnSave] = useState(false);
 
-  // User management
-  const [users, setUsers] = useState<UserWithRole[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserPassword, setNewUserPassword] = useState("");
-  const [newUserName, setNewUserName] = useState("");
-  const [newUserRole, setNewUserRole] = useState<AppRole>("viewer");
-  const [addingUser, setAddingUser] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
@@ -224,10 +207,7 @@ export default function Settings() {
     fetchSettings();
     loadDisplayPreferences();
     fetchUnits();
-    if (isAdmin) {
-      fetchUsers();
-    }
-  }, [user, isAdmin]);
+  }, [user]);
 
   const loadDisplayPreferences = () => {
     const savedAutoLogout = localStorage.getItem('autoLogoutTime');
@@ -414,43 +394,6 @@ export default function Settings() {
     }
   };
 
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (rolesError) throw rolesError;
-
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, email, full_name');
-
-      if (profilesError) throw profilesError;
-
-      const usersWithRoles: UserWithRole[] = rolesData
-        .map(roleItem => {
-          const profile = profilesData.find(p => p.user_id === roleItem.user_id);
-          return {
-            user_id: roleItem.user_id,
-            email: profile?.email || 'Unknown',
-            full_name: profile?.full_name || null,
-            role: roleItem.role as AppRole
-          };
-        })
-        // Hide superadmin from user list
-        .filter(u => u.email !== 'marquisogre@gmail.com');
-
-      setUsers(usersWithRoles);
-    } catch (error: any) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to load users');
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -547,123 +490,6 @@ export default function Settings() {
       toast.error('Failed to save settings: ' + error.message);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleAddUser = async () => {
-    if (!newUserEmail.trim() || !newUserPassword.trim()) {
-      toast.error('Please enter email and password');
-      return;
-    }
-
-    if (newUserPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
-    setAddingUser(true);
-    try {
-      // Check max users limit before adding
-      const { allowed, error: limitError } = await checkMaxUsers();
-      if (!allowed) {
-        toast.error(limitError || 'User limit reached');
-        setAddingUser(false);
-        return;
-      }
-
-      const { data, error } = await supabase.auth.signUp({
-        email: newUserEmail.trim(),
-        password: newUserPassword,
-        options: {
-          data: {
-            full_name: newUserName.trim() || null,
-          },
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Update the role if not viewer (viewer is default)
-        if (newUserRole !== 'viewer') {
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .update({ role: newUserRole })
-            .eq('user_id', data.user.id);
-
-          if (roleError) {
-            console.error('Error updating role:', roleError);
-          }
-        }
-      }
-
-      toast.success(`User ${newUserEmail} added successfully`);
-      setNewUserEmail("");
-      setNewUserPassword("");
-      setNewUserName("");
-      setNewUserRole("viewer");
-      setAddUserDialogOpen(false);
-      fetchUsers();
-    } catch (error: any) {
-      console.error('Error adding user:', error);
-      if (error.message?.includes('already registered')) {
-        toast.error('This email is already registered');
-      } else {
-        toast.error('Failed to add user: ' + error.message);
-      }
-    } finally {
-      setAddingUser(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (userId === user?.id) {
-      toast.error("You cannot delete your own account");
-      return;
-    }
-
-    setDeletingUserId(userId);
-    try {
-      // Delete user role first
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      if (roleError) throw roleError;
-
-      // Delete profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', userId);
-
-      if (profileError) throw profileError;
-
-      toast.success('User deleted successfully');
-      fetchUsers();
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user: ' + error.message);
-    } finally {
-      setDeletingUserId(null);
-    }
-  };
-
-  const handleChangeRole = async (userId: string, newRole: AppRole) => {
-    try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      toast.success('Role updated successfully');
-      fetchUsers();
-    } catch (error: any) {
-      console.error('Error changing role:', error);
-      toast.error('Failed to update role');
     }
   };
 
@@ -1343,231 +1169,7 @@ export default function Settings() {
 
         {/* User Management */}
         <TabsContent value="users" className="space-y-6">
-          <div className="metric-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">User Management</h3>
-              {isAdmin && (
-                <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="gap-2">
-                      <UserPlus className="w-4 h-4" />
-                      Add User
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add New User</DialogTitle>
-                      <DialogDescription>
-                        Create a new user account with specific access level.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="newUserName">Full Name</Label>
-                        <Input
-                          id="newUserName"
-                          placeholder="John Doe"
-                          value={newUserName}
-                          onChange={(e) => setNewUserName(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newUserEmail">Email Address</Label>
-                        <Input
-                          id="newUserEmail"
-                          type="email"
-                          placeholder="user@example.com"
-                          value={newUserEmail}
-                          onChange={(e) => setNewUserEmail(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newUserPassword">Password</Label>
-                        <Input
-                          id="newUserPassword"
-                          type="password"
-                          placeholder="Minimum 6 characters"
-                          value={newUserPassword}
-                          onChange={(e) => setNewUserPassword(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Access Level</Label>
-                        <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as AppRole)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="supervisor">Supervisor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setAddUserDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleAddUser} disabled={addingUser}>
-                        {addingUser ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        ) : null}
-                        Add User
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-
-            {loadingUsers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : users.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No users found</p>
-            ) : (
-              <div className="space-y-3">
-                {users.map((u) => (
-                  <div
-                    key={u.user_id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-primary">
-                          {u.email?.charAt(0)?.toUpperCase() || 'U'}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{u.full_name || u.email}</p>
-                        <p className="text-sm text-muted-foreground">{u.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isAdmin && u.user_id !== user?.id ? (
-                        <>
-                          <Select
-                            value={u.role}
-                            onValueChange={(v) => handleChangeRole(u.user_id, v as AppRole)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="supervisor">Supervisor</SelectItem>
-                              <SelectItem value="viewer">Viewer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete {u.email}? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteUser(u.user_id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  {deletingUserId === u.user_id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                  ) : null}
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      ) : (
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          u.role === 'admin' ? 'bg-primary/10 text-primary' :
-                          u.role === 'supervisor' ? 'bg-blue-500/10 text-blue-500' :
-                          'bg-gray-500/10 text-gray-500'
-                        }`}>
-                          {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
-                          {u.user_id === user?.id && ' (You)'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Access Level Table */}
-          <div className="metric-card">
-            <h3 className="font-semibold mb-4">Access Levels</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Permission</TableHead>
-                  <TableHead className="text-center">Admin</TableHead>
-                  <TableHead className="text-center">Supervisor</TableHead>
-                  <TableHead className="text-center">Viewer</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell>View Dashboard & Reports</TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Create/Edit Invoices</TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Manage Items & Parties</TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Record Payments</TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Manage Settings</TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Manage Users</TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Delete Data</TableCell>
-                  <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                  <TableCell className="text-center">—</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+          <UserManagement />
         </TabsContent>
 
         {/* Security */}
