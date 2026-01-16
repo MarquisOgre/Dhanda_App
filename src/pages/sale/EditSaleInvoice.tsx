@@ -76,6 +76,7 @@ export default function EditSaleInvoice() {
         return {
           id: Date.now() + index,
           itemId: item.item_id || "",
+          categoryId: "",
           name: item.item_name,
           quantity: item.quantity,
           rate: item.rate,
