@@ -50,7 +50,7 @@ interface UnitOption {
 export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItemsTableProps) {
   const { user } = useAuth();
   const { businessSettings } = useBusinessSettings();
-  const defaultTaxRate = businessSettings?.default_tax_rate ?? 0;
+  const defaultTaxRate = businessSettings?.gst_receivable ?? 0;
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
 

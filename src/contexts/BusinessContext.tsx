@@ -19,11 +19,12 @@ interface BusinessSettings {
   default_payment_terms: number | null;
   gst_registration_type: string | null;
   state_code: string | null;
-  default_tax_rate: number | null;
-  enable_tcs: boolean | null;
-  enable_tds: boolean | null;
-  tcs_percent: number | null;
-  tds_percent: number | null;
+  gst_receivable: number | null;
+  gst_payable: number | null;
+  tcs_receivable: number | null;
+  tcs_payable: number | null;
+  tds_receivable: number | null;
+  tds_payable: number | null;
 }
 
 interface BusinessContextType {

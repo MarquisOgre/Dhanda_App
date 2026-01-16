@@ -95,9 +95,8 @@ export function InvoicePreview({
   }, 0);
 
   // Calculate TCS (only for sale invoices)
-  const useTcs = businessSettings?.enable_tcs ?? false;
-  const tcsRate = businessSettings?.tcs_percent ?? 0;
-  const tcsAmount = useTcs && invoiceType === "sale" && tcsRate > 0 
+  const tcsRate = businessSettings?.tcs_receivable ?? 0;
+  const tcsAmount = invoiceType === "sale" && tcsRate > 0 
     ? ((taxableAmount + totalTax) * tcsRate) / 100 
     : 0;
 
@@ -227,7 +226,7 @@ export function InvoicePreview({
                 <span className="text-muted-foreground">Tax (GST)</span>
                 <span>₹{totalTax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
               </div>
-              {useTcs && tcsAmount > 0 && (
+              {tcsAmount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">TCS @ {tcsRate}%</span>
                   <span>₹{tcsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>

@@ -43,10 +43,10 @@ export function TaxSummary({
   const { businessSettings } = useBusinessSettings();
   
   // Use props if provided, otherwise fall back to business settings
-  const useTcs = enableTcs ?? businessSettings?.enable_tcs ?? false;
-  const useTds = enableTds ?? businessSettings?.enable_tds ?? false;
-  const tcsRate = tcsPercent ?? (businessSettings as any)?.tcs_percent ?? 0;
-  const tdsRate = tdsPercent ?? (businessSettings as any)?.tds_percent ?? 0;
+  const useTcs = enableTcs ?? (businessSettings?.tcs_receivable ?? 0) > 0;
+  const useTds = enableTds ?? (businessSettings?.tds_payable ?? 0) > 0;
+  const tcsRate = tcsPercent ?? businessSettings?.tcs_receivable ?? 0;
+  const tdsRate = tdsPercent ?? businessSettings?.tds_payable ?? 0;
   
   // Calculate subtotal (before discount)
   const grossSubtotal = items.reduce((acc, item) => {
