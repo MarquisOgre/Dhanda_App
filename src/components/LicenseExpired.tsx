@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { AlertTriangle, Mail, Phone, Calendar, Shield, RefreshCw, UserX } from "lucide-react";
+import { AlertTriangle, Mail, Phone, Calendar, Shield, RefreshCw, UserX, LogOut } from "lucide-react";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +13,21 @@ import {
 
 export function LicenseExpired() {
   const { licenseSettings, formatExpiryDate } = useLicenseSettings();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [showPhonePopup, setShowPhonePopup] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      toast.success("Logged out successfully");
+    } catch (error) {
+      toast.error("Failed to log out");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
   
   const hasLicense = !!licenseSettings;
   const supportEmail = licenseSettings?.support_email || "support@dhandaapp.com";
@@ -47,6 +61,16 @@ export function LicenseExpired() {
                 <span className="font-semibold">Logged in as</span>
               </div>
               <p className="text-xl font-bold text-foreground">{user?.email}</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="mt-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </Button>
             </div>
 
             {hasLicense && (
