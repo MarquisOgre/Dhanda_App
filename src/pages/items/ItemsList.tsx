@@ -254,9 +254,9 @@ export default function ItemsList() {
                     </td>
                     <td className="text-center">
                       <div className="flex items-center justify-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                        {/* <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                           <Package className="w-5 h-5 text-muted-foreground" />
-                        </div>
+                        </div> */}
                         <div>
                           <p className="font-medium">{item.name}</p>
                         </div>
