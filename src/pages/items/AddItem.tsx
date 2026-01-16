@@ -30,6 +30,7 @@ export default function AddItem() {
     categoryId: "",
     name: "",
     unit: "Bottles",
+    hsnCode: "",
     purchasePrice: "",
     salePrice: "",
     openingStock: "",
@@ -89,6 +90,7 @@ export default function AddItem() {
         name: formData.name.trim(),
         category_id: formData.categoryId || null,
         unit: formData.unit || "Bottles",
+        hsn_code: formData.hsnCode.trim() || null,
         purchase_price: formData.purchasePrice ? parseFloat(formData.purchasePrice) : 0,
         sale_price: formData.salePrice ? parseFloat(formData.salePrice) : 0,
         opening_stock: openingStock,
@@ -150,7 +152,7 @@ export default function AddItem() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="name">Item Name *</Label>
                 <Input
                   id="name"
@@ -160,6 +162,8 @@ export default function AddItem() {
                   required
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
                 <Select
@@ -177,6 +181,15 @@ export default function AddItem() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="hsnCode">HSN Code</Label>
+                <Input
+                  id="hsnCode"
+                  value={formData.hsnCode}
+                  onChange={(e) => handleChange("hsnCode", e.target.value)}
+                  placeholder="Enter HSN code"
+                />
               </div>
             </div>
           </div>

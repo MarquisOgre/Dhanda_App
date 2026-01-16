@@ -19,6 +19,7 @@ interface ImportedItem {
   name: string;
   category?: string;
   unit?: string;
+  hsn_code?: string;
   purchase_price?: number;
   sale_price?: number;
   opening_stock?: number;
@@ -39,6 +40,7 @@ export default function ImportItems() {
       "Category",
       "Item Name",
       "Unit",
+      "HSN Code",
       "Purchase Price",
       "Sale Price",
       "Opening Stock",
@@ -47,9 +49,9 @@ export default function ImportItems() {
     ];
     
     const sampleData = [
-      ["Electronics", "Laptop Dell Inspiron", "PCS", "35000", "45000", "10", "10", "5"],
-      ["Accessories", "Wireless Mouse", "PCS", "350", "500", "50", "50", "10"],
-      ["Accessories", "USB Cable Type-C", "Bottles", "100", "150", "100", "100", "20"],
+      ["Electronics", "Laptop Dell Inspiron", "PCS", "8471", "35000", "45000", "10", "10", "5"],
+      ["Accessories", "Wireless Mouse", "PCS", "8471", "350", "500", "50", "50", "10"],
+      ["Accessories", "USB Cable Type-C", "Bottles", "8544", "100", "150", "100", "100", "20"],
     ];
 
     const csvContent = [
@@ -90,6 +92,7 @@ export default function ImportItems() {
         name,
         category: getCol(["category", "cat"]) || undefined,
         unit: getCol(["unit"]) || "Bottles",
+        hsn_code: getCol(["hsn code", "hsn", "hsncode"]) || undefined,
         purchase_price: parseFloat(getCol(["purchase price", "purchase", "cost price", "cost"])) || 0,
         sale_price: parseFloat(getCol(["sale price", "sale", "selling price"])) || 0,
         opening_stock: parseFloat(getCol(["opening stock"])) || 0,
@@ -199,6 +202,7 @@ export default function ImportItems() {
           name: item.name,
           category_id: categoryId,
           unit: item.unit || "Bottles",
+          hsn_code: item.hsn_code || null,
           purchase_price: item.purchase_price || 0,
           sale_price: item.sale_price || 0,
           opening_stock: openingStock,
@@ -247,7 +251,7 @@ export default function ImportItems() {
           <li>• Download the sample template to see the required format</li>
           <li>• Fill in your item data in the template</li>
           <li>• Required columns: Item Name</li>
-          <li>• Optional columns: Category, Unit (default: Bottles), Purchase Price, Sale Price, Opening Stock, Current Stock, Minimum Stock Level</li>
+          <li>• Optional columns: Category, Unit (default: Bottles), HSN Code, Purchase Price, Sale Price, Opening Stock, Current Stock, Minimum Stock Level</li>
           <li>• Upload the completed file (CSV format)</li>
         </ul>
       </div>

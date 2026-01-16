@@ -40,12 +40,19 @@ interface Item {
   id: string;
   name: string;
   unit: string | null;
+  hsn_code: string | null;
   purchase_price: number | null;
   sale_price: number | null;
   opening_stock: number | null;
   current_stock: number | null;
   low_stock_alert: number | null;
   category_id: string | null;
+  category_name?: string | null;
+}
+
+interface Category {
+  id: string;
+  name: string;
 }
 
 export default function ItemsList() {
@@ -53,7 +60,9 @@ export default function ItemsList() {
   const { canWrite } = useRoleAccess();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -63,19 +72,37 @@ export default function ItemsList() {
   useEffect(() => {
     if (user) {
       fetchItems();
+      fetchCategories();
     }
   }, [user]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      console.error("Failed to fetch categories:", error.message);
+    }
+  };
 
   const fetchItems = async () => {
     try {
       const { data, error } = await supabase
         .from("items")
-        .select("id, name, unit, purchase_price, sale_price, opening_stock, current_stock, low_stock_alert, category_id")
+        .select("id, name, unit, hsn_code, purchase_price, sale_price, opening_stock, current_stock, low_stock_alert, category_id, categories(name)")
         .eq("is_deleted", false)
-        .order("created_at", { ascending: false });
+        .order("name", { ascending: true });
 
       if (error) throw error;
-      setItems(data || []);
+      const itemsWithCategory = (data || []).map((item: any) => ({
+        ...item,
+        category_name: item.categories?.name || null,
+      }));
+      setItems(itemsWithCategory);
     } catch (error: any) {
       toast.error("Failed to fetch items: " + error.message);
     } finally {
@@ -124,10 +151,11 @@ export default function ItemsList() {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || item.category_id === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   if (loading) {
     return (
@@ -163,15 +191,30 @@ export default function ItemsList() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search & Filter */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Items Table */}
@@ -187,13 +230,15 @@ export default function ItemsList() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Unit</th>
-                <th className="text-right">Purchase Price</th>
-                <th className="text-right">Sale Price</th>
-                <th className="text-right">Opening Stock</th>
-                <th className="text-right">Current Stock</th>
-                <th className="text-right">Min Stock</th>
+                <th className="text-center">Category</th>
+                <th className="text-center">Item</th>
+                <th className="text-center">Unit</th>
+                <th className="text-center">HSN Code</th>
+                <th className="text-center">Purchase Price</th>
+                <th className="text-center">Sale Price</th>
+                <th className="text-center">Opening Stock</th>
+                <th className="text-center">Current Stock</th>
+                <th className="text-center">Min Stock</th>
                 <th></th>
               </tr>
             </thead>
@@ -204,8 +249,11 @@ export default function ItemsList() {
                 
                 return (
                   <tr key={item.id} className="group">
-                    <td>
-                      <div className="flex items-center gap-3">
+                    <td className="text-center text-muted-foreground">
+                      {item.category_name || "-"}
+                    </td>
+                    <td className="text-center">
+                      <div className="flex items-center justify-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                           <Package className="w-5 h-5 text-muted-foreground" />
                         </div>
@@ -214,18 +262,19 @@ export default function ItemsList() {
                         </div>
                       </div>
                     </td>
-                    <td className="text-muted-foreground">{item.unit || "Bottles"}</td>
-                    <td className="text-right text-muted-foreground">
+                    <td className="text-center text-muted-foreground">{item.unit || "Bottles"}</td>
+                    <td className="text-center text-muted-foreground">{item.hsn_code || "-"}</td>
+                    <td className="text-center text-muted-foreground">
                       ₹{(item.purchase_price || 0).toLocaleString()}
                     </td>
-                    <td className="text-right font-medium">
+                    <td className="text-center font-medium">
                       ₹{(item.sale_price || 0).toLocaleString()}
                     </td>
-                    <td className="text-right text-muted-foreground">
+                    <td className="text-center text-muted-foreground">
                       {item.opening_stock || 0}
                     </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="text-center">
+                      <div className="flex items-center justify-center gap-2">
                         {stock <= minStock && (
                           <AlertTriangle className="w-4 h-4 text-warning" />
                         )}
@@ -240,7 +289,7 @@ export default function ItemsList() {
                         </span>
                       </div>
                     </td>
-                    <td className="text-right text-muted-foreground">{minStock}</td>
+                    <td className="text-center text-muted-foreground">{minStock}</td>
                     <td>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
