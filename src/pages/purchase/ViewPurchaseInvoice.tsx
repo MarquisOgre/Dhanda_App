@@ -228,7 +228,7 @@ export default function ViewPurchaseInvoice() {
               <th className="text-left py-3 px-2">HSN</th>
               <th className="text-right py-3 px-2">Qty</th>
               <th className="text-right py-3 px-2">Rate</th>
-              <th className="text-right py-3 px-2">Tax (GST)</th>
+              <th className="text-right py-3 px-2">Tax</th>
               <th className="text-right py-3 px-2">Amount</th>
             </tr>
           </thead>
@@ -267,7 +267,7 @@ export default function ViewPurchaseInvoice() {
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax (GST):</span>
+              <span className="text-muted-foreground">Tax:</span>
               <span>₹{taxAmount.toLocaleString()}</span>
             </div>
             {tcsAmount > 0 && (

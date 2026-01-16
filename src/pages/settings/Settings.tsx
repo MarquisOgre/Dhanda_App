@@ -603,7 +603,7 @@ export default function Settings() {
           </TabsTrigger>
           <TabsTrigger value="tax" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
             <Database className="w-4 h-4" />
-            <span className="hidden md:inline">Tax (GST)</span>
+            <span className="hidden md:inline">TAXES</span>
           </TabsTrigger>
           <TabsTrigger value="print" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
             <Printer className="w-4 h-4" />
@@ -921,7 +921,7 @@ export default function Settings() {
         {/* Tax Settings */}
         <TabsContent value="tax" className="space-y-6">
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">GST Settings</h3>
+            <h3 className="font-semibold mb-4">Tax Settings</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>GST Registration Type</Label>
