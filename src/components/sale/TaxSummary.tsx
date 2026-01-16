@@ -12,10 +12,6 @@ interface TaxSummaryProps {
   items: BaseInvoiceItem[];
   additionalCharges?: number;
   roundOff?: boolean;
-  enableTcs?: boolean;
-  tcsPercent?: number;
-  enableTds?: boolean;
-  tdsPercent?: number;
   invoiceType?: "sale" | "purchase";
   paymentAmount?: number;
 }
@@ -33,20 +29,21 @@ export function TaxSummary({
   items, 
   additionalCharges = 0, 
   roundOff = true,
-  enableTcs,
-  tcsPercent,
-  enableTds,
-  tdsPercent,
   invoiceType = "sale",
   paymentAmount = 0
 }: TaxSummaryProps) {
   const { businessSettings } = useBusinessSettings();
   
-  // Use props if provided, otherwise fall back to business settings
-  const useTcs = enableTcs ?? (businessSettings?.tcs_receivable ?? 0) > 0;
-  const useTds = enableTds ?? (businessSettings?.tds_payable ?? 0) > 0;
-  const tcsRate = tcsPercent ?? businessSettings?.tcs_receivable ?? 0;
-  const tdsRate = tdsPercent ?? businessSettings?.tds_payable ?? 0;
+  // Get tax rates from settings based on invoice type
+  const gstRate = invoiceType === "sale" 
+    ? (businessSettings?.gst_receivable ?? 0) 
+    : (businessSettings?.gst_payable ?? 0);
+  const tcsRate = invoiceType === "sale" 
+    ? (businessSettings?.tcs_receivable ?? 0) 
+    : (businessSettings?.tcs_payable ?? 0);
+  const tdsRate = invoiceType === "sale" 
+    ? (businessSettings?.tds_receivable ?? 0) 
+    : (businessSettings?.tds_payable ?? 0);
   
   // Calculate subtotal (before discount)
   const grossSubtotal = items.reduce((acc, item) => {
@@ -62,85 +59,26 @@ export function TaxSummary({
   // Taxable amount = subtotal - discount
   const taxableAmount = grossSubtotal - totalDiscount;
 
-  // Calculate GST on taxable amount
-  // Use weighted average tax rate based on item values
-  let weightedTaxAmount = 0;
-  const taxBreakdown: TaxBreakdown[] = [];
-  const taxGroups = new Map<number, number>();
+  // Calculate GST on taxable amount using settings rate
+  const gstAmount = gstRate > 0 ? (taxableAmount * gstRate) / 100 : 0;
   
-  items.forEach((item) => {
-    const itemSubtotal = item.quantity * item.rate;
-    const discountAmount = (itemSubtotal * item.discount) / 100;
-    const itemTaxable = itemSubtotal - discountAmount;
-    
-    if (taxGroups.has(item.taxRate)) {
-      taxGroups.set(item.taxRate, (taxGroups.get(item.taxRate) || 0) + itemTaxable);
-    } else {
-      taxGroups.set(item.taxRate, itemTaxable);
-    }
-    
-    weightedTaxAmount += (itemTaxable * item.taxRate) / 100;
-  });
-
-  taxGroups.forEach((taxableAmt, rate) => {
-    const totalTax = (taxableAmt * rate) / 100;
-    taxBreakdown.push({
-      rate,
-      taxableAmount: taxableAmt,
-      cgst: totalTax / 2,
-      sgst: totalTax / 2,
-      igst: 0,
-      total: totalTax,
-    });
-  });
-
-  const totalTax = weightedTaxAmount;
-  
-  // Calculate TCS - applies to both sale and purchase invoices
-  const tcsAmount = useTcs && tcsRate > 0 
-    ? ((taxableAmount + totalTax) * tcsRate) / 100 
+  // Calculate TCS - applies on (taxable + GST)
+  const tcsAmount = tcsRate > 0 
+    ? ((taxableAmount + gstAmount) * tcsRate) / 100 
     : 0;
   
-  // Calculate TDS (on purchase invoices) - on taxable amount
-  const tdsAmount = useTds && invoiceType === "purchase" && tdsRate > 0 
+  // Calculate TDS - on taxable amount (deduction)
+  const tdsAmount = tdsRate > 0 
     ? (taxableAmount * tdsRate) / 100 
     : 0;
 
-  const grandTotalBeforeRound = taxableAmount + totalTax + additionalCharges + tcsAmount - tdsAmount;
+  const grandTotalBeforeRound = taxableAmount + gstAmount + additionalCharges + tcsAmount - tdsAmount;
   const roundOffAmount = roundOff ? Math.round(grandTotalBeforeRound) - grandTotalBeforeRound : 0;
   const grandTotal = roundOff ? Math.round(grandTotalBeforeRound) : grandTotalBeforeRound;
   const netPayable = grandTotal - paymentAmount;
 
   return (
     <div className="space-y-4">
-      {/* Tax Breakdown */}
-      {taxBreakdown.length > 0 && taxBreakdown.some(t => t.rate > 0) && (
-        <div className="border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left py-2 px-3 font-medium">Tax (GST) Rate</th>
-                <th className="text-right py-2 px-3 font-medium">Taxable Amt</th>
-                <th className="text-right py-2 px-3 font-medium">CGST</th>
-                <th className="text-right py-2 px-3 font-medium">SGST</th>
-                <th className="text-right py-2 px-3 font-medium">Total Tax</th>
-              </tr>
-            </thead>
-            <tbody>
-              {taxBreakdown.filter(t => t.rate > 0).map((tax) => (
-                <tr key={tax.rate} className="border-t border-border">
-                  <td className="py-2 px-3">GST @ {tax.rate}%</td>
-                  <td className="py-2 px-3 text-right">₹{tax.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                  <td className="py-2 px-3 text-right">₹{tax.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                  <td className="py-2 px-3 text-right">₹{tax.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                  <td className="py-2 px-3 text-right font-medium">₹{tax.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {/* Summary */}
       <div className="bg-muted/30 rounded-lg p-4 space-y-2">
         <div className="flex justify-between text-sm">
@@ -157,17 +95,19 @@ export function TaxSummary({
           <span className="text-muted-foreground">Taxable Amount</span>
           <span>₹{taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Total Tax (GST)</span>
-          <span>₹{totalTax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-        </div>
-        {useTcs && tcsAmount > 0 && (
+        {gstRate > 0 && gstAmount > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">GST @ {gstRate}%</span>
+            <span>₹{gstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+          </div>
+        )}
+        {tcsRate > 0 && tcsAmount > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">TCS @ {tcsRate}%</span>
             <span>₹{tcsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
           </div>
         )}
-        {useTds && tdsAmount > 0 && (
+        {tdsRate > 0 && tdsAmount > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">TDS @ {tdsRate}%</span>
             <span className="text-success">-₹{tdsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>

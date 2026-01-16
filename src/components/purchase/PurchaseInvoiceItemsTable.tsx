@@ -16,6 +16,7 @@ import { useBusinessSettings } from "@/contexts/BusinessContext";
 export interface PurchaseInvoiceItem {
   id: number;
   itemId: string;
+  categoryId: string;
   name: string;
   hsn: string;
   quantity: number;
@@ -37,6 +38,12 @@ interface DbItem {
   hsn_code: string | null;
   purchase_price: number | null;
   unit: string | null;
+  category_id: string | null;
+}
+
+interface Category {
+  id: string;
+  name: string;
 }
 
 interface UnitOption {
@@ -49,11 +56,13 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
   const { businessSettings } = useBusinessSettings();
   const defaultTaxRate = businessSettings?.gst_payable ?? 0;
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchItems();
+      fetchCategories();
       fetchUnits();
     }
   }, [user]);
@@ -61,11 +70,23 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
   const fetchItems = async () => {
     const { data } = await supabase
       .from("items")
-      .select("id, name, hsn_code, purchase_price, unit")
+      .select("id, name, hsn_code, purchase_price, unit, category_id")
       .eq("is_deleted", false)
       .order("name");
     if (data) {
       setDbItems(data);
+    }
+  };
+
+  const fetchCategories = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("categories")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .order("name");
+    if (data) {
+      setCategories(data);
     }
   };
 
@@ -88,6 +109,7 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
     const newItem: PurchaseInvoiceItem = {
       id: Date.now(),
       itemId: "",
+      categoryId: "",
       name: "",
       hsn: "",
       quantity: 0,
@@ -100,10 +122,25 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
     onItemsChange([...items, newItem]);
   };
 
+  const getFilteredItems = (categoryId: string) => {
+    if (!categoryId) return dbItems;
+    return dbItems.filter(item => item.category_id === categoryId);
+  };
+
   const updateItem = (id: number, field: keyof PurchaseInvoiceItem, value: string | number) => {
     const updated = items.map((item) => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
+        
+        // If category changed, reset item selection
+        if (field === "categoryId") {
+          updatedItem.itemId = "";
+          updatedItem.name = "";
+          updatedItem.hsn = "";
+          updatedItem.rate = 0;
+          updatedItem.quantity = 0;
+          updatedItem.amount = 0;
+        }
         
         // If item selection changed, update related fields using PURCHASE PRICE
         if (field === "itemId") {
@@ -111,9 +148,9 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
           if (selectedItem) {
             updatedItem.name = selectedItem.name;
             updatedItem.hsn = selectedItem.hsn_code || "";
-            updatedItem.rate = selectedItem.purchase_price || 0; // Use purchase_price
+            updatedItem.rate = selectedItem.purchase_price || 0;
             updatedItem.unit = selectedItem.unit || "Bottles";
-            // Always use the app default GST (from Settings) when creating invoices
+            updatedItem.categoryId = selectedItem.category_id || "";
             updatedItem.taxRate = defaultTaxRate;
           }
         }
@@ -141,7 +178,8 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
           <thead>
             <tr className="border-b border-border">
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">#</th>
-              <th className="text-left py-3 px-2 font-medium text-muted-foreground min-w-[200px]">Item</th>
+              <th className="text-left py-3 px-2 font-medium text-muted-foreground min-w-[140px]">Category</th>
+              <th className="text-left py-3 px-2 font-medium text-muted-foreground min-w-[180px]">Item</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">HSN</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Qty</th>
               <th className="text-left py-3 px-2 font-medium text-muted-foreground">Unit</th>
@@ -157,6 +195,24 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
                 <td className="py-2 px-2 text-muted-foreground">{index + 1}</td>
                 <td className="py-2 px-2">
                   <Select
+                    value={item.categoryId || "all"}
+                    onValueChange={(value) => updateItem(item.id, "categoryId", value === "all" ? "" : value)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </td>
+                <td className="py-2 px-2">
+                  <Select
                     value={item.itemId}
                     onValueChange={(value) => updateItem(item.id, "itemId", value)}
                   >
@@ -164,14 +220,14 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
                       <SelectValue placeholder="Select item" />
                     </SelectTrigger>
                     <SelectContent>
-                      {dbItems.map((si) => (
+                      {getFilteredItems(item.categoryId).map((si) => (
                         <SelectItem key={si.id} value={si.id}>
                           {si.name}
                         </SelectItem>
                       ))}
-                      {dbItems.length === 0 && (
+                      {getFilteredItems(item.categoryId).length === 0 && (
                         <div className="py-2 px-3 text-sm text-muted-foreground">
-                          No items found. Add items first.
+                          No items found.
                         </div>
                       )}
                     </SelectContent>
@@ -251,7 +307,7 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
           {items.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 font-semibold border-t">
-                <td colSpan={3} className="py-2 px-2 text-right">Total Qty:</td>
+                <td colSpan={4} className="py-2 px-2 text-right">Total Qty:</td>
                 <td className="py-2 px-2 text-center text-primary">{items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                 <td colSpan={3}></td>
                 <td className="py-2 px-2 text-right">₹{items.reduce((sum, item) => sum + item.amount, 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>

@@ -59,6 +59,7 @@ export default function EditPurchaseInvoice() {
       setItems((itemsData || []).map((item, index) => ({
         id: Date.now() + index,
         itemId: item.item_id || "",
+        categoryId: "",
         name: item.item_name,
         quantity: item.quantity,
         rate: item.rate,

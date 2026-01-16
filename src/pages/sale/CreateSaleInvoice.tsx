@@ -67,6 +67,7 @@ export default function CreateSaleInvoice() {
     {
       id: 1,
       itemId: "",
+      categoryId: "",
       name: "",
       hsn: "",
       quantity: 1,
