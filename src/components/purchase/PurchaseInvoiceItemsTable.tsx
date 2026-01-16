@@ -47,7 +47,7 @@ interface UnitOption {
 export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvoiceItemsTableProps) {
   const { user } = useAuth();
   const { businessSettings } = useBusinessSettings();
-  const defaultTaxRate = businessSettings?.default_tax_rate ?? 0;
+  const defaultTaxRate = businessSettings?.gst_payable ?? 0;
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
 

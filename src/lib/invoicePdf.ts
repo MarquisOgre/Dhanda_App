@@ -44,8 +44,8 @@ interface BusinessSettings {
   email: string | null;
   business_address: string | null;
   logo_url: string | null;
-  enable_tcs: boolean | null;
-  tcs_percent: number | null;
+  tcs_receivable?: number | null;
+  tcs_payable?: number | null;
 }
 
 interface GeneratePDFParams {
@@ -223,10 +223,11 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
   const taxAmount = invoice.tax_amount || 0;
   const discountAmount = invoice.discount_amount || 0;
   
-  // Calculate TCS - applies to both sale and purchase invoices
-  const useTcs = settings?.enable_tcs ?? false;
-  const tcsRate = settings?.tcs_percent ?? 0;
-  const tcsAmount = useTcs && tcsRate > 0 
+  // Calculate TCS - use receivable for sales, payable for purchases
+  const tcsRate = type === "sale" 
+    ? (settings?.tcs_receivable ?? 0) 
+    : (settings?.tcs_payable ?? 0);
+  const tcsAmount = tcsRate > 0 
     ? ((subtotal - discountAmount + taxAmount) * tcsRate) / 100 
     : (invoice.tcs_amount || 0);
   

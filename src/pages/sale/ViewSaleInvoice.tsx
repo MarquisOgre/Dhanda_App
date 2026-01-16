@@ -125,9 +125,8 @@ export default function ViewSaleInvoice() {
   const paidAmount = invoice.paid_amount || 0;
   
   // Calculate TCS
-  const useTcs = settings?.enable_tcs ?? false;
-  const tcsRate = settings?.tcs_percent ?? 0;
-  const tcsAmount = useTcs && tcsRate > 0 
+  const tcsRate = settings?.tcs_receivable ?? 0;
+  const tcsAmount = tcsRate > 0 
     ? ((subtotal - discountAmount + taxAmount) * tcsRate) / 100 
     : 0;
   
@@ -271,7 +270,7 @@ export default function ViewSaleInvoice() {
               <span className="text-muted-foreground">Tax (GST):</span>
               <span>₹{taxAmount.toLocaleString()}</span>
             </div>
-            {useTcs && tcsAmount > 0 && (
+            {tcsAmount > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">TCS @ {tcsRate}%:</span>
                 <span>₹{tcsAmount.toLocaleString()}</span>

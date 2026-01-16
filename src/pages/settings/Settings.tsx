@@ -168,11 +168,12 @@ export default function Settings() {
   // Tax settings
   const [gstRegistrationType, setGstRegistrationType] = useState("regular");
   const [stateCode, setStateCode] = useState("KA");
-  const [defaultTaxRate, setDefaultTaxRate] = useState(0);
-  const [enableTcs, setEnableTcs] = useState(false);
-  const [enableTds, setEnableTds] = useState(false);
-  const [tcsPercent, setTcsPercent] = useState(1);
-  const [tdsPercent, setTdsPercent] = useState(2);
+  const [gstReceivable, setGstReceivable] = useState(0);
+  const [gstPayable, setGstPayable] = useState(0);
+  const [tcsReceivable, setTcsReceivable] = useState(0);
+  const [tcsPayable, setTcsPayable] = useState(0);
+  const [tdsReceivable, setTdsReceivable] = useState(0);
+  const [tdsPayable, setTdsPayable] = useState(0);
 
   // Print settings
   const [paperSize, setPaperSize] = useState("a4");
@@ -284,11 +285,12 @@ export default function Settings() {
         // Tax settings
         setGstRegistrationType(data.gst_registration_type || "regular");
         setStateCode(data.state_code || "KA");
-        setDefaultTaxRate(data.default_tax_rate ?? 0);
-        setEnableTcs(data.enable_tcs || false);
-        setEnableTds(data.enable_tds || false);
-        setTcsPercent(data.tcs_percent ?? 1);
-        setTdsPercent(data.tds_percent ?? 2);
+        setGstReceivable(data.gst_receivable ?? 0);
+        setGstPayable(data.gst_payable ?? 0);
+        setTcsReceivable(data.tcs_receivable ?? 0);
+        setTcsPayable(data.tcs_payable ?? 0);
+        setTdsReceivable(data.tds_receivable ?? 0);
+        setTdsPayable(data.tds_payable ?? 0);
 
         // Print settings
         setPaperSize(data.paper_size || "a4");
@@ -467,11 +469,12 @@ export default function Settings() {
           default_payment_terms: parseInt(defaultPaymentTerms),
           gst_registration_type: gstRegistrationType,
           state_code: stateCode,
-          default_tax_rate: defaultTaxRate,
-          enable_tcs: enableTcs,
-          enable_tds: enableTds,
-          tcs_percent: tcsPercent,
-          tds_percent: tdsPercent,
+          gst_receivable: gstReceivable,
+          gst_payable: gstPayable,
+          tcs_receivable: tcsReceivable,
+          tcs_payable: tcsPayable,
+          tds_receivable: tdsReceivable,
+          tds_payable: tdsPayable,
           paper_size: paperSize,
           invoice_template: invoiceTemplate,
           show_logo_on_invoice: showLogoOnInvoice,
@@ -960,84 +963,97 @@ export default function Settings() {
           </div>
 
           <div className="metric-card">
-            <h3 className="font-semibold mb-4">Default Tax (GST) Rate</h3>
-            <p className="text-sm text-muted-foreground mb-4">Select your default GST rate for new items</p>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {[0, 5, 12, 18, 28].map((rate) => (
-                <div 
-                  key={rate} 
-                  className={`border rounded-lg p-4 text-center cursor-pointer transition-all ${
-                    defaultTaxRate === rate 
-                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5' 
-                      : 'hover:border-primary/50'
-                  } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  onClick={() => isAdmin && setDefaultTaxRate(rate)}
-                >
-                  <p className="text-lg font-semibold">{rate}%</p>
-                  <p className="text-xs text-muted-foreground">GST</p>
-                  {defaultTaxRate === rate && (
-                    <Check className="w-4 h-4 text-primary mx-auto mt-2" />
-                  )}
+            <h3 className="font-semibold mb-4">Tax Rates Configuration</h3>
+            <p className="text-sm text-muted-foreground mb-4">Configure GST, TCS and TDS rates for receivables and payables</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* GST Settings */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm border-b pb-2">GST%</h4>
+                <div className="space-y-2">
+                  <Label>GST% Receivable (for Sales)</Label>
+                  <Input
+                    type="number"
+                    value={gstReceivable}
+                    onChange={(e) => setGstReceivable(Number(e.target.value))}
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    disabled={!isAdmin}
+                  />
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="space-y-2">
+                  <Label>GST% Payable (for Purchases)</Label>
+                  <Input
+                    type="number"
+                    value={gstPayable}
+                    onChange={(e) => setGstPayable(Number(e.target.value))}
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    disabled={!isAdmin}
+                  />
+                </div>
+              </div>
 
-          <div className="metric-card">
-            <h3 className="font-semibold mb-4">TCS/TDS Settings</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Enable TCS</p>
-                  <p className="text-sm text-muted-foreground">Tax Collected at Source (for Sales)</p>
-                </div>
-                <Switch 
-                  checked={enableTcs}
-                  onCheckedChange={setEnableTcs}
-                  disabled={!isAdmin} 
-                />
-              </div>
-              {enableTcs && (
-                <div className="space-y-2 pl-4 border-l-2 border-primary/20">
-                  <Label>TCS Rate (%)</Label>
+              {/* TCS Settings */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm border-b pb-2">TCS%</h4>
+                <div className="space-y-2">
+                  <Label>TCS% Receivable (for Sales)</Label>
                   <Input
                     type="number"
-                    value={tcsPercent}
-                    onChange={(e) => setTcsPercent(Number(e.target.value))}
-                    className="w-32"
+                    value={tcsReceivable}
+                    onChange={(e) => setTcsReceivable(Number(e.target.value))}
                     min={0}
                     max={100}
                     step={0.01}
                     disabled={!isAdmin}
                   />
                 </div>
-              )}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Enable TDS</p>
-                  <p className="text-sm text-muted-foreground">Tax Deducted at Source (for Purchases)</p>
-                </div>
-                <Switch 
-                  checked={enableTds}
-                  onCheckedChange={setEnableTds}
-                  disabled={!isAdmin} 
-                />
-              </div>
-              {enableTds && (
-                <div className="space-y-2 pl-4 border-l-2 border-primary/20">
-                  <Label>TDS Rate (%)</Label>
+                <div className="space-y-2">
+                  <Label>TCS% Payable (for Purchases)</Label>
                   <Input
                     type="number"
-                    value={tdsPercent}
-                    onChange={(e) => setTdsPercent(Number(e.target.value))}
-                    className="w-32"
+                    value={tcsPayable}
+                    onChange={(e) => setTcsPayable(Number(e.target.value))}
                     min={0}
                     max={100}
                     step={0.01}
                     disabled={!isAdmin}
                   />
                 </div>
-              )}
+              </div>
+
+              {/* TDS Settings */}
+              <div className="space-y-4 md:col-span-2">
+                <h4 className="font-medium text-sm border-b pb-2">TDS%</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>TDS% Receivable (for Sales)</Label>
+                    <Input
+                      type="number"
+                      value={tdsReceivable}
+                      onChange={(e) => setTdsReceivable(Number(e.target.value))}
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>TDS% Payable (for Purchases)</Label>
+                    <Input
+                      type="number"
+                      value={tdsPayable}
+                      onChange={(e) => setTdsPayable(Number(e.target.value))}
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </TabsContent>
