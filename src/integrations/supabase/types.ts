@@ -367,9 +367,6 @@ export type Database = {
           opening_stock: number | null
           purchase_price: number | null
           sale_price: number | null
-          tax_rate: number | null
-          tcs_rate: number | null
-          tds_rate: number | null
           unit: string | null
           updated_at: string
           user_id: string
@@ -387,9 +384,6 @@ export type Database = {
           opening_stock?: number | null
           purchase_price?: number | null
           sale_price?: number | null
-          tax_rate?: number | null
-          tcs_rate?: number | null
-          tds_rate?: number | null
           unit?: string | null
           updated_at?: string
           user_id: string
@@ -407,9 +401,6 @@ export type Database = {
           opening_stock?: number | null
           purchase_price?: number | null
           sale_price?: number | null
-          tax_rate?: number | null
-          tcs_rate?: number | null
-          tds_rate?: number | null
           unit?: string | null
           updated_at?: string
           user_id?: string

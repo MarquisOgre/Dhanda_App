@@ -40,7 +40,6 @@ interface DbItem {
   sale_price: number | null;
   current_stock: number | null;
   unit: string | null;
-  tax_rate: number | null;
 }
 
 interface UnitOption {
@@ -66,7 +65,7 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
     // Fetch items with current_stock which already includes opening_stock + purchases - sales
     const { data } = await supabase
       .from("items")
-      .select("id, name, hsn_code, sale_price, current_stock, unit, tax_rate")
+      .select("id, name, hsn_code, sale_price, current_stock, unit")
       .eq("is_deleted", false)
       .order("name");
     if (data) {
