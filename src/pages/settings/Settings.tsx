@@ -964,68 +964,78 @@ export default function Settings() {
 
           <div className="metric-card">
             <h3 className="font-semibold mb-4">Tax Rates Configuration</h3>
-            <p className="text-sm text-muted-foreground mb-4">Configure GST, TCS and TDS rates for receivables and payables</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <p className="text-sm text-muted-foreground mb-4">
+              Configure GST, TCS and TDS rates for receivables and payables
+            </p>
+
+            <div className="space-y-6">
+
               {/* GST Settings */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <h4 className="font-medium text-sm border-b pb-2">GST%</h4>
-                <div className="space-y-2">
-                  <Label>GST% Receivable (for Sales)</Label>
-                  <Input
-                    type="number"
-                    value={gstReceivable}
-                    onChange={(e) => setGstReceivable(Number(e.target.value))}
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    disabled={!isAdmin}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>GST% Payable (for Purchases)</Label>
-                  <Input
-                    type="number"
-                    value={gstPayable}
-                    onChange={(e) => setGstPayable(Number(e.target.value))}
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    disabled={!isAdmin}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>GST% Receivable (for Sales)</Label>
+                    <Input
+                      type="number"
+                      value={gstReceivable}
+                      onChange={(e) => setGstReceivable(Number(e.target.value))}
+                      min={0}
+                      max={100}
+                      step={1.00}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>GST% Payable (for Purchases)</Label>
+                    <Input
+                      type="number"
+                      value={gstPayable}
+                      onChange={(e) => setGstPayable(Number(e.target.value))}
+                      min={0}
+                      max={100}
+                      step={1.00}
+                      disabled={!isAdmin}
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* TCS Settings */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <h4 className="font-medium text-sm border-b pb-2">TCS%</h4>
-                <div className="space-y-2">
-                  <Label>TCS% Receivable (for Sales)</Label>
-                  <Input
-                    type="number"
-                    value={tcsReceivable}
-                    onChange={(e) => setTcsReceivable(Number(e.target.value))}
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    disabled={!isAdmin}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>TCS% Payable (for Purchases)</Label>
-                  <Input
-                    type="number"
-                    value={tcsPayable}
-                    onChange={(e) => setTcsPayable(Number(e.target.value))}
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    disabled={!isAdmin}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>TCS% Receivable (for Sales)</Label>
+                    <Input
+                      type="number"
+                      value={tcsReceivable}
+                      onChange={(e) => setTcsReceivable(Number(e.target.value))}
+                      min={0}
+                      max={100}
+                      step={1.00}
+                      disabled={!isAdmin}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>TCS% Payable (for Purchases)</Label>
+                    <Input
+                      type="number"
+                      value={tcsPayable}
+                      onChange={(e) => setTcsPayable(Number(e.target.value))}
+                      min={0}
+                      max={100}
+                      step={1.00}
+                      disabled={!isAdmin}
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* TDS Settings */}
-              <div className="space-y-4 md:col-span-2">
+              <div className="space-y-3">
                 <h4 className="font-medium text-sm border-b pb-2">TDS%</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1036,10 +1046,11 @@ export default function Settings() {
                       onChange={(e) => setTdsReceivable(Number(e.target.value))}
                       min={0}
                       max={100}
-                      step={0.01}
+                      step={1.00}
                       disabled={!isAdmin}
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label>TDS% Payable (for Purchases)</Label>
                     <Input
@@ -1048,14 +1059,16 @@ export default function Settings() {
                       onChange={(e) => setTdsPayable(Number(e.target.value))}
                       min={0}
                       max={100}
-                      step={0.01}
+                      step={1.00}
                       disabled={!isAdmin}
                     />
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
+
         </TabsContent>
 
         {/* Print Settings */}
