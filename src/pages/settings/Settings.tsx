@@ -603,7 +603,7 @@ export default function Settings() {
           </TabsTrigger>
           <TabsTrigger value="tax" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
             <Database className="w-4 h-4" />
-            <span className="hidden md:inline">TAXES</span>
+            <span className="hidden md:inline">Taxes</span>
           </TabsTrigger>
           <TabsTrigger value="print" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
             <Printer className="w-4 h-4" />
