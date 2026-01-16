@@ -1,9 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface LicenseSettings {
   id: string;
+  user_id: string | null;
+  user_email: string | null;
   expiry_date: string;
   license_type: string;
   licensed_to: string | null;
@@ -18,23 +21,30 @@ export interface LicenseSettings {
 
 export function useLicenseSettings() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: licenseSettings, isLoading } = useQuery({
-    queryKey: ["license-settings"],
+    queryKey: ["license-settings", user?.email],
     queryFn: async () => {
+      if (!user?.email) return null;
+
+      // Try to get license for the current user's email
       const { data, error } = await supabase
         .from("license_settings")
         .select("*")
-        .limit(1)
-        .single();
+        .eq("user_email", user.email)
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching license settings:", error);
         return null;
       }
-      return data as LicenseSettings;
+      
+      // If no license found for this user, return null (expired/no license)
+      return data as LicenseSettings | null;
     },
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 0,
+    enabled: !!user?.email,
   });
 
   const updateLicenseSettings = useMutation({
@@ -52,7 +62,7 @@ export function useLicenseSettings() {
       return data as LicenseSettings;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(["license-settings"], updated);
+      queryClient.setQueryData(["license-settings", user?.email], updated);
       toast.success("License settings updated successfully");
     },
     onError: (error) => {
@@ -62,13 +72,13 @@ export function useLicenseSettings() {
   });
 
   const isLicenseValid = () => {
-    if (!licenseSettings) return true; // Default to valid if not loaded
+    if (!licenseSettings) return false; // No license = not valid
     const expiryDate = new Date(licenseSettings.expiry_date);
     return new Date() <= expiryDate;
   };
 
   const getDaysRemaining = () => {
-    if (!licenseSettings) return 999;
+    if (!licenseSettings) return 0;
     const expiryDate = new Date(licenseSettings.expiry_date);
     const diff = expiryDate.getTime() - new Date().getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));

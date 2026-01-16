@@ -140,6 +140,7 @@ const ACCENT_COLORS = [
 
 export default function Settings() {
   const { user, role, isAdmin } = useAuth();
+  const isSuperAdmin = user?.email === 'marquisogre@gmail.com';
   const { refetch: refetchBusiness, getCurrentFinancialYear } = useBusinessSettings();
   const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -667,35 +668,38 @@ export default function Settings() {
                   />
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Business Logo</Label>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/png,image/jpeg,image/jpg,image/webp"
-                    onChange={handleLogoUpload}
-                    disabled={!isAdmin || uploadingLogo}
-                  />
-                  <div 
-                    className={`border-2 border-dashed border-border rounded-lg p-6 text-center ${isAdmin ? 'cursor-pointer hover:border-primary' : ''}`}
-                    onClick={() => isAdmin && fileInputRef.current?.click()}
-                  >
-                    {uploadingLogo ? (
-                      <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
-                    ) : logoUrl ? (
-                      <img src={logoUrl} alt="Business Logo" className="max-h-24 mx-auto mb-2 object-contain" />
-                    ) : (
-                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      {uploadingLogo ? 'Uploading...' : 'Click to upload logo'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">PNG, JPG up to 2MB</p>
+              {/* Business Logo - Only visible to SuperAdmin */}
+              {isSuperAdmin && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Business Logo</Label>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={handleLogoUpload}
+                      disabled={!isAdmin || uploadingLogo}
+                    />
+                    <div 
+                      className={`border-2 border-dashed border-border rounded-lg p-6 text-center ${isAdmin ? 'cursor-pointer hover:border-primary' : ''}`}
+                      onClick={() => isAdmin && fileInputRef.current?.click()}
+                    >
+                      {uploadingLogo ? (
+                        <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
+                      ) : logoUrl ? (
+                        <img src={logoUrl} alt="Business Logo" className="max-h-24 mx-auto mb-2 object-contain" />
+                      ) : (
+                        <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {uploadingLogo ? 'Uploading...' : 'Click to upload logo'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG up to 2MB</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

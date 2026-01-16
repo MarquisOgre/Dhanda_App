@@ -10,6 +10,7 @@ import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { addDays, format } from "date-fns";
+import { UserLicenseManagement } from "@/components/settings/UserLicenseManagement";
 
 interface LicensePlan {
   id: string;
@@ -54,7 +55,7 @@ export function LicenseSettings() {
       setFormData({
         expiry_date: licenseSettings.expiry_date || "",
         license_type: licenseSettings.license_type || "",
-        licensed_to: licenseSettings.licensed_to || "",
+        licensed_to: licenseSettings.licensed_to || user?.email || "",
         support_email: licenseSettings.support_email || "",
         support_phone: licenseSettings.support_phone || "",
         support_whatsapp: licenseSettings.support_whatsapp || "",
@@ -62,14 +63,7 @@ export function LicenseSettings() {
         max_simultaneous_logins: (licenseSettings as any).max_simultaneous_logins || 3,
       });
     }
-  }, [licenseSettings]);
-
-  // Set licensed_to from business name if empty
-  useEffect(() => {
-    if (businessSettings?.business_name && !formData.licensed_to) {
-      setFormData(prev => ({ ...prev, licensed_to: businessSettings.business_name || "" }));
-    }
-  }, [businessSettings?.business_name]);
+  }, [licenseSettings, user?.email]);
 
   const fetchPlans = async () => {
     const { data } = await supabase
@@ -90,7 +84,7 @@ export function LicenseSettings() {
     const updates = {
       expiry_date: format(newExpiryDate, "yyyy-MM-dd"),
       license_type: plan.plan_name,
-      licensed_to: businessSettings?.business_name || formData.licensed_to,
+      licensed_to: user?.email || formData.licensed_to,
     };
 
     // Update UI immediately
@@ -103,8 +97,8 @@ export function LicenseSettings() {
   const handleSave = () => {
     updateLicenseSettings.mutate({
       ...formData,
-      // ensure license is issued to business name if present
-      licensed_to: businessSettings?.business_name || formData.licensed_to,
+      // ensure license is issued to email
+      licensed_to: user?.email || formData.licensed_to,
     });
   };
 
@@ -125,6 +119,7 @@ export function LicenseSettings() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -215,18 +210,16 @@ export function LicenseSettings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="licensed_to">Licensed To</Label>
+                <Label htmlFor="licensed_to">Licensed To (Email)</Label>
                 <Input
                   id="licensed_to"
                   value={formData.licensed_to}
-                  disabled={!!businessSettings?.business_name}
+                  disabled={true}
                   onChange={(e) => setFormData({ ...formData, licensed_to: e.target.value })}
                 />
-                {businessSettings?.business_name && (
-                  <p className="text-xs text-muted-foreground">
-                    This license is issued to your Business Name.
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  This license is issued to your email address.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -310,5 +303,13 @@ export function LicenseSettings() {
         )}
       </CardContent>
     </Card>
+
+    {/* SuperAdmin User License Management */}
+    {isSuperAdmin && (
+      <div className="mt-6">
+        <UserLicenseManagement />
+      </div>
+    )}
+    </>
   );
 }
