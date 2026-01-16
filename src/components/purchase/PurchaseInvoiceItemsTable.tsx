@@ -37,7 +37,6 @@ interface DbItem {
   hsn_code: string | null;
   purchase_price: number | null;
   unit: string | null;
-  tax_rate: number | null;
 }
 
 interface UnitOption {
@@ -62,7 +61,7 @@ export function PurchaseInvoiceItemsTable({ items, onItemsChange }: PurchaseInvo
   const fetchItems = async () => {
     const { data } = await supabase
       .from("items")
-      .select("id, name, hsn_code, purchase_price, unit, tax_rate")
+      .select("id, name, hsn_code, purchase_price, unit")
       .eq("is_deleted", false)
       .order("name");
     if (data) {

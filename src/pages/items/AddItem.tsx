@@ -14,7 +14,6 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 interface UnitOption {
   id: string;
@@ -24,31 +23,19 @@ interface UnitOption {
 export default function AddItem() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { businessSettings } = useBusinessSettings();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
   const [formData, setFormData] = useState({
-    name: "",
     categoryId: "",
-    salePrice: "",
-    purchasePrice: "",
+    name: "",
     unit: "Bottles",
+    purchasePrice: "",
+    salePrice: "",
     openingStock: "",
     currentStock: "",
     minStock: "",
-    hsn: "",
-    gst: "0",
-    tcs: "",
-    tds: "",
   });
-
-  // Set default TCS from business settings
-  useEffect(() => {
-    if (businessSettings?.tcs_percent !== undefined && businessSettings.tcs_percent !== null) {
-      setFormData(prev => ({ ...prev, tcs: String(businessSettings.tcs_percent || 1) }));
-    }
-  }, [businessSettings?.tcs_percent]);
 
   useEffect(() => {
     if (user) {
@@ -101,16 +88,12 @@ export default function AddItem() {
         user_id: user.id,
         name: formData.name.trim(),
         category_id: formData.categoryId || null,
-        sale_price: formData.salePrice ? parseFloat(formData.salePrice) : 0,
-        purchase_price: formData.purchasePrice ? parseFloat(formData.purchasePrice) : 0,
         unit: formData.unit || "Bottles",
+        purchase_price: formData.purchasePrice ? parseFloat(formData.purchasePrice) : 0,
+        sale_price: formData.salePrice ? parseFloat(formData.salePrice) : 0,
         opening_stock: openingStock,
         current_stock: currentStock,
         low_stock_alert: formData.minStock ? parseFloat(formData.minStock) : 10,
-        hsn_code: formData.hsn || null,
-        tax_rate: parseFloat(formData.gst),
-        tcs_rate: formData.tcs ? parseFloat(formData.tcs) : 0,
-        tds_rate: formData.tds ? parseFloat(formData.tds) : 0,
       });
 
       if (error) throw error;
@@ -148,17 +131,7 @@ export default function AddItem() {
           {/* Basic Info */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Basic Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Item Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => handleChange("name", e.target.value)}
-                  placeholder="Enter item name"
-                  required
-                />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select
@@ -176,6 +149,16 @@ export default function AddItem() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Item Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  placeholder="Enter item name"
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
@@ -203,22 +186,22 @@ export default function AddItem() {
             <h3 className="font-semibold text-lg mb-4">Pricing</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="salePrice">Sale Price *</Label>
-                <Input
-                  id="salePrice"
-                  type="number"
-                  value={formData.salePrice}
-                  onChange={(e) => handleChange("salePrice", e.target.value)}
-                  placeholder="₹0"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="purchasePrice">Purchase Price</Label>
                 <Input
                   id="purchasePrice"
                   type="number"
                   value={formData.purchasePrice}
                   onChange={(e) => handleChange("purchasePrice", e.target.value)}
+                  placeholder="₹0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="salePrice">Sale Price</Label>
+                <Input
+                  id="salePrice"
+                  type="number"
+                  value={formData.salePrice}
+                  onChange={(e) => handleChange("salePrice", e.target.value)}
                   placeholder="₹0"
                 />
               </div>
@@ -258,68 +241,6 @@ export default function AddItem() {
                   onChange={(e) => handleChange("minStock", e.target.value)}
                   placeholder="0"
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Tax (GST) Info */}
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Tax (GST) Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="hsn">HSN/SAC Code</Label>
-                <Input
-                  id="hsn"
-                  value={formData.hsn}
-                  onChange={(e) => handleChange("hsn", e.target.value)}
-                  placeholder="e.g., 8528"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gst">GST Rate (%)</Label>
-                <Select
-                  value={formData.gst}
-                  onValueChange={(value) => handleChange("gst", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">0%</SelectItem>
-                    <SelectItem value="5">5%</SelectItem>
-                    <SelectItem value="12">12%</SelectItem>
-                    <SelectItem value="18">18%</SelectItem>
-                    <SelectItem value="28">28%</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tcs">TCS (%)</Label>
-                <Input
-                  id="tcs"
-                  type="number"
-                  value={formData.tcs || ""}
-                  onChange={(e) => handleChange("tcs", e.target.value)}
-                  placeholder="0"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                />
-                <p className="text-xs text-muted-foreground">Tax Collected at Source</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tds">TDS (%)</Label>
-                <Input
-                  id="tds"
-                  type="number"
-                  value={formData.tds || ""}
-                  onChange={(e) => handleChange("tds", e.target.value)}
-                  placeholder="0"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                />
-                <p className="text-xs text-muted-foreground">Tax Deducted at Source</p>
               </div>
             </div>
           </div>

@@ -19,12 +19,11 @@ interface ImportedItem {
   name: string;
   category?: string;
   unit?: string;
-  hsn_code?: string;
-  sale_price?: number;
   purchase_price?: number;
+  sale_price?: number;
   opening_stock?: number;
+  current_stock?: number;
   low_stock_alert?: number;
-  tax_rate?: number;
 }
 
 export default function ImportItems() {
@@ -37,21 +36,20 @@ export default function ImportItems() {
 
   const downloadTemplate = () => {
     const headers = [
-      "Item Name",
       "Category",
+      "Item Name",
       "Unit",
-      "HSN Code",
-      "Sale Price",
       "Purchase Price",
+      "Sale Price",
+      "Opening Stock",
       "Current Stock",
-      "Low Stock Alert",
-      "Tax (GST) Rate (%)"
+      "Minimum Stock Level"
     ];
     
     const sampleData = [
-      ["Laptop Dell Inspiron", "Electronics", "PCS", "8471", "45000", "35000", "10", "5", "18"],
-      ["Wireless Mouse", "Accessories", "PCS", "8471", "500", "350", "50", "10", "18"],
-      ["USB Cable Type-C", "Accessories", "PCS", "8544", "150", "100", "100", "20", "18"],
+      ["Electronics", "Laptop Dell Inspiron", "PCS", "35000", "45000", "10", "10", "5"],
+      ["Accessories", "Wireless Mouse", "PCS", "350", "500", "50", "50", "10"],
+      ["Accessories", "USB Cable Type-C", "Bottles", "100", "150", "100", "100", "20"],
     ];
 
     const csvContent = [
@@ -91,13 +89,12 @@ export default function ImportItems() {
       items.push({
         name,
         category: getCol(["category", "cat"]) || undefined,
-        unit: getCol(["unit"]) || "PCS",
-        hsn_code: getCol(["hsn", "hsn code"]) || undefined,
-        sale_price: parseFloat(getCol(["sale price", "sale", "selling price"])) || 0,
+        unit: getCol(["unit"]) || "Bottles",
         purchase_price: parseFloat(getCol(["purchase price", "purchase", "cost price", "cost"])) || 0,
-        opening_stock: parseFloat(getCol(["current stock", "opening stock", "stock", "qty", "quantity"])) || 0,
-        low_stock_alert: parseFloat(getCol(["low stock", "min stock", "alert"])) || 10,
-        tax_rate: parseFloat(getCol(["tax rate", "tax", "gst"])) || 0,
+        sale_price: parseFloat(getCol(["sale price", "sale", "selling price"])) || 0,
+        opening_stock: parseFloat(getCol(["opening stock"])) || 0,
+        current_stock: parseFloat(getCol(["current stock", "stock", "qty", "quantity"])) || 0,
+        low_stock_alert: parseFloat(getCol(["minimum stock", "min stock", "low stock", "alert"])) || 10,
       });
     }
 
@@ -159,10 +156,8 @@ export default function ImportItems() {
               .from('items')
               .update({
                 unit: item.unit,
-                hsn_code: item.hsn_code,
-                sale_price: item.sale_price,
                 purchase_price: item.purchase_price,
-                tax_rate: item.tax_rate,
+                sale_price: item.sale_price,
                 low_stock_alert: item.low_stock_alert,
               })
               .eq('user_id', user.id)
@@ -196,18 +191,19 @@ export default function ImportItems() {
           }
         }
 
+        const openingStock = item.opening_stock || 0;
+        const currentStock = item.current_stock || openingStock;
+
         const { error } = await supabase.from('items').insert({
           user_id: user.id,
           name: item.name,
           category_id: categoryId,
-          unit: item.unit || "PCS",
-          hsn_code: item.hsn_code,
-          sale_price: item.sale_price || 0,
+          unit: item.unit || "Bottles",
           purchase_price: item.purchase_price || 0,
-          opening_stock: item.opening_stock || 0,
-          current_stock: item.opening_stock || 0,
+          sale_price: item.sale_price || 0,
+          opening_stock: openingStock,
+          current_stock: currentStock,
           low_stock_alert: item.low_stock_alert || 10,
-          tax_rate: item.tax_rate || 0,
         });
 
         if (error) {
@@ -251,7 +247,7 @@ export default function ImportItems() {
           <li>• Download the sample template to see the required format</li>
           <li>• Fill in your item data in the template</li>
           <li>• Required columns: Item Name</li>
-          <li>• Optional columns: Category, Unit, HSN Code, Sale Price, Purchase Price, Current Stock, Low Stock Alert, Tax (GST) Rate</li>
+          <li>• Optional columns: Category, Unit (default: Bottles), Purchase Price, Sale Price, Opening Stock, Current Stock, Minimum Stock Level</li>
           <li>• Upload the completed file (CSV format)</li>
         </ul>
       </div>

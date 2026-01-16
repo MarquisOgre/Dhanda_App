@@ -7,7 +7,6 @@ import {
   Package,
   AlertTriangle,
   Loader2,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,16 +39,13 @@ import { toast } from "sonner";
 interface Item {
   id: string;
   name: string;
-  hsn_code: string | null;
   unit: string | null;
-  sale_price: number | null;
   purchase_price: number | null;
+  sale_price: number | null;
+  opening_stock: number | null;
   current_stock: number | null;
   low_stock_alert: number | null;
-  tax_rate: number | null;
   category_id: string | null;
-  tcs_rate: number | null;
-  tds_rate: number | null;
 }
 
 export default function ItemsList() {
@@ -74,7 +70,7 @@ export default function ItemsList() {
     try {
       const { data, error } = await supabase
         .from("items")
-        .select("*")
+        .select("id, name, unit, purchase_price, sale_price, opening_stock, current_stock, low_stock_alert, category_id")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
@@ -130,8 +126,7 @@ export default function ItemsList() {
 
   const filteredItems = items.filter(
     (item) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.hsn_code && item.hsn_code.toLowerCase().includes(searchQuery.toLowerCase()))
+      item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -172,7 +167,7 @@ export default function ItemsList() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name or HSN code..."
+          placeholder="Search by name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
@@ -193,11 +188,12 @@ export default function ItemsList() {
             <thead>
               <tr>
                 <th>Item</th>
-                <th>HSN</th>
-                <th className="text-right">Sale Price</th>
+                <th>Unit</th>
                 <th className="text-right">Purchase Price</th>
-                <th className="text-right">Stock</th>
-                <th className="text-right">GST</th>
+                <th className="text-right">Sale Price</th>
+                <th className="text-right">Opening Stock</th>
+                <th className="text-right">Current Stock</th>
+                <th className="text-right">Min Stock</th>
                 <th></th>
               </tr>
             </thead>
@@ -215,16 +211,18 @@ export default function ItemsList() {
                         </div>
                         <div>
                           <p className="font-medium">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">{item.unit || "PCS"}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="text-muted-foreground">{item.hsn_code || "-"}</td>
+                    <td className="text-muted-foreground">{item.unit || "Bottles"}</td>
+                    <td className="text-right text-muted-foreground">
+                      ₹{(item.purchase_price || 0).toLocaleString()}
+                    </td>
                     <td className="text-right font-medium">
                       ₹{(item.sale_price || 0).toLocaleString()}
                     </td>
                     <td className="text-right text-muted-foreground">
-                      ₹{(item.purchase_price || 0).toLocaleString()}
+                      {item.opening_stock || 0}
                     </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -238,11 +236,11 @@ export default function ItemsList() {
                             stock === 0 && "text-destructive"
                           )}
                         >
-                          {stock} {item.unit || "PCS"}
+                          {stock}
                         </span>
                       </div>
                     </td>
-                    <td className="text-right text-muted-foreground">{item.tax_rate || 0}%</td>
+                    <td className="text-right text-muted-foreground">{minStock}</td>
                     <td>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -305,25 +303,21 @@ export default function ItemsList() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">{selectedItem.name}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedItem.unit || "PCS"}</p>
+                  <p className="text-sm text-muted-foreground">{selectedItem.unit || "Bottles"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">HSN Code</p>
-                  <p className="font-medium">{selectedItem.hsn_code || "N/A"}</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">GST Rate</p>
-                  <p className="font-medium">{selectedItem.tax_rate || 0}%</p>
+                  <p className="text-xs text-muted-foreground">Purchase Price</p>
+                  <p className="font-medium">₹{(selectedItem.purchase_price || 0).toLocaleString()}</p>
                 </div>
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground">Sale Price</p>
                   <p className="font-medium text-success">₹{(selectedItem.sale_price || 0).toLocaleString()}</p>
                 </div>
                 <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Purchase Price</p>
-                  <p className="font-medium">₹{(selectedItem.purchase_price || 0).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Opening Stock</p>
+                  <p className="font-medium">{selectedItem.opening_stock || 0}</p>
                 </div>
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground">Current Stock</p>
@@ -331,20 +325,12 @@ export default function ItemsList() {
                     "font-medium",
                     (selectedItem.current_stock || 0) <= (selectedItem.low_stock_alert || 10) && "text-warning"
                   )}>
-                    {selectedItem.current_stock || 0} {selectedItem.unit || "PCS"}
+                    {selectedItem.current_stock || 0}
                   </p>
                 </div>
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Low Stock Alert</p>
-                  <p className="font-medium">{selectedItem.low_stock_alert || 10} {selectedItem.unit || "PCS"}</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">TCS Rate</p>
-                  <p className="font-medium">{selectedItem.tcs_rate || 0}%</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">TDS Rate</p>
-                  <p className="font-medium">{selectedItem.tds_rate || 0}%</p>
+                <div className="p-3 bg-muted/50 rounded-lg col-span-2">
+                  <p className="text-xs text-muted-foreground">Minimum Stock Level</p>
+                  <p className="font-medium">{selectedItem.low_stock_alert || 10}</p>
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
@@ -372,7 +358,7 @@ export default function ItemsList() {
           <div className="space-y-4">
             <div className="p-3 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Current Stock</p>
-              <p className="text-xl font-semibold">{selectedItem?.current_stock || 0} {selectedItem?.unit || "PCS"}</p>
+              <p className="text-xl font-semibold">{selectedItem?.current_stock || 0} {selectedItem?.unit || "Bottles"}</p>
             </div>
             <div className="space-y-2">
               <Label>Adjustment Type</Label>
@@ -412,7 +398,7 @@ export default function ItemsList() {
                 {stockAdjustment.type === "add" 
                   ? (selectedItem?.current_stock || 0) + stockAdjustment.quantity
                   : (selectedItem?.current_stock || 0) - stockAdjustment.quantity
-                } {selectedItem?.unit || "PCS"}
+                } {selectedItem?.unit || "Bottles"}
               </p>
             </div>
             <div className="flex gap-2 pt-2">
