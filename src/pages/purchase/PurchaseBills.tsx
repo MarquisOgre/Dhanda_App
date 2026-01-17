@@ -16,7 +16,7 @@ import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { RoleGuard, useRoleAccess } from "@/components/RoleGuard";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { generateInvoicePDF } from "@/lib/invoicePdf";
+import { generateInvoicePDF, printInvoicePDF } from "@/lib/invoicePdf";
 
 interface PurchaseBill {
   id: string;
@@ -266,29 +266,55 @@ export default function PurchaseBills() {
                             <Eye className="w-4 h-4 mr-2" />
                             View Invoice
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={async () => {
-                            const { data: items } = await supabase
-                              .from("purchase_invoice_items")
-                              .select("*")
-                              .eq("purchase_invoice_id", bill.id);
-                            
-                            const { data: partyData } = await supabase
-                              .from("parties")
-                              .select("name, phone, email, billing_address, gstin")
-                              .eq("id", bill.party_id)
-                              .single();
-                            
-                            generateInvoicePDF({
-                              invoice: { ...bill, parties: partyData },
-                              items: items || [],
-                              settings: businessSettings,
-                              type: "purchase",
-                            });
-                          }}>
+                          <DropdownMenuItem
+                            onSelect={async () => {
+                              const { data: items } = await supabase
+                                .from("purchase_invoice_items")
+                                .select("*")
+                                .eq("purchase_invoice_id", bill.id);
+
+                              const { data: partyData } = await supabase
+                                .from("parties")
+                                .select("name, phone, email, billing_address, gstin")
+                                .eq("id", bill.party_id)
+                                .single();
+
+                              generateInvoicePDF({
+                                invoice: { ...bill, parties: partyData },
+                                items: items || [],
+                                settings: businessSettings,
+                                type: "purchase",
+                              });
+                            }}
+                          >
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}?print=true`)}>
+                          <DropdownMenuItem
+                            onSelect={async () => {
+                              try {
+                                const { data: items } = await supabase
+                                  .from("purchase_invoice_items")
+                                  .select("*")
+                                  .eq("purchase_invoice_id", bill.id);
+
+                                const { data: partyData } = await supabase
+                                  .from("parties")
+                                  .select("name, phone, email, billing_address, gstin")
+                                  .eq("id", bill.party_id)
+                                  .single();
+
+                                await printInvoicePDF({
+                                  invoice: { ...bill, parties: partyData },
+                                  items: items || [],
+                                  settings: businessSettings,
+                                  type: "purchase",
+                                });
+                              } catch (e: any) {
+                                toast.error(e?.message || "Failed to print invoice");
+                              }
+                            }}
+                          >
                             <Printer className="w-4 h-4 mr-2" />
                             Print
                           </DropdownMenuItem>
