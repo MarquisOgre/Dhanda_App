@@ -271,8 +271,8 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <img src="/dark_logo.png" alt="DhandhaApp" className="w-10 h-10" />
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">DhandhaApp</span>
+              <img src="/dark_logo.png" alt="DhandhaApp" className="h-16 mx-auto" />
+              {/* <span className="text-xl font-bold bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">DhandhaApp</span> */}
             </Link>
 
             {/* Desktop Navigation */}
@@ -683,8 +683,8 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img src="/app-icon.png" alt="DhandhaApp" className="w-8 h-8" />
-                <span className="text-lg font-bold">DhandhaApp</span>
+                <img src="/app-icon.png" alt="DhandhaApp" className="h-16 max-auto" />
+                {/* <span className="text-lg font-bold">DhandhaApp</span> */}
               </div>
               <p className="text-sidebar-foreground/70 text-sm">
                 India's #1 GST Billing Software for Small Businesses

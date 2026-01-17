@@ -142,7 +142,7 @@ export function LicenseExpired() {
 
         {/* Branding */}
         <div className="text-center mt-6">
-          <img src="/logo.png" alt="Dhanda App" className="h-8 mx-auto opacity-50" />
+          <img src="/dark_logo.png" alt="Dhanda App" className="h-16 mx-auto opacity-50" />
         </div>
       </div>
 

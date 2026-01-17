@@ -177,14 +177,14 @@ export default function ViewSaleInvoice() {
               Record Payment
             </Button>
           )}
-          <Button variant="outline" onClick={handlePrint}>
+          {/* <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
             Print
           </Button>
           <Button variant="outline" onClick={handleDownloadPDF}>
             <Download className="w-4 h-4 mr-2" />
             Download PDF
-          </Button>
+          </Button> */}
           <Button onClick={() => navigate(`/sale/invoices/${id}/edit`)}>
             Edit Invoice
           </Button>
