@@ -216,7 +216,12 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
     formatCurrency(item.total),
   ]);
 
-  autoTable(doc, {
+  const tableFn = (autoTable as any) || (doc as any).autoTable;
+  if (typeof tableFn !== "function") {
+    throw new Error("PDF table generator not available (jspdf-autotable not loaded)");
+  }
+
+  tableFn(doc, {
     startY: yPos,
     head: [["#", "Item", "HSN", "Qty", "Unit", "Rate", "Tax", "Amount"]],
     body: tableData,
@@ -335,15 +340,37 @@ export async function printInvoicePDF(params: GeneratePDFParams) {
   }
 
   const doc = await buildInvoicePDFDoc(params);
-  const blob = doc.output("blob");
+
+  // jsPDF output APIs differ between major versions; arraybuffer -> Blob is the most stable.
+  const pdfArrayBuffer = doc.output("arraybuffer") as ArrayBuffer;
+  const blob = new Blob([pdfArrayBuffer], { type: "application/pdf" });
   const blobUrl = URL.createObjectURL(blob);
 
-  // Write an iframe and print when loaded
   printWindow.document.open();
-  printWindow.document.write(`<!doctype html><html><head><title>${params.invoice.invoice_number}</title><style>html,body{margin:0;padding:0;height:100%;}iframe{border:0;width:100%;height:100%;}</style></head><body><iframe src="${blobUrl}"></iframe><script>const iframe=document.querySelector('iframe');iframe.onload=()=>{setTimeout(()=>{try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){window.print();}},150);};</script></body></html>`);
+  printWindow.document.write(`<!doctype html><html><head><title>${params.invoice.invoice_number}</title>
+    <meta charset="utf-8" />
+    <style>
+      html,body{margin:0;padding:0;height:100%;background:#fff;}
+      iframe{border:0;width:100%;height:100%;}
+      .fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#111;}
+    </style>
+  </head><body>
+    <div class="fallback" id="fb">Preparing print…</div>
+    <iframe id="pdf" src="${blobUrl}#toolbar=0&navpanes=0"></iframe>
+    <script>
+      const iframe = document.getElementById('pdf');
+      const fb = document.getElementById('fb');
+      const doPrint = () => {
+        try { iframe.contentWindow.focus(); iframe.contentWindow.print(); }
+        catch (e) { window.focus(); window.print(); }
+      };
+      iframe.onload = () => { fb && (fb.style.display='none'); setTimeout(doPrint, 200); };
+      // Fallback if the PDF plugin doesn't fire onload
+      setTimeout(() => { fb && (fb.style.display='none'); doPrint(); }, 1500);
+    </script>
+  </body></html>`);
   printWindow.document.close();
 
-  // Cleanup
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
 
