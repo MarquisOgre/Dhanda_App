@@ -156,31 +156,66 @@ interface ReportData {
   columns: string[];
   rows: (string | number)[][];
   summary?: { label: string; value: string }[];
+  logoUrl?: string;
 }
 
-export function generateReportPDF(data: ReportData): jsPDF {
+export async function generateReportPDF(data: ReportData): Promise<jsPDF> {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  
+  let headerY = 15;
+  
+  // Add Logo if provided
+  if (data.logoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = data.logoUrl!;
+      });
+      
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL("image/png");
+      
+      // Add logo at top center
+      const logoWidth = 25;
+      const logoHeight = 25;
+      doc.addImage(dataURL, "PNG", pageWidth / 2 - logoWidth / 2, headerY, logoWidth, logoHeight);
+      headerY += logoHeight + 5;
+    } catch (error) {
+      console.error("Failed to load logo for report:", error);
+    }
+  }
   
   // Title
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(data.title, pageWidth / 2, 20, { align: 'center' });
+  doc.text(data.title, pageWidth / 2, headerY + 5, { align: 'center' });
+  headerY += 10;
   
   if (data.subtitle) {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(data.subtitle, pageWidth / 2, 28, { align: 'center' });
+    doc.text(data.subtitle, pageWidth / 2, headerY + 3, { align: 'center' });
+    headerY += 8;
   }
   
   if (data.dateRange) {
     doc.setFontSize(10);
-    doc.text(data.dateRange, pageWidth / 2, 35, { align: 'center' });
+    doc.text(data.dateRange, pageWidth / 2, headerY + 3, { align: 'center' });
+    headerY += 8;
   }
   
   // Table
   doc.autoTable({
-    startY: 45,
+    startY: headerY + 5,
     head: [data.columns],
     body: data.rows,
     theme: 'striped',

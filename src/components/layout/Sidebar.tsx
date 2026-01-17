@@ -187,7 +187,7 @@ function SidebarContent({ onClose, isCollapsed = false }: { onClose?: () => void
 
   return (
     <div className="h-full bg-sidebar text-sidebar-foreground flex flex-col">
-      {/* Logo */}
+      {/* Logo - navigates to Dashboard for all users (authenticated via AppLayout) */}
       <div className={cn("p-4 border-b border-sidebar-border", isCollapsed && "p-2")}>
         <Link to="/" className="flex justify-center" onClick={handleLinkClick}>
           {isCollapsed ? (

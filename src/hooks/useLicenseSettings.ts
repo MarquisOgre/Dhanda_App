@@ -28,20 +28,54 @@ export function useLicenseSettings() {
     queryFn: async () => {
       if (!user?.email) return null;
 
-      // Try to get license for the current user's email
-      const { data, error } = await supabase
+      // First, try to get license for the current user's email
+      const { data: userLicense, error: userError } = await supabase
         .from("license_settings")
         .select("*")
         .eq("user_email", user.email)
         .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching license settings:", error);
+      if (userError) {
+        console.error("Error fetching license settings:", userError);
         return null;
       }
+
+      // If user has a direct license, return it
+      if (userLicense) {
+        return userLicense as LicenseSettings | null;
+      }
+
+      // If no direct license, check if user is a child account (has parent_user_id)
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("parent_user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (userRole?.parent_user_id) {
+        // Get parent's email from profiles
+        const { data: parentProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", userRole.parent_user_id)
+          .maybeSingle();
+
+        if (parentProfile?.email) {
+          // Get parent's license
+          const { data: parentLicense } = await supabase
+            .from("license_settings")
+            .select("*")
+            .eq("user_email", parentProfile.email)
+            .maybeSingle();
+
+          if (parentLicense) {
+            return parentLicense as LicenseSettings | null;
+          }
+        }
+      }
       
-      // If no license found for this user, return null (expired/no license)
-      return data as LicenseSettings | null;
+      // If no license found for this user or parent, return null (expired/no license)
+      return null;
     },
     staleTime: 0,
     enabled: !!user?.email,

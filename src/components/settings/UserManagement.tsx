@@ -605,7 +605,7 @@ export function UserManagement() {
                               </SelectContent>
                             </Select>
                             
-                            {isSuperAdmin && (
+                            {isSuperAdmin && u.role !== 'viewer' && (
                               <Button
                                 variant="ghost"
                                 size="icon"

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Mail, Calendar, Users, Edit, Plus, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Shield, Mail, Calendar, Users, Edit, Plus, Loader2, CheckCircle, XCircle, AlertTriangle, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -137,6 +137,22 @@ export function UserLicenseManagement() {
       expiry_date: format(newExpiryDate, "yyyy-MM-dd"),
       license_type: plan.plan_name,
     }));
+  };
+
+  const handleDelete = async (licenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from("license_settings")
+        .delete()
+        .eq("id", licenseId);
+
+      if (error) throw error;
+      toast.success("License deleted successfully");
+      fetchData();
+    } catch (error: any) {
+      console.error("Error deleting license:", error);
+      toast.error("Failed to delete license");
+    }
   };
 
   const handleSave = async () => {
@@ -303,15 +319,25 @@ export function UserLicenseManagement() {
                       </TableCell>
                       <TableCell>{license.max_users || 5}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(license)}
-                          className="gap-1"
-                        >
-                          <Edit className="w-4 h-4" />
-                          Edit
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(license)}
+                            className="gap-1"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(license.id)}
+                            className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
