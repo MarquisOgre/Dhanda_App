@@ -70,7 +70,8 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
   const rightColX = pageWidth - 14;
 
   // Calculate header content heights first to determine vertical centering
-  const logoHeight = 32;
+  const logoHeight = 40; // Fixed logo height
+  const logoWidth = 40;  // Fixed logo width
   const headerRowHeight = Math.max(logoHeight, 28); // Minimum height for header row
   const verticalCenterY = headerY + headerRowHeight / 2;
 
@@ -84,11 +85,15 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
 
   let leftStartY = verticalCenterY - leftContentHeight / 2;
 
-  doc.setFontSize(12);
+  // Business name in a distinctive color (dark blue)
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
+  doc.setTextColor(25, 65, 133); // Dark blue color for business name
   doc.text(leftLines[0], leftColX, leftStartY);
-  leftStartY += 5;
+  leftStartY += 6;
 
+  // Reset to black for other details
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   for (let i = 1; i < leftLines.length; i++) {
@@ -124,7 +129,7 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
     console.error("Failed to load app icon:", error);
   }
 
-  // Add Business Logo below app icon
+  // Add Business Logo below app icon with fixed dimensions
   if (settings?.logo_url) {
     try {
       const img = new Image();
@@ -143,9 +148,10 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
       ctx?.drawImage(img, 0, 0);
       const dataURL = canvas.toDataURL("image/png");
 
-      const logoWidth = 28;
-      const logoH = 28;
-      doc.addImage(dataURL, "PNG", centerX - logoWidth / 2, centerLogoY, logoWidth, logoH);
+      // Fixed logo dimensions to prevent squeezing
+      const fixedLogoWidth = 36;
+      const fixedLogoHeight = 36;
+      doc.addImage(dataURL, "PNG", centerX - fixedLogoWidth / 2, centerLogoY, fixedLogoWidth, fixedLogoHeight);
     } catch (error) {
       console.error("Failed to load logo:", error);
     }
@@ -205,25 +211,58 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
   // Items Table
   yPos += 40;
 
-  const tableData = items.map((item, index) => [
-    (index + 1).toString(),
-    item.item_name,
-    item.hsn_code || "-",
-    item.quantity.toString(),
-    item.unit || "pcs",
-    formatCurrency(item.rate),
-    item.tax_rate ? `${item.tax_rate}%` : "-",
-    formatCurrency(item.total),
-  ]);
+  // Check if any item has tax > 0
+  const hasTax = items.some(item => (item.tax_rate || 0) > 0 || (item.tax_amount || 0) > 0);
+
+  // Build table data conditionally
+  const tableData = items.map((item, index) => {
+    const row: string[] = [
+      (index + 1).toString(),
+      item.item_name,
+      item.hsn_code || "-",
+      item.quantity.toString(),
+      item.unit || "pcs",
+      formatCurrency(item.rate),
+    ];
+    if (hasTax) {
+      row.push(item.tax_rate ? `${item.tax_rate}%` : "-");
+    }
+    row.push(formatCurrency(item.total));
+    return row;
+  });
+
+  // Build headers conditionally
+  const tableHeaders = ["#", "Item", "HSN", "Qty", "Unit", "Rate"];
+  if (hasTax) {
+    tableHeaders.push("Tax");
+  }
+  tableHeaders.push("Amount");
 
   const tableFn = (autoTable as any) || (doc as any).autoTable;
   if (typeof tableFn !== "function") {
     throw new Error("PDF table generator not available (jspdf-autotable not loaded)");
   }
 
+  // Build column styles conditionally
+  const columnStyles: Record<number, any> = {
+    0: { cellWidth: 10 },
+    1: { cellWidth: "auto" },
+    2: { cellWidth: 25 },
+    3: { cellWidth: 15, halign: "right" },
+    4: { cellWidth: 15 },
+    5: { cellWidth: 28, halign: "right" },
+  };
+  
+  if (hasTax) {
+    columnStyles[6] = { cellWidth: 20, halign: "right" };
+    columnStyles[7] = { cellWidth: 32, halign: "right" };
+  } else {
+    columnStyles[6] = { cellWidth: 32, halign: "right" };
+  }
+
   tableFn(doc, {
     startY: yPos,
-    head: [["#", "Item", "HSN", "Qty", "Unit", "Rate", "Tax", "Amount"]],
+    head: [tableHeaders],
     body: tableData,
     theme: "striped",
     headStyles: {
@@ -235,16 +274,7 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
       fontSize: 9,
       cellPadding: 3,
     },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      1: { cellWidth: "auto" },
-      2: { cellWidth: 25 },
-      3: { cellWidth: 15, halign: "right" },
-      4: { cellWidth: 15 },
-      5: { cellWidth: 28, halign: "right" },
-      6: { cellWidth: 20, halign: "right" },
-      7: { cellWidth: 32, halign: "right" },
-    },
+    columnStyles,
   });
 
   // Summary
@@ -276,9 +306,12 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
     summaryY += 6;
   }
 
-  doc.text("Tax:", summaryX, summaryY);
-  doc.text(formatCurrency(taxAmount), pageWidth - 14, summaryY, { align: "right" });
-  summaryY += 6;
+  // Only show Tax line if tax amount > 0
+  if (taxAmount > 0) {
+    doc.text("Tax:", summaryX, summaryY);
+    doc.text(formatCurrency(taxAmount), pageWidth - 14, summaryY, { align: "right" });
+    summaryY += 6;
+  }
 
   if (tcsAmount > 0) {
     doc.text(`TCS @ ${tcsRate}%:`, summaryX, summaryY);
