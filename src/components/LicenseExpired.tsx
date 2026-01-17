@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Mail, Phone, Calendar, Shield, RefreshCw, UserX, LogOut } from "lucide-react";
+import { AlertTriangle, Mail, Phone, Calendar, Shield, RefreshCw, UserX, LogOut, MessageCircle } from "lucide-react";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ export function LicenseExpired() {
   const hasLicense = !!licenseSettings;
   const supportEmail = licenseSettings?.support_email || "support@dhandaapp.com";
   const supportPhone = licenseSettings?.support_phone || "+91 98765 43210";
+  const supportWhatsapp = licenseSettings?.support_whatsapp || "+919876543210";
   const licenseType = licenseSettings?.license_type || "Professional";
 
   return (
@@ -128,6 +129,19 @@ export function LicenseExpired() {
                   <Phone className="w-4 h-4" />
                   Call Support
                 </Button>
+                <a 
+                  href={`https://wa.me/${supportWhatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button 
+                    variant="outline" 
+                    className="gap-2 w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white border-green-500 hover:border-green-600"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    WhatsApp
+                  </Button>
+                </a>
               </div>
             </div>
 

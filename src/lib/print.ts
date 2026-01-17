@@ -110,6 +110,7 @@ interface PrintTableOptions {
   columns: string[];
   rows: (string | number)[][];
   summary?: { label: string; value: string }[];
+  logoUrl?: string;
 }
 
 export function printTable(options: PrintTableOptions) {
@@ -131,6 +132,12 @@ export function printTable(options: PrintTableOptions) {
     <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px;">
       <h3 style="margin: 0 0 10px 0;">Summary</h3>
       ${options.summary.map(item => `<p style="margin: 5px 0;"><strong>${item.label}:</strong> ${item.value}</p>`).join('')}
+    </div>
+  ` : '';
+
+  const logoHtml = options.logoUrl ? `
+    <div style="text-align: center; margin-bottom: 15px;">
+      <img src="${options.logoUrl}" alt="Logo" style="max-height: 50px; max-width: 100px; object-fit: contain;" />
     </div>
   ` : '';
 
@@ -159,6 +166,7 @@ export function printTable(options: PrintTableOptions) {
         </style>
       </head>
       <body>
+        ${logoHtml}
         <h1>${options.title}</h1>
         ${options.subtitle ? `<h2>${options.subtitle}</h2>` : ''}
         <p>Generated on: ${new Date().toLocaleDateString()}</p>

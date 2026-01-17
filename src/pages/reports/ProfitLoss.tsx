@@ -6,6 +6,7 @@ import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { DateRangeFilter, getDefaultDateRange, DateRange } from "@/components/DateRangeFilter";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 interface PLData {
   // Revenue / Receipts (+) - main items (included in total)
@@ -31,6 +32,7 @@ interface PLData {
 }
 
 export default function ProfitLoss() {
+  const { businessSettings } = useBusinessSettings();
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [loading, setLoading] = useState(true);
   const [plData, setPlData] = useState<PLData>({
@@ -272,7 +274,7 @@ export default function ProfitLoss() {
     });
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const allRows: (string | number)[][] = [];
     
     for (let i = 0; i < Math.max(allRevenueItems.length, allExpenseItems.length); i++) {
@@ -300,13 +302,14 @@ export default function ProfitLoss() {
       `₹${netProfit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
     ]);
 
-    const doc = generateReportPDF({
+    const doc = await generateReportPDF({
       title: "Profit & Loss Report",
-      subtitle: "Dhandha App",
+      subtitle: businessSettings?.business_name || "Dhandha App",
       dateRange: dateRangeLabel,
       columns: ["Revenue / Receipts (+)", "Amount (₹)", "Expenses / Payments (−)", "Amount (₹)"],
       rows: allRows,
-      summary: []
+      summary: [],
+      logoUrl: businessSettings?.logo_url || undefined
     });
     downloadPDF(doc, `profit-loss-${new Date().toISOString().split('T')[0]}`);
   };

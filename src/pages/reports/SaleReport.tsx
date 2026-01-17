@@ -6,6 +6,7 @@ import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { DateRangeFilter, getDefaultDateRange, filterByDateRange, DateRange } from "@/components/DateRangeFilter";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 interface SaleData {
   id: string;
@@ -20,6 +21,7 @@ interface SaleData {
 }
 
 export default function SaleReport() {
+  const { businessSettings } = useBusinessSettings();
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [salesData, setSalesData] = useState<SaleData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,10 +132,10 @@ export default function SaleReport() {
     });
   };
 
-  const handleExportPDF = () => {
-    const doc = generateReportPDF({
+  const handleExportPDF = async () => {
+    const doc = await generateReportPDF({
       title: "Sale Report",
-      subtitle: "Dhandha App",
+      subtitle: businessSettings?.business_name || "Dhandha App",
       dateRange: dateRangeLabel,
       columns: ["Invoice", "Date", "Party", "Items", "Amount", "TCS", "Cost", "Profit"],
       rows: filteredData.map(sale => {
@@ -153,7 +155,8 @@ export default function SaleReport() {
         { label: "Total Sales", value: `₹${totalSales.toLocaleString()}` },
         { label: "Total Profit", value: `₹${totalProfit.toLocaleString()}` },
         { label: "Total Invoices", value: filteredData.length.toString() },
-      ]
+      ],
+      logoUrl: businessSettings?.logo_url || undefined
     });
     downloadPDF(doc, `sale-report-${new Date().toISOString().split('T')[0]}`);
   };
