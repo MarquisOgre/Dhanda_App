@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Download, Printer, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +48,7 @@ interface Invoice {
 export default function ViewPurchaseInvoice() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { businessSettings: settings } = useBusinessSettings();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -59,6 +60,13 @@ export default function ViewPurchaseInvoice() {
       fetchInvoice();
     }
   }, [user, id]);
+
+  // Auto-print if print=true in URL params
+  useEffect(() => {
+    if (!loading && invoice && searchParams.get('print') === 'true') {
+      setTimeout(() => window.print(), 500);
+    }
+  }, [loading, invoice, searchParams]);
 
   const fetchInvoice = async () => {
     try {
@@ -173,7 +181,7 @@ export default function ViewPurchaseInvoice() {
 
       {/* Invoice Content */}
       <div className="metric-card p-8 print:shadow-none print:border-none">
-        {/* Header Row: Business (Left) | Logo (Center) | Invoice Details (Right) */}
+        {/* Header Row: Business (Left) | App Icon + Logo (Center) | Invoice Details (Right) */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {/* Left Column - Business Details */}
           <div className="flex flex-col justify-center">
@@ -183,13 +191,18 @@ export default function ViewPurchaseInvoice() {
             {settings?.gstin && <p className="text-muted-foreground text-sm">GSTIN: {settings.gstin}</p>}
           </div>
 
-          {/* Center Column - Logo */}
-          <div className="flex items-center justify-center">
+          {/* Center Column - App Icon + Logo */}
+          <div className="flex flex-col items-center justify-center gap-2">
+            <img 
+              src="/app-icon.png" 
+              alt="App Icon" 
+              className="w-16 h-16 object-contain"
+            />
             {settings?.logo_url && (
               <img 
                 src={settings.logo_url} 
                 alt="Business Logo" 
-                className="w-24 h-24 object-contain rounded-xl"
+                className="w-20 h-20 object-contain rounded-xl"
               />
             )}
           </div>

@@ -97,7 +97,35 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
     leftStartY += 4;
   }
 
-  // CENTER COLUMN - Logo (vertically centered)
+  // CENTER COLUMN - App Icon + Logo (vertically centered)
+  let centerLogoY = verticalCenterY - logoHeight / 2;
+  
+  // Add App Icon first
+  try {
+    const appIcon = new Image();
+    appIcon.crossOrigin = "anonymous";
+    
+    await new Promise((resolve, reject) => {
+      appIcon.onload = resolve;
+      appIcon.onerror = reject;
+      appIcon.src = "/app-icon.png";
+    });
+    
+    const appIconCanvas = document.createElement('canvas');
+    appIconCanvas.width = appIcon.width;
+    appIconCanvas.height = appIcon.height;
+    const appIconCtx = appIconCanvas.getContext('2d');
+    appIconCtx?.drawImage(appIcon, 0, 0);
+    const appIconDataURL = appIconCanvas.toDataURL('image/png');
+    
+    const appIconSize = 18;
+    doc.addImage(appIconDataURL, 'PNG', centerX - appIconSize / 2, centerLogoY - 2, appIconSize, appIconSize);
+    centerLogoY += appIconSize + 2;
+  } catch (error) {
+    console.error("Failed to load app icon:", error);
+  }
+  
+  // Add Business Logo below app icon
   if (settings?.logo_url) {
     try {
       const img = new Image();
@@ -116,9 +144,9 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
       ctx?.drawImage(img, 0, 0);
       const dataURL = canvas.toDataURL('image/png');
       
-      const logoWidth = 32;
-      const logoStartY = verticalCenterY - logoHeight / 2;
-      doc.addImage(dataURL, 'PNG', centerX - logoWidth / 2, logoStartY, logoWidth, logoHeight);
+      const logoWidth = 28;
+      const logoH = 28;
+      doc.addImage(dataURL, 'PNG', centerX - logoWidth / 2, centerLogoY, logoWidth, logoH);
     } catch (error) {
       console.error("Failed to load logo:", error);
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, MoreHorizontal, FileText, Loader2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, FileText, Loader2, Download, Printer, Eye, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,22 +12,32 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { RoleGuard, useRoleAccess } from "@/components/RoleGuard";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { generateInvoicePDF } from "@/lib/invoicePdf";
 
 interface PurchaseBill {
   id: string;
   invoice_number: string;
   invoice_date: string;
+  due_date: string | null;
   total_amount: number | null;
   paid_amount: number | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  discount_amount: number | null;
   status: string | null;
+  notes: string | null;
+  terms: string | null;
+  party_id: string | null;
   parties?: { name: string } | null;
 }
 
 export default function PurchaseBills() {
   const { user } = useAuth();
+  const { businessSettings } = useBusinessSettings();
   const { canWrite } = useRoleAccess();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -253,11 +263,39 @@ export default function PurchaseBills() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}`)}>
+                            <Eye className="w-4 h-4 mr-2" />
                             View Invoice
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={async () => {
+                            const { data: items } = await supabase
+                              .from("purchase_invoice_items")
+                              .select("*")
+                              .eq("purchase_invoice_id", bill.id);
+                            
+                            const { data: partyData } = await supabase
+                              .from("parties")
+                              .select("name, phone, email, billing_address, gstin")
+                              .eq("id", bill.party_id)
+                              .single();
+                            
+                            generateInvoicePDF({
+                              invoice: { ...bill, parties: partyData },
+                              items: items || [],
+                              settings: businessSettings,
+                              type: "purchase",
+                            });
+                          }}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Download PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}?print=true`)}>
+                            <Printer className="w-4 h-4 mr-2" />
+                            Print
                           </DropdownMenuItem>
                           {canWrite && (
                             <>
                               <DropdownMenuItem onSelect={() => navigate(`/purchase/payment-out/new?invoice=${bill.id}`)}>
+                                <CreditCard className="w-4 h-4 mr-2" />
                                 Record Payment
                               </DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => navigate(`/purchase/bills/${bill.id}/edit`)}>
