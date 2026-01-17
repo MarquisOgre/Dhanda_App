@@ -200,7 +200,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
       {/* Announcement Bar */}
-      <div className="bg-primary text-primary-foreground text-center py-2 text-sm">
+      <div className="bg-gradient-to-r from-primary to-orange-400 text-primary-foreground text-center py-2 text-sm">
         🎉 Special Offer: Use code <strong>DHANDHA50</strong> for 50% off on yearly plans!
       </div>
 
@@ -211,7 +211,7 @@ export default function Landing() {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <img src="/app-icon.png" alt="DhandhaApp" className="w-10 h-10" />
-              <span className="text-xl font-bold text-primary">DhandhaApp</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">DhandhaApp</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -267,26 +267,26 @@ export default function Landing() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-20 lg:py-32">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
         <div className="container mx-auto px-4 relative">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-                <span className="text-primary">GST Billing Software</span>
+                <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">GST Billing Software</span>
                 <br />
-                for Small Businesses in India
+                for <span className="text-accent">Small Businesses</span> in India
               </h1>
               <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
                 Create professional invoices, manage inventory, track payments, and grow your business with India's most trusted billing app.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Button size="lg" className="text-lg px-8" asChild>
+                <Button size="lg" className="text-lg px-8 bg-gradient-to-r from-primary to-orange-400 hover:from-primary/90 hover:to-orange-400/90" asChild>
                   <Link to="/signup">
                     <Download className="w-5 h-5 mr-2" />
                     Download DhandhaApp Now!
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="text-lg px-8">
+                <Button size="lg" variant="outline" className="text-lg px-8 border-accent text-accent hover:bg-accent hover:text-accent-foreground">
                   <Play className="w-5 h-5 mr-2" />
                   Watch Demo
                 </Button>
@@ -295,32 +295,54 @@ export default function Landing() {
               {/* Trust Indicators */}
               <div className="mt-12 grid grid-cols-3 gap-6">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-primary">1 Crore+</p>
+                  <p className="text-3xl font-bold bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">1 Crore+</p>
                   <p className="text-sm text-muted-foreground">Happy Customers</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <p className="text-3xl font-bold text-primary">4.7</p>
+                    <p className="text-3xl font-bold bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">4.7</p>
                     <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
                   </div>
                   <p className="text-sm text-muted-foreground">App Rating</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-primary">Multi</p>
+                  <p className="text-3xl font-bold bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Multi</p>
                   <p className="text-sm text-muted-foreground">User Support</p>
                 </div>
               </div>
             </div>
 
-            {/* Hero Image */}
+            {/* Hero Video/Dashboard Preview */}
             <div className="relative">
-              <div className="bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl p-8">
-                <img 
-                  src="/logo.png" 
-                  alt="DhandhaApp Dashboard" 
-                  className="w-full rounded-xl shadow-2xl"
-                />
+              <div className="bg-gradient-to-br from-primary/20 via-orange-100/50 to-accent/20 rounded-2xl p-6 shadow-2xl">
+                <div className="relative rounded-xl overflow-hidden bg-white shadow-lg">
+                  <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full rounded-xl"
+                    poster="/logo.png"
+                  >
+                    <source src="https://dhandha-website.vercel.app/demo-video.mp4" type="video/mp4" />
+                    {/* Fallback to image if video doesn't load */}
+                    <img 
+                      src="/logo.png" 
+                      alt="DhandhaApp Dashboard" 
+                      className="w-full rounded-xl"
+                    />
+                  </video>
+                  {/* Play button overlay for mobile */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                    <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                      <Play className="w-8 h-8 text-primary ml-1" />
+                    </div>
+                  </div>
+                </div>
               </div>
+              {/* Decorative elements */}
+              <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-primary/30 to-orange-400/30 rounded-full blur-2xl" />
+              <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-br from-accent/30 to-green-400/30 rounded-full blur-2xl" />
             </div>
           </div>
         </div>
@@ -331,7 +353,7 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Everything You Need to <span className="text-primary">Grow Your Business</span>
+              Everything You Need to <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Grow Your Business</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               From billing to inventory to reports - DhandhaApp has all the tools you need to run your business efficiently.
@@ -361,7 +383,7 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Trusted by <span className="text-primary">1 Crore+ Businesses</span>
+              Trusted by <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">1 Crore+ Businesses</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               See what our customers have to say about DhandhaApp
@@ -399,7 +421,7 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Simple, <span className="text-primary">Transparent Pricing</span>
+              Simple, <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Transparent Pricing</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Choose the plan that fits your business needs. All plans include core billing features.
@@ -451,7 +473,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Frequently Asked <span className="text-primary">Questions</span>
+              Frequently Asked <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Questions</span>
             </h2>
           </div>
 
@@ -484,7 +506,7 @@ export default function Landing() {
           <div className="grid lg:grid-cols-2 gap-12">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Get In <span className="text-primary">Touch</span>
+                Get In <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Touch</span>
               </h2>
               <p className="text-muted-foreground mb-8">
                 Have questions? We're here to help. Reach out to us and we'll get back to you as soon as possible.
@@ -569,12 +591,12 @@ export default function Landing() {
       </section>
 
       {/* Download CTA Section */}
-      <section className="py-20 bg-primary text-primary-foreground">
+      <section className="py-20 bg-gradient-to-r from-primary to-orange-400 text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Ready to Transform Your Business?
           </h2>
-          <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
+          <p className="text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
             Join 1 Crore+ businesses already using DhandhaApp. Download now and start your free trial.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
