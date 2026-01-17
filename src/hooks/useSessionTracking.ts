@@ -24,8 +24,11 @@ export function useSessionTracking(userId: string | undefined) {
   const sessionIdRef = useRef<string | null>(null);
   const registeredRef = useRef<boolean>(false);
 
-  const registerSession = useCallback(async () => {
+  const registerSession = useCallback(async (userEmail?: string) => {
     if (!userId) return { success: false, error: "No user" };
+
+    const SUPER_ADMIN_EMAIL = 'marquisogre@gmail.com';
+    const isSuperAdmin = userEmail?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
 
     // Check if we already have a registered session for this browser tab
     const existingSessionId = sessionStorage.getItem(SESSION_ID_KEY);
@@ -38,14 +41,19 @@ export function useSessionTracking(userId: string | undefined) {
     await new Promise((r) => setTimeout(r, 300));
 
     try {
-      // Get license settings for max simultaneous logins
-      const { data: licenseSettings } = await supabase
-        .from("license_settings")
-        .select("max_simultaneous_logins")
-        .limit(1)
-        .single();
+      // SuperAdmin has unlimited simultaneous logins
+      let maxLogins = 10; // default for regular admins
+      
+      if (!isSuperAdmin) {
+        // Get license settings for max simultaneous logins
+        const { data: licenseSettings } = await supabase
+          .from("license_settings")
+          .select("max_simultaneous_logins")
+          .limit(1)
+          .single();
 
-      const maxLogins = licenseSettings?.max_simultaneous_logins || 3;
+        maxLogins = licenseSettings?.max_simultaneous_logins || 10;
+      }
 
       // Clean up old sessions for THIS user only (older than 5 minutes without activity)
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -77,18 +85,20 @@ export function useSessionTracking(userId: string | undefined) {
         }
       }
 
-      // Count current active sessions for this user
-      const { count } = await supabase
-        .from("active_sessions")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId);
+      // Count current active sessions for this user (SuperAdmin bypasses this check)
+      if (!isSuperAdmin) {
+        const { count } = await supabase
+          .from("active_sessions")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId);
 
-      // Check if adding a new session would exceed the limit
-      if (count !== null && count >= maxLogins) {
-        return {
-          success: false,
-          error: `Maximum ${maxLogins} simultaneous login(s) allowed. Please log out from another device.`,
-        };
+        // Check if adding a new session would exceed the limit
+        if (count !== null && count >= maxLogins) {
+          return {
+            success: false,
+            error: `Maximum ${maxLogins} simultaneous login(s) allowed. Please log out from another device.`,
+          };
+        }
       }
 
       // Generate new session ID
@@ -191,7 +201,14 @@ export function useSessionTracking(userId: string | undefined) {
   };
 }
 
-export async function checkMaxUsers(): Promise<{ allowed: boolean; error?: string }> {
+export async function checkMaxUsers(currentUserEmail?: string): Promise<{ allowed: boolean; error?: string }> {
+  const SUPER_ADMIN_EMAIL = 'marquisogre@gmail.com';
+  
+  // SuperAdmin can create unlimited users
+  if (currentUserEmail?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    return { allowed: true };
+  }
+
   try {
     // Get license settings for max users
     const { data: licenseSettings } = await supabase
@@ -200,9 +217,11 @@ export async function checkMaxUsers(): Promise<{ allowed: boolean; error?: strin
       .limit(1)
       .single();
 
-    const maxUsers = licenseSettings?.max_users || 5;
+    // Default is 2 users for regular admins
+    const maxUsers = licenseSettings?.max_users || 2;
 
-    // Count current users
+    // Count current users created by this admin (family members)
+    // For now, count all users but this should ideally count only users in the same family
     const { count } = await supabase
       .from("user_roles")
       .select("*", { count: "exact", head: true });

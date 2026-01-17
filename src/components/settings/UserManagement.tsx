@@ -3,10 +3,10 @@ import {
   UserPlus, 
   Trash2, 
   Loader2, 
-  Check,
   Shield,
   Users,
-  Eye
+  Eye,
+  KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,15 +54,20 @@ import { Badge } from "@/components/ui/badge";
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
 
+const SUPER_ADMIN_EMAIL = 'marquisogre@gmail.com';
+
 interface UserWithRole {
   user_id: string;
   email: string;
   full_name: string | null;
   role: AppRole;
+  parent_user_id: string | null;
 }
 
 export function UserManagement() {
   const { user, isAdmin } = useAuth();
+  const isSuperAdmin = user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+  
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
@@ -72,6 +77,12 @@ export function UserManagement() {
   const [newUserRole, setNewUserRole] = useState<AppRole>("viewer");
   const [addingUser, setAddingUser] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  
+  // Password change state
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState<UserWithRole | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
@@ -84,13 +95,13 @@ export function UserManagement() {
     try {
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role');
+        .select('user_id, role, parent_user_id');
 
       if (rolesError) throw rolesError;
 
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id, email, full_name');
+        .select('user_id, email, full_name, parent_user_id');
 
       if (profilesError) throw profilesError;
 
@@ -101,11 +112,21 @@ export function UserManagement() {
             user_id: roleItem.user_id,
             email: profile?.email || 'Unknown',
             full_name: profile?.full_name || null,
-            role: roleItem.role as AppRole
+            role: roleItem.role as AppRole,
+            parent_user_id: profile?.parent_user_id || roleItem.parent_user_id || null
           };
         })
-        // Hide superadmin from user list
-        .filter(u => u.email !== 'marquisogre@gmail.com');
+        // Hide superadmin from user list (unless current user is superadmin)
+        .filter(u => isSuperAdmin || u.email.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase())
+        // For non-superadmin admins, only show users they created or themselves
+        .filter(u => {
+          if (isSuperAdmin) return true;
+          // Show self
+          if (u.user_id === user?.id) return true;
+          // Show users created by this admin
+          if (u.parent_user_id === user?.id) return true;
+          return false;
+        });
 
       setUsers(usersWithRoles);
     } catch (error: any) {
@@ -129,12 +150,14 @@ export function UserManagement() {
 
     setAddingUser(true);
     try {
-      // Check max users limit before adding
-      const { allowed, error: limitError } = await checkMaxUsers();
-      if (!allowed) {
-        toast.error(limitError || 'User limit reached');
-        setAddingUser(false);
-        return;
+      // Check max users limit before adding (SuperAdmin bypasses this)
+      if (!isSuperAdmin) {
+        const { allowed, error: limitError } = await checkMaxUsers();
+        if (!allowed) {
+          toast.error(limitError || 'User limit reached');
+          setAddingUser(false);
+          return;
+        }
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -154,12 +177,32 @@ export function UserManagement() {
         if (newUserRole !== 'viewer') {
           const { error: roleError } = await supabase
             .from('user_roles')
-            .update({ role: newUserRole })
+            .update({ role: newUserRole, parent_user_id: user?.id })
             .eq('user_id', data.user.id);
 
           if (roleError) {
             console.error('Error updating role:', roleError);
           }
+        } else {
+          // Set parent_user_id even for viewer role
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .update({ parent_user_id: user?.id })
+            .eq('user_id', data.user.id);
+
+          if (roleError) {
+            console.error('Error updating parent:', roleError);
+          }
+        }
+
+        // Update profile with parent_user_id
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ parent_user_id: user?.id })
+          .eq('user_id', data.user.id);
+
+        if (profileError) {
+          console.error('Error updating profile parent:', profileError);
         }
       }
 
@@ -217,6 +260,12 @@ export function UserManagement() {
   };
 
   const handleChangeRole = async (userId: string, newRole: AppRole) => {
+    // Prevent non-superadmin from assigning admin role
+    if (!isSuperAdmin && newRole === 'admin') {
+      toast.error('Only SuperAdmin can assign Admin role');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('user_roles')
@@ -230,6 +279,47 @@ export function UserManagement() {
     } catch (error: any) {
       console.error('Error changing role:', error);
       toast.error('Failed to update role');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedUserForPassword || !newPassword) {
+      toast.error('Please enter a new password');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('admin-update-password', {
+        body: {
+          userId: selectedUserForPassword.user_id,
+          newPassword: newPassword
+        },
+        headers: {
+          Authorization: `Bearer ${sessionData.session?.access_token}`
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to update password');
+      }
+
+      toast.success(`Password updated for ${selectedUserForPassword.email}`);
+      setPasswordDialogOpen(false);
+      setSelectedUserForPassword(null);
+      setNewPassword("");
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast.error('Failed to change password: ' + error.message);
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -259,6 +349,22 @@ export function UserManagement() {
     }
   };
 
+  // Get available roles for selection (admins can only create supervisor/viewer unless superadmin)
+  const getAvailableRoles = () => {
+    if (isSuperAdmin) {
+      return [
+        { value: 'admin', label: 'Admin - Full access', icon: Shield },
+        { value: 'supervisor', label: 'Supervisor - Create & edit', icon: Users },
+        { value: 'viewer', label: 'Viewer - Read only', icon: Eye },
+      ];
+    }
+    // Regular admins can only create supervisor and viewer
+    return [
+      { value: 'supervisor', label: 'Supervisor - Create & edit', icon: Users },
+      { value: 'viewer', label: 'Viewer - Read only', icon: Eye },
+    ];
+  };
+
   if (!isAdmin) {
     return (
       <div className="metric-card">
@@ -282,6 +388,7 @@ export function UserManagement() {
             <h3 className="font-semibold">User Management</h3>
             <p className="text-sm text-muted-foreground">
               Add users and manage their access levels
+              {!isSuperAdmin && " (Max 2 users)"}
             </p>
           </div>
           <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
@@ -296,6 +403,7 @@ export function UserManagement() {
                 <DialogTitle>Add New User</DialogTitle>
                 <DialogDescription>
                   Create a new user account with specific access level.
+                  {!isSuperAdmin && " You can only create Supervisor or Viewer roles."}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -330,29 +438,22 @@ export function UserManagement() {
                 </div>
                 <div className="space-y-2">
                   <Label>Access Level</Label>
-                  <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as AppRole)}>
+                  <Select 
+                    value={newUserRole} 
+                    onValueChange={(v) => setNewUserRole(v as AppRole)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          Admin - Full access
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="supervisor">
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4" />
-                          Supervisor - Create & edit
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="viewer">
-                        <div className="flex items-center gap-2">
-                          <Eye className="w-4 h-4" />
-                          Viewer - Read only
-                        </div>
-                      </SelectItem>
+                      {getAvailableRoles().map(role => (
+                        <SelectItem key={role.value} value={role.value}>
+                          <div className="flex items-center gap-2">
+                            <role.icon className="w-4 h-4" />
+                            {role.label}
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -403,6 +504,9 @@ export function UserManagement() {
                       {u.user_id === user?.id && (
                         <Badge variant="outline" className="text-xs">You</Badge>
                       )}
+                      {u.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() && (
+                        <Badge variant="default" className="text-xs bg-gradient-to-r from-primary to-orange-400">SuperAdmin</Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">{u.email}</p>
                   </div>
@@ -418,12 +522,15 @@ export function UserManagement() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">
-                            <div className="flex items-center gap-2">
-                              <Shield className="w-3 h-3" />
-                              Admin
-                            </div>
-                          </SelectItem>
+                          {/* SuperAdmin can assign any role, regular admin can only assign supervisor/viewer */}
+                          {isSuperAdmin && (
+                            <SelectItem value="admin">
+                              <div className="flex items-center gap-2">
+                                <Shield className="w-3 h-3" />
+                                Admin
+                              </div>
+                            </SelectItem>
+                          )}
                           <SelectItem value="supervisor">
                             <div className="flex items-center gap-2">
                               <Users className="w-3 h-3" />
@@ -438,6 +545,22 @@ export function UserManagement() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                      
+                      {/* Password change button - only for SuperAdmin */}
+                      {isSuperAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => {
+                            setSelectedUserForPassword(u);
+                            setPasswordDialogOpen(true);
+                          }}
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </Button>
+                      )}
+                      
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button 
@@ -483,6 +606,41 @@ export function UserManagement() {
         )}
       </div>
 
+      {/* Password Change Dialog - SuperAdmin only */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {selectedUserForPassword?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleChangePassword} disabled={changingPassword}>
+              {changingPassword ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Update Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Access Levels Reference */}
       <div className="metric-card">
         <h3 className="font-semibold mb-4">Access Levels Reference</h3>
@@ -513,51 +671,45 @@ export function UserManagement() {
           <TableBody>
             <TableRow>
               <TableCell>View Dashboard & Reports</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell>Create/Edit Invoices</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
+              <TableCell>Create Invoices & Transactions</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Edit Invoices & Transactions</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Delete Invoices & Transactions</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>Manage Items & Parties</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>Record Payments</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>Manage Settings</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>Manage Users</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell>Delete Data</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>Backup & Utilities</TableCell>
-              <TableCell className="text-center"><Check className="w-4 h-4 text-green-500 mx-auto" /></TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
-              <TableCell className="text-center text-muted-foreground">—</TableCell>
+              <TableCell>Business Settings</TableCell>
+              <TableCell className="text-center text-green-600">✓</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
+              <TableCell className="text-center text-red-500">✗</TableCell>
             </TableRow>
           </TableBody>
         </Table>
