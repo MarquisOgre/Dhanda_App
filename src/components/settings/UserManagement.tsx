@@ -160,6 +160,9 @@ export function UserManagement() {
         }
       }
 
+      // Store current session before creating user
+      const { data: currentSession } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.auth.signUp({
         email: newUserEmail.trim(),
         password: newUserPassword,
@@ -169,6 +172,11 @@ export function UserManagement() {
           },
         }
       });
+      
+      // Restore original session after creating user to prevent auto-login as new user
+      if (currentSession?.session) {
+        await supabase.auth.setSession(currentSession.session);
+      }
 
       if (error) throw error;
 
@@ -383,7 +391,34 @@ export function UserManagement() {
   const groupedUsers = () => {
     const groups: { admin: UserWithRole | null; members: UserWithRole[] }[] = [];
     
-    // Get all admins (users with no parent_user_id or those who are admins)
+    // For SuperAdmin, don't show child account groupings for them - just show all users in a flat list
+    if (isSuperAdmin) {
+      // Show all non-superadmin users as a flat list
+      const nonSuperAdminUsers = users.filter(u => u.email.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase());
+      
+      // Group regular admins with their children
+      const admins = nonSuperAdminUsers.filter(u => u.role === 'admin');
+      const processedIds = new Set<string>();
+      
+      admins.forEach(admin => {
+        const members = nonSuperAdminUsers.filter(u => 
+          u.parent_user_id === admin.user_id && u.user_id !== admin.user_id
+        );
+        groups.push({ admin, members });
+        processedIds.add(admin.user_id);
+        members.forEach(m => processedIds.add(m.user_id));
+      });
+      
+      // Add remaining users without a parent (orphaned users)
+      const remaining = nonSuperAdminUsers.filter(u => !processedIds.has(u.user_id));
+      if (remaining.length > 0) {
+        groups.push({ admin: null, members: remaining });
+      }
+      
+      return groups;
+    }
+    
+    // For regular admins, show their own family grouping
     const admins = users.filter(u => u.role === 'admin' || (!u.parent_user_id && u.user_id === user?.id));
     const processedIds = new Set<string>();
     
@@ -605,7 +640,7 @@ export function UserManagement() {
                               </SelectContent>
                             </Select>
                             
-                            {isSuperAdmin && u.role !== 'viewer' && (
+                            {isSuperAdmin && (
                               <Button
                                 variant="ghost"
                                 size="icon"

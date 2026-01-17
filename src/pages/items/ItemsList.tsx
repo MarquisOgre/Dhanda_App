@@ -3,19 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
-  MoreHorizontal,
   Package,
   AlertTriangle,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -239,7 +232,7 @@ export default function ItemsList() {
                 <th className="text-center">Opening Stock</th>
                 <th className="text-center">Current Stock</th>
                 <th className="text-center">Min Stock</th>
-                <th></th>
+                <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -291,44 +284,39 @@ export default function ItemsList() {
                     </td>
                     <td className="text-center text-muted-foreground">{minStock}</td>
                     <td>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => {
                             setSelectedItem(item);
                             setShowDetails(true);
-                          }}>
-                            View Details
-                          </DropdownMenuItem>
-                          {canWrite && (
-                            <>
-                              <DropdownMenuItem onClick={() => navigate(`/items/edit/${item.id}`)}>
-                                Edit Item
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedItem(item);
-                                setShowAdjustStock(true);
-                              }}>
-                                Adjust Stock
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => handleDelete(item.id)}
-                              >
-                                Delete
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          }}
+                        >
+                          View
+                        </Button>
+                        {canWrite && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs"
+                              onClick={() => navigate(`/items/edit/${item.id}`)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
