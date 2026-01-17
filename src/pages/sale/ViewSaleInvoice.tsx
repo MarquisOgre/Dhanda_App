@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { generateInvoicePDF } from "@/lib/invoicePdf";
+import { printElement } from "@/lib/print";
 
 interface InvoiceItem {
   id: string;
@@ -64,7 +65,7 @@ export default function ViewSaleInvoice() {
   // Auto-print if print=true in URL params
   useEffect(() => {
     if (!loading && invoice && searchParams.get('print') === 'true') {
-      setTimeout(() => window.print(), 500);
+      setTimeout(() => printElement('invoice-print-content', `Invoice-${invoice?.invoice_number}`), 500);
     }
   }, [loading, invoice, searchParams]);
 
@@ -95,7 +96,7 @@ export default function ViewSaleInvoice() {
   };
 
   const handlePrint = () => {
-    window.print();
+    printElement('invoice-print-content', `Invoice-${invoice?.invoice_number}`);
   };
 
   const handleDownloadPDF = () => {
@@ -180,7 +181,7 @@ export default function ViewSaleInvoice() {
       </div>
 
       {/* Invoice Content */}
-      <div className="metric-card p-8 print:shadow-none print:border-none">
+      <div id="invoice-print-content" className="metric-card p-8 print:shadow-none print:border-none">
         {/* Header Row: Business (Left) | App Icon + Logo (Center) | Invoice Details (Right) */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {/* Left Column - Business Details */}
