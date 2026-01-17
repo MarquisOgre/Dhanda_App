@@ -50,7 +50,7 @@ export function Header() {
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
       {/* Mobile Logo - navigates to Dashboard for logged in users */}
       {isMobile && (
-        <Link to="/" className="flex-shrink-0">
+        <Link to="/dashboard" className="flex-shrink-0">
           <img
             src="/dark_logo.png"
             alt="Dhanda App"

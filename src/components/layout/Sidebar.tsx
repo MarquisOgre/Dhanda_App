@@ -55,7 +55,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     title: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: <LayoutDashboard className="w-5 h-5" />,
   },
   {
@@ -189,7 +189,7 @@ function SidebarContent({ onClose, isCollapsed = false }: { onClose?: () => void
     <div className="h-full bg-sidebar text-sidebar-foreground flex flex-col">
       {/* Logo - navigates to Dashboard for all users (authenticated via AppLayout) */}
       <div className={cn("p-4 border-b border-sidebar-border", isCollapsed && "p-2")}>
-        <Link to="/" className="flex justify-center" onClick={handleLinkClick}>
+        <Link to="/dashboard" className="flex justify-center" onClick={handleLinkClick}>
           {isCollapsed ? (
             <img
               src="/favicon.png"
