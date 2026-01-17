@@ -12,6 +12,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
+import { SearchableItemSelect } from "@/components/invoice/SearchableItemSelect";
 
 export interface InvoiceItem {
   id: number;
@@ -231,26 +232,17 @@ export function SaleInvoiceItemsTable({ items, onItemsChange }: SaleInvoiceItems
                   </Select>
                 </td>
                 <td className="py-2 px-2">
-                  <Select
+                  <SearchableItemSelect
+                    items={getFilteredItems(item.categoryId).map((si) => ({
+                      id: si.id,
+                      name: si.name,
+                    }))}
                     value={item.itemId}
-                    onValueChange={(value) => updateItem(item.id, "itemId", value)}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getFilteredItems(item.categoryId).map((si) => (
-                        <SelectItem key={si.id} value={si.id}>
-                          {si.name}
-                        </SelectItem>
-                      ))}
-                      {getFilteredItems(item.categoryId).length === 0 && (
-                        <div className="py-2 px-3 text-sm text-muted-foreground">
-                          No items found.
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                    onSelect={(value) => updateItem(item.id, "itemId", value)}
+                    placeholder="Select item"
+                    emptyText="No items found."
+                    className="w-full min-w-[150px]"
+                  />
                 </td>
                 <td className="py-2 px-2">
                   <Input
