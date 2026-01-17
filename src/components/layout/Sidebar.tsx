@@ -337,7 +337,7 @@ export function Sidebar() {
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background shadow-md hover:bg-accent"
+          className="absolute -right-3 top-0 h-12 w-12 rounded-full border bg-background shadow-md hover:bg-accent"
         >
           {isCollapsed ? (
             <PanelLeft className="h-3 w-3" />
