@@ -339,38 +339,55 @@ export async function printInvoicePDF(params: GeneratePDFParams) {
     throw new Error("Could not open print window");
   }
 
-  const doc = await buildInvoicePDFDoc(params);
-
-  // jsPDF output APIs differ between major versions; arraybuffer -> Blob is the most stable.
-  const pdfArrayBuffer = doc.output("arraybuffer") as ArrayBuffer;
-  const blob = new Blob([pdfArrayBuffer], { type: "application/pdf" });
-  const blobUrl = URL.createObjectURL(blob);
-
+  // Provide immediate feedback in case PDF generation takes time
   printWindow.document.open();
   printWindow.document.write(`<!doctype html><html><head><title>${params.invoice.invoice_number}</title>
     <meta charset="utf-8" />
     <style>
       html,body{margin:0;padding:0;height:100%;background:#fff;}
-      iframe{border:0;width:100%;height:100%;}
-      .fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#111;}
+      .wrap{height:100%;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#111;}
+      a{color:inherit;}
     </style>
-  </head><body>
-    <div class="fallback" id="fb">Preparing print…</div>
-    <iframe id="pdf" src="${blobUrl}#toolbar=0&navpanes=0"></iframe>
-    <script>
-      const iframe = document.getElementById('pdf');
-      const fb = document.getElementById('fb');
-      const doPrint = () => {
-        try { iframe.contentWindow.focus(); iframe.contentWindow.print(); }
-        catch (e) { window.focus(); window.print(); }
-      };
-      iframe.onload = () => { fb && (fb.style.display='none'); setTimeout(doPrint, 200); };
-      // Fallback if the PDF plugin doesn't fire onload
-      setTimeout(() => { fb && (fb.style.display='none'); doPrint(); }, 1500);
-    </script>
-  </body></html>`);
+  </head><body><div class="wrap">Preparing invoice PDF…</div></body></html>`);
   printWindow.document.close();
 
+  const doc = await buildInvoicePDFDoc(params);
+
+  // Ask PDF viewers to auto-open the print dialog when possible
+  try {
+    (doc as any).autoPrint?.({ variant: "non-conform" });
+  } catch {
+    // ignore
+  }
+
+  // Prefer blob output if available; fallback to arraybuffer for older/newer jsPDF versions.
+  let blob: Blob;
+  try {
+    const maybeBlob = doc.output("blob") as unknown;
+    blob = maybeBlob instanceof Blob ? maybeBlob : new Blob([doc.output("arraybuffer") as ArrayBuffer], { type: "application/pdf" });
+  } catch {
+    blob = new Blob([doc.output("arraybuffer") as ArrayBuffer], { type: "application/pdf" });
+  }
+
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Navigate the opened window directly to the PDF.
+  // This is more reliable than embedding PDF in an iframe across browsers/PDF viewers.
+  try {
+    printWindow.location.href = blobUrl;
+  } catch {
+    // If navigation fails, show a clickable link as a last resort.
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html><html><head><title>${params.invoice.invoice_number}</title></head>
+      <body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px;">
+        <p>Could not open the print preview automatically.</p>
+        <p><a href="${blobUrl}" target="_self" rel="noreferrer">Click here to open the invoice PDF</a></p>
+      </body></html>`);
+    printWindow.document.close();
+  }
+
+  // Cleanup
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
+
 
