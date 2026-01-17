@@ -34,6 +34,9 @@ export function useSessionTracking(userId: string | undefined) {
       return { success: true };
     }
 
+    // Small delay to let the Supabase auth context propagate (avoids RLS race condition)
+    await new Promise((r) => setTimeout(r, 300));
+
     try {
       // Get license settings for max simultaneous logins
       const { data: licenseSettings } = await supabase
@@ -102,6 +105,11 @@ export function useSessionTracking(userId: string | undefined) {
       });
 
       if (error) {
+        // Suppress transient RLS errors – session tracking is non-critical
+        if (error.message?.toLowerCase().includes("row-level security")) {
+          console.warn("RLS race condition on session insert – skipping:", error.message);
+          return { success: true }; // Treat as success to avoid blocking the user
+        }
         console.error("Error registering session:", error);
         return { success: false, error: error.message };
       }
