@@ -104,7 +104,7 @@ export default function Signup() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <img
-            src="/logo.png"
+            src="/dark_logo.png"
             alt="Dhandha App"
             className="h-16 mx-auto mb-4"
           />
