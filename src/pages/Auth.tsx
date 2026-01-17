@@ -32,7 +32,7 @@ export default function Auth() {
 
   useEffect(() => {
     if (user && !sessionError) {
-      navigate("/");
+      navigate("/dashboard");
     }
   }, [user, navigate, sessionError]);
 
@@ -68,7 +68,7 @@ export default function Auth() {
       }
     } else if (!sessionError) {
       toast.success("Welcome back!");
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
