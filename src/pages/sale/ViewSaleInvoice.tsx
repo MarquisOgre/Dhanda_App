@@ -203,18 +203,13 @@ export default function ViewSaleInvoice() {
             {settings?.gstin && <p className="text-muted-foreground text-sm">GSTIN: {settings.gstin}</p>}
           </div>
 
-          {/* Center Column - App Icon + Logo */}
-          <div className="flex flex-col items-center justify-center gap-2">
-            <img 
-              src="/app-icon.png" 
-              alt="App Icon" 
-              className="w-16 h-16 object-contain"
-            />
+          {/* Center Column - Business Logo only */}
+          <div className="flex flex-col items-center justify-center">
             {settings?.logo_url && (
               <img 
                 src={settings.logo_url} 
                 alt="Business Logo" 
-                className="w-20 h-20 object-contain rounded-xl"
+                className="w-24 h-24 object-contain rounded-xl"
               />
             )}
           </div>

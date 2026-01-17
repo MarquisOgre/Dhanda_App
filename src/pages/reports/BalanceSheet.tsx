@@ -6,8 +6,10 @@ import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { DateRangeFilter, getDefaultDateRange, DateRange } from "@/components/DateRangeFilter";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 export default function BalanceSheet() {
+  const { businessSettings } = useBusinessSettings();
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [loading, setLoading] = useState(true);
   const [cashInHand, setCashInHand] = useState(0);
@@ -133,7 +135,7 @@ export default function BalanceSheet() {
     });
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const allRows = [
       ["ASSETS", "", ""],
       ["Current Assets", "", ""],
@@ -150,12 +152,13 @@ export default function BalanceSheet() {
       ["", "TOTAL LIABILITIES + EQUITY", `₹${totalAssets.toLocaleString()}`],
     ];
 
-    const doc = generateReportPDF({
+    const doc = await generateReportPDF({
       title: "Balance Sheet",
-      subtitle: "Dhandha App",
+      subtitle: businessSettings?.business_name || "Dhandha App",
       dateRange: dateRangeLabel,
       columns: ["Section", "Particulars", "Amount"],
       rows: allRows,
+      logoUrl: businessSettings?.logo_url || undefined
     });
     downloadPDF(doc, `balance-sheet-${new Date().toISOString().split('T')[0]}`);
   };

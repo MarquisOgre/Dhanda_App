@@ -101,35 +101,10 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
     leftStartY += 4;
   }
 
-  // CENTER COLUMN - App Icon + Logo (vertically centered)
-  let centerLogoY = verticalCenterY - logoHeight / 2;
+  // CENTER COLUMN - Business Logo only (no app icon)
+  const centerLogoY = verticalCenterY - logoHeight / 2;
 
-  // Add App Icon first
-  try {
-    const appIcon = new Image();
-    appIcon.crossOrigin = "anonymous";
-
-    await new Promise((resolve, reject) => {
-      appIcon.onload = resolve;
-      appIcon.onerror = reject;
-      appIcon.src = "/app-icon.png";
-    });
-
-    const appIconCanvas = document.createElement("canvas");
-    appIconCanvas.width = appIcon.width;
-    appIconCanvas.height = appIcon.height;
-    const appIconCtx = appIconCanvas.getContext("2d");
-    appIconCtx?.drawImage(appIcon, 0, 0);
-    const appIconDataURL = appIconCanvas.toDataURL("image/png");
-
-    const appIconSize = 18;
-    doc.addImage(appIconDataURL, "PNG", centerX - appIconSize / 2, centerLogoY - 2, appIconSize, appIconSize);
-    centerLogoY += appIconSize + 2;
-  } catch (error) {
-    console.error("Failed to load app icon:", error);
-  }
-
-  // Add Business Logo below app icon with fixed dimensions
+  // Add Business Logo from settings with fixed dimensions
   if (settings?.logo_url) {
     try {
       const img = new Image();
@@ -149,8 +124,8 @@ export async function buildInvoicePDFDoc({ invoice, items, settings, type }: Gen
       const dataURL = canvas.toDataURL("image/png");
 
       // Fixed logo dimensions to prevent squeezing
-      const fixedLogoWidth = 36;
-      const fixedLogoHeight = 36;
+      const fixedLogoWidth = 40;
+      const fixedLogoHeight = 40;
       doc.addImage(dataURL, "PNG", centerX - fixedLogoWidth / 2, centerLogoY, fixedLogoWidth, fixedLogoHeight);
     } catch (error) {
       console.error("Failed to load logo:", error);

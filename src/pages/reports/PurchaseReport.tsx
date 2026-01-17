@@ -6,6 +6,7 @@ import { printTable } from "@/lib/print";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { DateRangeFilter, getDefaultDateRange, filterByDateRange, DateRange } from "@/components/DateRangeFilter";
+import { useBusinessSettings } from "@/contexts/BusinessContext";
 
 interface PurchaseData {
   id: string;
@@ -18,6 +19,7 @@ interface PurchaseData {
 }
 
 export default function PurchaseReport() {
+  const { businessSettings } = useBusinessSettings();
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   const [purchaseData, setPurchaseData] = useState<PurchaseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,10 +103,10 @@ export default function PurchaseReport() {
     });
   };
 
-  const handleExportPDF = () => {
-    const doc = generateReportPDF({
+  const handleExportPDF = async () => {
+    const doc = await generateReportPDF({
       title: "Purchase Report",
-      subtitle: "Dhandha App",
+      subtitle: businessSettings?.business_name || "Dhandha App",
       dateRange: dateRangeLabel,
       columns: ["Bill No.", "Date", "Supplier", "Items", "Amount", "Paid", "Balance"],
       rows: filteredData.map(p => [
@@ -120,7 +122,8 @@ export default function PurchaseReport() {
         { label: "Total Purchase", value: `₹${totalPurchase.toLocaleString()}` },
         { label: "Total Paid", value: `₹${totalPaid.toLocaleString()}` },
         { label: "Pending Payment", value: `₹${totalPending.toLocaleString()}` },
-      ]
+      ],
+      logoUrl: businessSettings?.logo_url || undefined
     });
     downloadPDF(doc, `purchase-report-${new Date().toISOString().split('T')[0]}`);
   };
