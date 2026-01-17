@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { useRoleAccess } from "@/components/RoleGuard";
@@ -16,11 +16,26 @@ import {
   ChevronRight,
   Menu,
   X,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
+// Context for sidebar collapsed state
+interface SidebarContextType {
+  isCollapsed: boolean;
+  setIsCollapsed: (value: boolean) => void;
+}
+
+const SidebarContext = createContext<SidebarContextType>({
+  isCollapsed: false,
+  setIsCollapsed: () => {},
+});
+
+export const useSidebarState = () => useContext(SidebarContext);
 
 type AppRole = "admin" | "supervisor" | "viewer";
 
@@ -125,7 +140,7 @@ const navItems: NavItem[] = [
   },
 ];
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+function SidebarContent({ onClose, isCollapsed = false }: { onClose?: () => void; isCollapsed?: boolean }) {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Sale"]);
   const { businessSettings, getCurrentFinancialYear } = useBusinessSettings();
@@ -173,35 +188,45 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   return (
     <div className="h-full bg-sidebar text-sidebar-foreground flex flex-col">
       {/* Logo */}
-      <div className="p-4 border-b border-sidebar-border">
-        <Link to="/" className="flex justify-start" onClick={handleLinkClick}>
-          <img
-            src="/logo.png"
-            alt="Dhanda App Logo"
-            className="w-full max-w-[180px] h-auto object-contain"
-          />
+      <div className={cn("p-4 border-b border-sidebar-border", isCollapsed && "p-2")}>
+        <Link to="/" className="flex justify-center" onClick={handleLinkClick}>
+          {isCollapsed ? (
+            <img
+              src="/favicon.png"
+              alt="Dhanda App Logo"
+              className="w-8 h-8 object-contain"
+            />
+          ) : (
+            <img
+              src="/logo.png"
+              alt="Dhanda App Logo"
+              className="w-full max-w-[180px] h-auto object-contain"
+            />
+          )}
         </Link>
       </div>
 
       {/* Business Name */}
-      <div className="px-4 py-3 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-sidebar-accent flex items-center justify-center">
-            <span className="text-sm font-bold text-sidebar-primary">
-              {businessSettings?.business_name?.charAt(0)?.toUpperCase() || 'B'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-sidebar-foreground">
-              {businessSettings?.business_name || 'My Business'}
-            </p>
-            <p className="text-xs text-sidebar-foreground/60">FY {getCurrentFinancialYear()}</p>
+      {!isCollapsed && (
+        <div className="px-4 py-3 border-b border-sidebar-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sidebar-accent flex items-center justify-center">
+              <span className="text-sm font-bold text-sidebar-primary">
+                {businessSettings?.business_name?.charAt(0)?.toUpperCase() || 'B'}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate text-sidebar-foreground">
+                {businessSettings?.business_name || 'My Business'}
+              </p>
+              <p className="text-xs text-sidebar-foreground/60">FY {getCurrentFinancialYear()}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className={cn("flex-1 overflow-y-auto py-4", isCollapsed ? "px-1" : "px-3")}>
         <ul className="space-y-1">
           {filteredNavItems.map((item) => {
             const filteredChildren = getFilteredChildren(item.children);
@@ -211,32 +236,41 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 {item.href ? (
                   <Link
                     to={item.href}
-                    className={cn("sidebar-link", isActive(item.href) && "active")}
+                    className={cn(
+                      "sidebar-link",
+                      isActive(item.href) && "active",
+                      isCollapsed && "justify-center px-2"
+                    )}
                     onClick={handleLinkClick}
+                    title={isCollapsed ? item.title : undefined}
                   >
                     {item.icon}
-                    <span className="font-medium">{item.title}</span>
+                    {!isCollapsed && <span className="font-medium">{item.title}</span>}
                   </Link>
                 ) : (
                   <>
                     <button
-                      onClick={() => toggleExpand(item.title)}
+                      onClick={() => !isCollapsed && toggleExpand(item.title)}
                       className={cn(
-                        "sidebar-link w-full justify-between",
+                        "sidebar-link w-full",
+                        isCollapsed ? "justify-center px-2" : "justify-between",
                         isParentActive(item.children) && "bg-sidebar-accent"
                       )}
+                      title={isCollapsed ? item.title : undefined}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className={cn("flex items-center", isCollapsed ? "" : "gap-3")}>
                         {item.icon}
-                        <span className="font-medium">{item.title}</span>
+                        {!isCollapsed && <span className="font-medium">{item.title}</span>}
                       </div>
-                      {expandedItems.includes(item.title) ? (
-                        <ChevronDown className="w-4 h-4" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4" />
+                      {!isCollapsed && (
+                        expandedItems.includes(item.title) ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )
                       )}
                     </button>
-                    {expandedItems.includes(item.title) && filteredChildren.length > 0 && (
+                    {!isCollapsed && expandedItems.includes(item.title) && filteredChildren.length > 0 && (
                       <ul className="ml-4 mt-1 space-y-1 animate-fade-in">
                         {filteredChildren.map((child) => (
                           <li key={child.href}>
@@ -268,6 +302,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 export function Sidebar() {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (isMobile) {
     return (
@@ -289,8 +324,28 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-[calc(100vh-3rem)] w-64 z-50 hidden md:block">
-      <SidebarContent />
-    </aside>
+    <SidebarContext.Provider value={{ isCollapsed, setIsCollapsed }}>
+      <aside 
+        className={cn(
+          "fixed left-0 top-0 h-[calc(100vh-3rem)] z-50 hidden md:block transition-all duration-300",
+          isCollapsed ? "w-14" : "w-64"
+        )}
+      >
+        <SidebarContent isCollapsed={isCollapsed} />
+        {/* Toggle button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background shadow-md hover:bg-accent"
+        >
+          {isCollapsed ? (
+            <PanelLeft className="h-3 w-3" />
+          ) : (
+            <PanelLeftClose className="h-3 w-3" />
+          )}
+        </Button>
+      </aside>
+    </SidebarContext.Provider>
   );
 }

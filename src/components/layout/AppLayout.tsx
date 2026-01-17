@@ -1,29 +1,28 @@
-import { Sidebar } from "./Sidebar";
+import { Sidebar, useSidebarState } from "./Sidebar";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { LicenseExpired } from "@/components/LicenseExpired";
 import { LicenseReminder } from "@/components/LicenseReminder";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
-  const { isLicenseValid, isLoading } = useLicenseSettings();
+function AppLayoutContent({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
-
-  // Show loading or check license validity
-  if (!isLoading && !isLicenseValid()) {
-    return <LicenseExpired />;
-  }
+  const { isCollapsed } = useSidebarState();
 
   return (
     <div className="min-h-screen bg-background">
       <LicenseReminder />
       <Sidebar />
-      <div className={isMobile ? "pb-16" : "ml-64 pb-16"}>
+      <div className={cn(
+        "pb-16 transition-all duration-300",
+        isMobile ? "" : isCollapsed ? "ml-14" : "ml-64"
+      )}>
         <Header />
         <main className="p-4 md:p-6 animate-fade-in">{children}</main>
       </div>
@@ -31,4 +30,15 @@ export function AppLayout({ children }: AppLayoutProps) {
       {!isMobile && <Footer />}
     </div>
   );
+}
+
+export function AppLayout({ children }: AppLayoutProps) {
+  const { isLicenseValid, isLoading } = useLicenseSettings();
+
+  // Show loading or check license validity
+  if (!isLoading && !isLicenseValid()) {
+    return <LicenseExpired />;
+  }
+
+  return <AppLayoutContent>{children}</AppLayoutContent>;
 }
