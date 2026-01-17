@@ -657,6 +657,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          parent_user_id: string | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -667,6 +668,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          parent_user_id?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -677,6 +679,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          parent_user_id?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
@@ -1006,18 +1009,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          parent_user_id: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          parent_user_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          parent_user_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -1029,6 +1035,12 @@ export type Database = {
     }
     Functions: {
       can_write: { Args: { _user_id: string }; Returns: boolean }
+      get_family_user_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          family_user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

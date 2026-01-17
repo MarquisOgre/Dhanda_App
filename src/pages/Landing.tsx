@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,16 +72,16 @@ const features = [
   }
 ];
 
-const pricingPlans = [
+// Fallback pricing plans (used if DB fetch fails)
+const fallbackPricingPlans = [
   {
-    name: "Free",
+    name: "Free Trial",
     price: "₹0",
-    period: "forever",
-    description: "Perfect for getting started",
+    period: "/15 days",
+    description: "30 days free trial with all features",
     features: [
-      "Up to 50 invoices/month",
-      "Basic inventory management",
-      "1 user",
+      "All features included",
+      "Up to 2 users",
       "Email support"
     ],
     cta: "Start Free",
@@ -88,51 +89,58 @@ const pricingPlans = [
   },
   {
     name: "Silver",
-    price: "₹2,999",
-    period: "/year",
-    description: "For growing businesses",
+    price: "₹1,500",
+    period: "/month",
+    description: "1 Month - 30 Days access",
     features: [
       "Unlimited invoices",
       "Full inventory management",
-      "Up to 3 users",
-      "Priority support",
-      "Purchase management"
+      "Up to 2 users",
+      "Priority support"
     ],
     cta: "Get Started",
     popular: false
   },
   {
     name: "Gold",
-    price: "₹4,999",
-    period: "/year",
-    description: "Most popular choice",
+    price: "₹4,000",
+    period: "/quarter",
+    description: "3 Months - 90 Days access",
     features: [
       "Everything in Silver",
-      "Up to 10 users",
+      "Up to 5 users",
       "Advanced reports",
-      "E-Way bill integration",
-      "Multi-branch support"
+      "E-Way bill integration"
     ],
     cta: "Get Started",
     popular: true
   },
   {
-    name: "Diamond",
-    price: "₹9,999",
+    name: "Platinum",
+    price: "₹15,000",
     period: "/year",
-    description: "For large enterprises",
+    description: "1 Year - 365 Days access",
     features: [
       "Everything in Gold",
       "Unlimited users",
       "API access",
-      "Dedicated account manager",
-      "Custom integrations",
-      "White-label option"
+      "Dedicated support",
+      "Custom integrations"
     ],
     cta: "Contact Sales",
     popular: false
   }
 ];
+
+interface LicensePlan {
+  id: string;
+  plan_name: string;
+  duration_days: number;
+  price: number;
+  description: string | null;
+  is_active: boolean;
+  sort_order: number | null;
+}
 
 const testimonials = [
   {
@@ -184,12 +192,65 @@ const faqs = [
 export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [pricingPlans, setPricingPlans] = useState(fallbackPricingPlans);
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
     phone: "",
     message: ""
   });
+
+  // Fetch pricing plans from database
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('license_plans')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+
+        if (error || !data || data.length === 0) return;
+
+        const formattedPlans = data.map((plan: LicensePlan, index: number) => {
+          const period = plan.duration_days <= 15 ? `/${plan.duration_days} days` :
+                        plan.duration_days <= 30 ? '/month' :
+                        plan.duration_days <= 90 ? '/quarter' : '/year';
+          
+          return {
+            name: plan.plan_name,
+            price: `₹${plan.price.toLocaleString('en-IN')}`,
+            period: period,
+            description: plan.description || '',
+            features: getDefaultFeatures(plan.plan_name),
+            cta: plan.price === 0 ? 'Start Free' : index === data.length - 1 ? 'Contact Sales' : 'Get Started',
+            popular: index === 2 // Third plan is popular
+          };
+        });
+
+        setPricingPlans(formattedPlans);
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+      }
+    };
+
+    fetchPlans();
+  }, []);
+
+  const getDefaultFeatures = (planName: string) => {
+    switch (planName.toLowerCase()) {
+      case 'free trial':
+        return ['All features included', 'Up to 2 users', 'Email support'];
+      case 'silver':
+        return ['Unlimited invoices', 'Full inventory management', 'Up to 2 users', 'Priority support'];
+      case 'gold':
+        return ['Everything in Silver', 'Up to 5 users', 'Advanced reports', 'E-Way bill integration'];
+      case 'platinum':
+        return ['Everything in Gold', 'Unlimited users', 'API access', 'Dedicated support', 'Custom integrations'];
+      default:
+        return ['All features included'];
+    }
+  };
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
