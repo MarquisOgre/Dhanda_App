@@ -7,8 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
-import { generateInvoicePDF } from "@/lib/invoicePdf";
-import { printElement } from "@/lib/print";
+import { generateInvoicePDF, printInvoicePDF } from "@/lib/invoicePdf";
 
 interface InvoiceItem {
   id: string;
@@ -64,10 +63,16 @@ export default function ViewPurchaseInvoice() {
 
   // Auto-print if print=true in URL params
   useEffect(() => {
-    if (!loading && invoice && searchParams.get('print') === 'true') {
-      setTimeout(() => printElement('invoice-print-content', `PurchaseInvoice-${invoice?.invoice_number}`), 500);
+    if (!loading && invoice && searchParams.get("print") === "true") {
+      (async () => {
+        try {
+          await printInvoicePDF({ invoice, items, settings, type: "purchase" });
+        } catch (e: any) {
+          toast.error(e?.message || "Failed to print invoice");
+        }
+      })();
     }
-  }, [loading, invoice, searchParams]);
+  }, [loading, invoice, items, settings, searchParams]);
 
   const fetchInvoice = async () => {
     try {
@@ -95,9 +100,15 @@ export default function ViewPurchaseInvoice() {
     }
   };
 
-  const handlePrint = () => {
-    printElement('invoice-print-content', `PurchaseInvoice-${invoice?.invoice_number}`);
+  const handlePrint = async () => {
+    if (!invoice) return;
+    try {
+      await printInvoicePDF({ invoice, items, settings, type: "purchase" });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to print invoice");
+    }
   };
+
 
   const handleDownloadPDF = () => {
     if (!invoice) return;

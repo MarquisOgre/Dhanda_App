@@ -60,36 +60,35 @@ function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export async function generateInvoicePDF({ invoice, items, settings, type }: GeneratePDFParams) {
+export async function buildInvoicePDFDoc({ invoice, items, settings, type }: GeneratePDFParams): Promise<jsPDF> {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const centerX = pageWidth / 2;
-  
+
   const headerY = 18;
   const leftColX = 14;
   const rightColX = pageWidth - 14;
-  
+
   // Calculate header content heights first to determine vertical centering
   const logoHeight = 32;
   const headerRowHeight = Math.max(logoHeight, 28); // Minimum height for header row
   const verticalCenterY = headerY + headerRowHeight / 2;
 
   // LEFT COLUMN - Business Name and details (vertically centered)
-  let leftContentHeight = 0;
   const leftLines: string[] = [];
   leftLines.push(settings?.business_name || "Your Business");
   if (settings?.business_address) leftLines.push(settings.business_address);
   if (settings?.phone) leftLines.push(`Phone: ${settings.phone}`);
   if (settings?.gstin) leftLines.push(`GSTIN: ${settings.gstin}`);
-  leftContentHeight = 6 + (leftLines.length - 1) * 4;
-  
+  const leftContentHeight = 6 + (leftLines.length - 1) * 4;
+
   let leftStartY = verticalCenterY - leftContentHeight / 2;
-  
+
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text(leftLines[0], leftColX, leftStartY);
   leftStartY += 5;
-  
+
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   for (let i = 1; i < leftLines.length; i++) {
@@ -99,59 +98,59 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
 
   // CENTER COLUMN - App Icon + Logo (vertically centered)
   let centerLogoY = verticalCenterY - logoHeight / 2;
-  
+
   // Add App Icon first
   try {
     const appIcon = new Image();
     appIcon.crossOrigin = "anonymous";
-    
+
     await new Promise((resolve, reject) => {
       appIcon.onload = resolve;
       appIcon.onerror = reject;
       appIcon.src = "/app-icon.png";
     });
-    
-    const appIconCanvas = document.createElement('canvas');
+
+    const appIconCanvas = document.createElement("canvas");
     appIconCanvas.width = appIcon.width;
     appIconCanvas.height = appIcon.height;
-    const appIconCtx = appIconCanvas.getContext('2d');
+    const appIconCtx = appIconCanvas.getContext("2d");
     appIconCtx?.drawImage(appIcon, 0, 0);
-    const appIconDataURL = appIconCanvas.toDataURL('image/png');
-    
+    const appIconDataURL = appIconCanvas.toDataURL("image/png");
+
     const appIconSize = 18;
-    doc.addImage(appIconDataURL, 'PNG', centerX - appIconSize / 2, centerLogoY - 2, appIconSize, appIconSize);
+    doc.addImage(appIconDataURL, "PNG", centerX - appIconSize / 2, centerLogoY - 2, appIconSize, appIconSize);
     centerLogoY += appIconSize + 2;
   } catch (error) {
     console.error("Failed to load app icon:", error);
   }
-  
+
   // Add Business Logo below app icon
   if (settings?.logo_url) {
     try {
       const img = new Image();
       img.crossOrigin = "anonymous";
-      
+
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
         img.src = settings.logo_url!;
       });
-      
-      const canvas = document.createElement('canvas');
+
+      const canvas = document.createElement("canvas");
       canvas.width = img.width;
       canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       ctx?.drawImage(img, 0, 0);
-      const dataURL = canvas.toDataURL('image/png');
-      
+      const dataURL = canvas.toDataURL("image/png");
+
       const logoWidth = 28;
       const logoH = 28;
-      doc.addImage(dataURL, 'PNG', centerX - logoWidth / 2, centerLogoY, logoWidth, logoH);
+      doc.addImage(dataURL, "PNG", centerX - logoWidth / 2, centerLogoY, logoWidth, logoH);
     } catch (error) {
       console.error("Failed to load logo:", error);
     }
   }
-  
+
   // RIGHT COLUMN - Invoice title and details (vertically centered)
   const rightLines: string[] = [];
   const title = type === "sale" ? "TAX INVOICE" : "PURCHASE INVOICE";
@@ -162,38 +161,38 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
     rightLines.push(`Due: ${format(new Date(invoice.due_date), "dd MMM yyyy")}`);
   }
   const rightContentHeight = 6 + (rightLines.length - 1) * 4;
-  
+
   let rightStartY = verticalCenterY - rightContentHeight / 2;
-  
+
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text(rightLines[0], rightColX, rightStartY, { align: "right" });
   rightStartY += 5;
-  
+
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   for (let i = 1; i < rightLines.length; i++) {
     doc.text(rightLines[i], rightColX, rightStartY, { align: "right" });
     rightStartY += 4;
   }
-  
+
   // Calculate yPos after header row
   let yPos = headerY + headerRowHeight + 5;
 
   // Party Info Box
   const partyLabel = type === "sale" ? "Bill To:" : "Supplier:";
   yPos += 10;
-  
+
   doc.setFillColor(245, 245, 245);
   doc.rect(14, yPos, pageWidth - 28, 30, "F");
-  
+
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text(partyLabel, 18, yPos + 8);
-  
+
   doc.setFont("helvetica", "normal");
   doc.text(invoice.parties?.name || "Walk-in Customer", 18, yPos + 15);
-  
+
   let partyY = yPos + 21;
   if (invoice.parties?.billing_address) {
     doc.text(invoice.parties.billing_address, 18, partyY);
@@ -205,7 +204,7 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
 
   // Items Table
   yPos += 40;
-  
+
   const tableData = items.map((item, index) => [
     (index + 1).toString(),
     item.item_name,
@@ -246,59 +245,55 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
   // Summary
   const finalY = (doc as any).lastAutoTable.finalY + 10;
   const summaryX = pageWidth - 85;
-  
+
   const subtotal = invoice.subtotal || 0;
   const taxAmount = invoice.tax_amount || 0;
   const discountAmount = invoice.discount_amount || 0;
-  
+
   // Calculate TCS - use receivable for sales, payable for purchases
-  const tcsRate = type === "sale" 
-    ? (settings?.tcs_receivable ?? 0) 
-    : (settings?.tcs_payable ?? 0);
-  const tcsAmount = tcsRate > 0 
-    ? ((subtotal - discountAmount + taxAmount) * tcsRate) / 100 
-    : (invoice.tcs_amount || 0);
-  
+  const tcsRate = type === "sale" ? (settings?.tcs_receivable ?? 0) : (settings?.tcs_payable ?? 0);
+  const tcsAmount = tcsRate > 0 ? ((subtotal - discountAmount + taxAmount) * tcsRate) / 100 : (invoice.tcs_amount || 0);
+
   const totalAmount = (invoice.total_amount || 0) + (invoice.tcs_amount ? 0 : tcsAmount);
   const paidAmount = invoice.paid_amount || 0;
   const balanceDue = totalAmount - paidAmount;
 
   doc.setFontSize(10);
   let summaryY = finalY;
-  
+
   doc.text("Subtotal:", summaryX, summaryY);
   doc.text(formatCurrency(subtotal), pageWidth - 14, summaryY, { align: "right" });
   summaryY += 6;
-  
+
   if (discountAmount > 0) {
     doc.text("Discount:", summaryX, summaryY);
     doc.text(`-${formatCurrency(discountAmount)}`, pageWidth - 14, summaryY, { align: "right" });
     summaryY += 6;
   }
-  
+
   doc.text("Tax:", summaryX, summaryY);
   doc.text(formatCurrency(taxAmount), pageWidth - 14, summaryY, { align: "right" });
   summaryY += 6;
-  
+
   if (tcsAmount > 0) {
     doc.text(`TCS @ ${tcsRate}%:`, summaryX, summaryY);
     doc.text(formatCurrency(tcsAmount), pageWidth - 14, summaryY, { align: "right" });
     summaryY += 6;
   }
-  
+
   summaryY += 2;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Total:", summaryX, summaryY);
   doc.text(formatCurrency(totalAmount), pageWidth - 14, summaryY, { align: "right" });
   summaryY += 8;
-  
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text("Paid:", summaryX, summaryY);
   doc.text(formatCurrency(paidAmount), pageWidth - 14, summaryY, { align: "right" });
   summaryY += 6;
-  
+
   doc.setFont("helvetica", "bold");
   doc.text("Balance Due:", summaryX, summaryY);
   doc.text(formatCurrency(balanceDue), pageWidth - 14, summaryY, { align: "right" });
@@ -308,14 +303,14 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
     summaryY += 15;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    
+
     if (invoice.notes) {
       doc.setFont("helvetica", "bold");
       doc.text("Notes:", 14, summaryY);
       doc.setFont("helvetica", "normal");
       doc.text(invoice.notes, 14, summaryY + 5, { maxWidth: 80 });
     }
-    
+
     if (invoice.terms) {
       doc.setFont("helvetica", "bold");
       doc.text("Terms & Conditions:", 100, summaryY);
@@ -324,6 +319,31 @@ export async function generateInvoicePDF({ invoice, items, settings, type }: Gen
     }
   }
 
-  // Save PDF
-  doc.save(`${invoice.invoice_number}.pdf`);
+  return doc;
 }
+
+export async function generateInvoicePDF(params: GeneratePDFParams) {
+  const doc = await buildInvoicePDFDoc(params);
+  doc.save(`${params.invoice.invoice_number}.pdf`);
+}
+
+export async function printInvoicePDF(params: GeneratePDFParams) {
+  // Open immediately to avoid popup blockers (must be inside user gesture)
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    throw new Error("Could not open print window");
+  }
+
+  const doc = await buildInvoicePDFDoc(params);
+  const blob = doc.output("blob");
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Write an iframe and print when loaded
+  printWindow.document.open();
+  printWindow.document.write(`<!doctype html><html><head><title>${params.invoice.invoice_number}</title><style>html,body{margin:0;padding:0;height:100%;}iframe{border:0;width:100%;height:100%;}</style></head><body><iframe src="${blobUrl}"></iframe><script>const iframe=document.querySelector('iframe');iframe.onload=()=>{setTimeout(()=>{try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){window.print();}},150);};</script></body></html>`);
+  printWindow.document.close();
+
+  // Cleanup
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+}
+
