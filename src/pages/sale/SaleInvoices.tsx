@@ -9,6 +9,7 @@ import {
   Eye,
   Loader2,
   CreditCard,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -297,6 +298,10 @@ export default function SaleInvoices() {
                           }}>
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => navigate(`/sale/invoices/${invoice.id}?print=true`)}>
+                            <Printer className="w-4 h-4 mr-2" />
+                            Print
                           </DropdownMenuItem>
                           {canWrite && (
                             <>
