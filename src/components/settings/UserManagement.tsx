@@ -379,6 +379,32 @@ export function UserManagement() {
     );
   }
 
+  // Group users by admin (parent)
+  const groupedUsers = () => {
+    const groups: { admin: UserWithRole | null; members: UserWithRole[] }[] = [];
+    
+    // Get all admins (users with no parent_user_id or those who are admins)
+    const admins = users.filter(u => u.role === 'admin' || (!u.parent_user_id && u.user_id === user?.id));
+    const processedIds = new Set<string>();
+    
+    admins.forEach(admin => {
+      const members = users.filter(u => 
+        u.parent_user_id === admin.user_id && u.user_id !== admin.user_id
+      );
+      groups.push({ admin, members });
+      processedIds.add(admin.user_id);
+      members.forEach(m => processedIds.add(m.user_id));
+    });
+    
+    // Add remaining users without a parent (orphaned users)
+    const remaining = users.filter(u => !processedIds.has(u.user_id));
+    if (remaining.length > 0) {
+      groups.push({ admin: null, members: remaining });
+    }
+    
+    return groups;
+  };
+
   return (
     <div className="space-y-6">
       {/* User List */}
@@ -486,119 +512,154 @@ export function UserManagement() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {users.map((u) => (
-              <div
-                key={u.user_id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-sm font-semibold text-primary">
-                      {u.email?.charAt(0)?.toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{u.full_name || u.email}</p>
-                      {u.user_id === user?.id && (
-                        <Badge variant="outline" className="text-xs">You</Badge>
-                      )}
-                      {u.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() && (
-                        <Badge variant="default" className="text-xs bg-gradient-to-r from-primary to-orange-400">SuperAdmin</Badge>
-                      )}
+          <div className="space-y-6">
+            {groupedUsers().map((group, groupIndex) => (
+              <div key={groupIndex} className="space-y-2">
+                {/* Admin Header */}
+                {group.admin && (
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Shield className="w-4 h-4 text-primary" />
                     </div>
-                    <p className="text-sm text-muted-foreground">{u.email}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">
+                          {group.admin.full_name || group.admin.email}
+                        </span>
+                        {group.admin.user_id === user?.id && (
+                          <Badge variant="outline" className="text-xs">You</Badge>
+                        )}
+                        {group.admin.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() && (
+                          <Badge variant="default" className="text-xs bg-gradient-to-r from-primary to-orange-400">SuperAdmin</Badge>
+                        )}
+                        <Badge variant="default" className="text-xs">Admin</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{group.admin.email}</p>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {group.members.length} team member{group.members.length !== 1 ? 's' : ''}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {u.user_id !== user?.id ? (
-                    <>
-                      <Select
-                        value={u.role}
-                        onValueChange={(v) => handleChangeRole(u.user_id, v as AppRole)}
-                      >
-                        <SelectTrigger className="w-36">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* SuperAdmin can assign any role, regular admin can only assign supervisor/viewer */}
-                          {isSuperAdmin && (
-                            <SelectItem value="admin">
-                              <div className="flex items-center gap-2">
-                                <Shield className="w-3 h-3" />
-                                Admin
-                              </div>
-                            </SelectItem>
-                          )}
-                          <SelectItem value="supervisor">
-                            <div className="flex items-center gap-2">
-                              <Users className="w-3 h-3" />
-                              Supervisor
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="viewer">
-                            <div className="flex items-center gap-2">
-                              <Eye className="w-3 h-3" />
-                              Viewer
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      {/* Password change button - only for SuperAdmin */}
-                      {isSuperAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                          onClick={() => {
-                            setSelectedUserForPassword(u);
-                            setPasswordDialogOpen(true);
-                          }}
-                        >
-                          <KeyRound className="w-4 h-4" />
-                        </Button>
-                      )}
-                      
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete User</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete {u.email}? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteUser(u.user_id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                )}
+                
+                {!group.admin && group.members.length > 0 && (
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <span className="font-semibold text-sm text-muted-foreground">Other Users</span>
+                  </div>
+                )}
+                
+                {/* Family Members */}
+                <div className="space-y-2 pl-4">
+                  {group.members.map((u) => (
+                    <div
+                      key={u.user_id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                          <span className="text-xs font-semibold">
+                            {u.email?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{u.full_name || u.email}</p>
+                            {u.user_id === user?.id && (
+                              <Badge variant="outline" className="text-xs">You</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{u.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {u.user_id !== user?.id ? (
+                          <>
+                            <Select
+                              value={u.role}
+                              onValueChange={(v) => handleChangeRole(u.user_id, v as AppRole)}
                             >
-                              {deletingUserId === u.user_id ? (
-                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                              ) : null}
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  ) : (
-                    <Badge variant={getRoleBadgeVariant(u.role)} className="gap-1">
-                      {getRoleIcon(u.role)}
-                      {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
-                    </Badge>
-                  )}
+                              <SelectTrigger className="w-32 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {isSuperAdmin && (
+                                  <SelectItem value="admin">
+                                    <div className="flex items-center gap-2">
+                                      <Shield className="w-3 h-3" />
+                                      Admin
+                                    </div>
+                                  </SelectItem>
+                                )}
+                                <SelectItem value="supervisor">
+                                  <div className="flex items-center gap-2">
+                                    <Users className="w-3 h-3" />
+                                    Supervisor
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="viewer">
+                                  <div className="flex items-center gap-2">
+                                    <Eye className="w-3 h-3" />
+                                    Viewer
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            {isSuperAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                  setSelectedUserForPassword(u);
+                                  setPasswordDialogOpen(true);
+                                }}
+                              >
+                                <KeyRound className="w-3 h-3" />
+                              </Button>
+                            )}
+                            
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete {u.email}? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteUser(u.user_id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {deletingUserId === u.user_id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    ) : null}
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        ) : (
+                          <Badge variant={getRoleBadgeVariant(u.role)} className="gap-1">
+                            {getRoleIcon(u.role)}
+                            {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
