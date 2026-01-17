@@ -15,34 +15,82 @@ export function printElement(elementId: string, title?: string) {
     return;
   }
 
-  const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-    .map(el => el.outerHTML)
-    .join('');
+  // Clone the element and compute all styles inline
+  const clonedElement = element.cloneNode(true) as HTMLElement;
+  
+  // Get computed styles and apply them inline to all elements
+  const applyInlineStyles = (source: HTMLElement, target: HTMLElement) => {
+    const computedStyle = window.getComputedStyle(source);
+    const importantStyles = [
+      'color', 'background-color', 'background', 'font-family', 'font-size', 
+      'font-weight', 'padding', 'margin', 'border', 'border-radius',
+      'display', 'flex-direction', 'justify-content', 'align-items', 'gap',
+      'width', 'height', 'max-width', 'min-width', 'text-align',
+      'line-height', 'letter-spacing', 'box-shadow', 'opacity'
+    ];
+    
+    importantStyles.forEach(prop => {
+      const value = computedStyle.getPropertyValue(prop);
+      if (value && value !== 'none' && value !== 'normal' && value !== '0px') {
+        target.style.setProperty(prop, value);
+      }
+    });
+    
+    // Recursively apply to children
+    const sourceChildren = source.children;
+    const targetChildren = target.children;
+    for (let i = 0; i < sourceChildren.length; i++) {
+      if (sourceChildren[i] instanceof HTMLElement && targetChildren[i] instanceof HTMLElement) {
+        applyInlineStyles(sourceChildren[i] as HTMLElement, targetChildren[i] as HTMLElement);
+      }
+    }
+  };
+  
+  applyInlineStyles(element, clonedElement);
 
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
       <head>
         <title>${title || 'Print'}</title>
-        ${styles}
         <style>
           @media print {
             body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .no-print {
-              display: none !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
           }
+          * {
+            box-sizing: border-box;
+          }
           body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             padding: 20px;
+            margin: 0;
             background: white;
+            color: #1a1a2e;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th, td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          th {
+            font-weight: 600;
+            background-color: #f9fafb;
+          }
+          img {
+            max-width: 100%;
+            height: auto;
           }
         </style>
       </head>
       <body>
-        ${element.innerHTML}
+        ${clonedElement.outerHTML}
       </body>
     </html>
   `);
@@ -53,7 +101,7 @@ export function printElement(elementId: string, title?: string) {
   setTimeout(() => {
     printWindow.print();
     printWindow.close();
-  }, 250);
+  }, 500);
 }
 
 interface PrintTableOptions {

@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 
 // Pages
 import Auth from "./pages/Auth";
+import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import PartiesList from "./pages/parties/PartiesList";
@@ -97,9 +98,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 const AppRoutes = () => {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/signup" element={<Signup />} />
-      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       {/* Parties */}
       <Route path="/parties" element={<ProtectedRoute><PartiesList /></ProtectedRoute>} />
       <Route path="/parties/add" element={<ProtectedRoute><AddParty /></ProtectedRoute>} />
