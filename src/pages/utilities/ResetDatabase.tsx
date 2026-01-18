@@ -40,142 +40,153 @@ export default function ResetDatabase() {
 
     try {
       // Delete in proper order respecting foreign keys
+      // Only delete data belonging to the current user
       
-      // 1. Delete sale invoice items first
-      addProgress("Deleting sale invoice items...");
-      await supabase
-        .from('sale_invoice_items')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+      // First get the user's sale and purchase invoice IDs
+      const { data: userSaleInvoices } = await supabase
+        .from('sale_invoices')
+        .select('id')
+        .eq('user_id', user.id);
+      
+      const { data: userPurchaseInvoices } = await supabase
+        .from('purchase_invoices')
+        .select('id')
+        .eq('user_id', user.id);
+
+      const saleInvoiceIds = userSaleInvoices?.map(inv => inv.id) || [];
+      const purchaseInvoiceIds = userPurchaseInvoices?.map(inv => inv.id) || [];
+
+      // 1. Delete sale invoice items for user's invoices
+      addProgress("Deleting your sale invoice items...");
+      if (saleInvoiceIds.length > 0) {
+        await supabase
+          .from('sale_invoice_items')
+          .delete()
+          .in('sale_invoice_id', saleInvoiceIds);
+      }
       addProgress("✓ Sale invoice items deleted");
 
-      // 2. Delete purchase invoice items
-      addProgress("Deleting purchase invoice items...");
-      await supabase
-        .from('purchase_invoice_items')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+      // 2. Delete purchase invoice items for user's invoices
+      addProgress("Deleting your purchase invoice items...");
+      if (purchaseInvoiceIds.length > 0) {
+        await supabase
+          .from('purchase_invoice_items')
+          .delete()
+          .in('purchase_invoice_id', purchaseInvoiceIds);
+      }
       addProgress("✓ Purchase invoice items deleted");
 
-      // 3. Delete payments (may reference invoices)
-      addProgress("Deleting payments...");
+      // 3. Delete payments for user
+      addProgress("Deleting your payments...");
       await supabase
         .from('payments')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Payments deleted");
 
-      // 4. Delete sale invoices
-      addProgress("Deleting sale invoices...");
+      // 4. Delete sale invoices for user
+      addProgress("Deleting your sale invoices...");
       await supabase
         .from('sale_invoices')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Sale invoices deleted");
 
-      // 5. Delete purchase invoices
-      addProgress("Deleting purchase invoices...");
+      // 5. Delete purchase invoices for user
+      addProgress("Deleting your purchase invoices...");
       await supabase
         .from('purchase_invoices')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Purchase invoices deleted");
 
-      // 6. Delete expenses
-      addProgress("Deleting expenses...");
+      // 6. Delete expenses for user
+      addProgress("Deleting your expenses...");
       await supabase
         .from('expenses')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Expenses deleted");
 
-      // 7. Delete cash transactions
-      addProgress("Deleting cash transactions...");
+      // 7. Delete cash transactions for user
+      addProgress("Deleting your cash transactions...");
       await supabase
         .from('cash_transactions')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Cash transactions deleted");
 
-      // 8. Delete items
-      addProgress("Deleting items...");
+      // 8. Delete items for user
+      addProgress("Deleting your items...");
       await supabase
         .from('items')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Items deleted");
 
-      // 9. Delete categories
-      addProgress("Deleting categories...");
+      // 9. Delete categories for user
+      addProgress("Deleting your categories...");
       await supabase
         .from('categories')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Categories deleted");
 
-      // 10. Delete parties
-      addProgress("Deleting parties...");
+      // 10. Delete parties for user
+      addProgress("Deleting your parties...");
       await supabase
         .from('parties')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Parties deleted");
 
-      // 11. Delete bank accounts
-      addProgress("Deleting bank accounts...");
+      // 11. Delete bank accounts for user
+      addProgress("Deleting your bank accounts...");
       await supabase
         .from('bank_accounts')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Bank accounts deleted");
 
-      // 12. Delete units
-      addProgress("Deleting units...");
+      // 12. Delete units for user
+      addProgress("Deleting your units...");
       await supabase
         .from('units')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Units deleted");
 
-      // 13. Delete notifications
-      addProgress("Deleting notifications...");
+      // 13. Delete notifications for user
+      addProgress("Deleting your notifications...");
       await supabase
         .from('notifications')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Notifications deleted");
 
-      // 14. Delete backups
-      addProgress("Deleting backups...");
+      // 14. Delete backups for user
+      addProgress("Deleting your backups...");
       await supabase
         .from('backups')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Backups deleted");
 
-      // 15. Delete backup settings
-      addProgress("Deleting backup settings...");
+      // 15. Delete backup settings for user
+      addProgress("Deleting your backup settings...");
       await supabase
         .from('backup_settings')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Backup settings deleted");
 
-      // 16. Delete active sessions
-      addProgress("Deleting active sessions...");
+      // 16. Delete active sessions for user
+      addProgress("Deleting your active sessions...");
       await supabase
         .from('active_sessions')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('user_id', user.id);
       addProgress("✓ Active sessions deleted");
-
-      // 17. Delete user roles (except current admin)
-      addProgress("Resetting user roles...");
-      await supabase
-        .from('user_roles')
-        .delete()
-        .neq('user_id', user.id);
-      addProgress("✓ User roles reset (keeping current admin)");
 
       addProgress("Database reset complete!");
       setResetComplete(true);
@@ -193,8 +204,8 @@ export default function ResetDatabase() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Reset Database</h1>
-          <p className="text-muted-foreground">Clear all business data</p>
+        <h1 className="text-2xl font-bold">Reset My Data</h1>
+        <p className="text-muted-foreground">Clear your business data only</p>
         </div>
 
         <Card className="border-destructive/50 bg-destructive/5">
@@ -218,8 +229,8 @@ export default function ResetDatabase() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Reset Database</h1>
-          <p className="text-muted-foreground">Clear all business data</p>
+        <h1 className="text-2xl font-bold">Reset My Data</h1>
+        <p className="text-muted-foreground">Clear your business data only</p>
         </div>
 
         <Card className="border-success/50 bg-success/5">
@@ -227,9 +238,9 @@ export default function ResetDatabase() {
             <div className="flex flex-col items-center gap-4 py-8">
               <CheckCircle2 className="w-16 h-16 text-success" />
               <div className="text-center">
-                <h3 className="font-semibold text-xl">Database Reset Complete</h3>
+                <h3 className="font-semibold text-xl">Your Data Reset Complete</h3>
                 <p className="text-muted-foreground mt-2">
-                  All your business data has been permanently deleted. You can now start fresh.
+                  All your business data has been permanently deleted. Other users' data is unaffected. You can now start fresh.
                 </p>
               </div>
               <Button onClick={() => navigate("/")} className="mt-4">
@@ -260,8 +271,8 @@ export default function ResetDatabase() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Reset Database</h1>
-        <p className="text-muted-foreground">Clear all business data</p>
+        <h1 className="text-2xl font-bold">Reset My Data</h1>
+        <p className="text-muted-foreground">Clear your business data only (other users' data is unaffected)</p>
       </div>
 
       {/* Warning Card */}
@@ -277,22 +288,22 @@ export default function ResetDatabase() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 bg-background rounded-lg border border-destructive/30">
-            <h4 className="font-semibold mb-2">The following data will be permanently deleted:</h4>
+            <h4 className="font-semibold mb-2">The following <span className="text-destructive">YOUR</span> data will be permanently deleted:</h4>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-              <li>All parties (customers & suppliers)</li>
-              <li>All items, categories & units</li>
-              <li>All invoices (sales & purchases)</li>
-              <li>All payments (in & out)</li>
-              <li>All expenses</li>
-              <li>All cash transactions</li>
-              <li>All bank account records</li>
-              <li>All notifications & backups</li>
+              <li>Your parties (customers & suppliers)</li>
+              <li>Your items, categories & units</li>
+              <li>Your invoices (sales & purchases)</li>
+              <li>Your payments (in & out)</li>
+              <li>Your expenses</li>
+              <li>Your cash transactions</li>
+              <li>Your bank account records</li>
+              <li>Your notifications & backups</li>
             </ul>
           </div>
 
           <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
             <p className="text-sm font-medium">
-              ⚠️ Your user account and settings will NOT be deleted. Only business transaction data will be removed.
+              ⚠️ Your user account and settings will NOT be deleted. Only YOUR business transaction data will be removed. Other admins' and users' data will NOT be affected.
             </p>
           </div>
         </CardContent>
