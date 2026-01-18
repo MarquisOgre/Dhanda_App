@@ -170,15 +170,17 @@ export function useDashboardData() {
       .select('id, opening_stock, purchase_price')
       .eq('is_deleted', false);
 
-    // Fetch all purchase invoice items
+    // Fetch all purchase invoice items - only from non-deleted invoices
     const { data: purchaseItems } = await supabase
       .from('purchase_invoice_items')
-      .select('item_id, quantity');
+      .select('item_id, quantity, purchase_invoices!inner(is_deleted)')
+      .eq('purchase_invoices.is_deleted', false);
 
-    // Fetch all sale invoice items  
+    // Fetch all sale invoice items - only from non-deleted invoices
     const { data: saleItems } = await supabase
       .from('sale_invoice_items')
-      .select('item_id, quantity');
+      .select('item_id, quantity, sale_invoices!inner(is_deleted)')
+      .eq('sale_invoices.is_deleted', false);
 
     // Create lookup maps for purchased and sold quantities
     const purchasedQty: Record<string, number> = {};
