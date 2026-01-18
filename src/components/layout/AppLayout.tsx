@@ -1,4 +1,4 @@
-import { Sidebar, useSidebarState } from "./Sidebar";
+import { Sidebar, useGlobalSidebarState } from "./Sidebar";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { LicenseExpired } from "@/components/LicenseExpired";
@@ -13,7 +13,7 @@ interface AppLayoutProps {
 
 function AppLayoutContent({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
-  const { isCollapsed } = useSidebarState();
+  const { isCollapsed } = useGlobalSidebarState();
 
   return (
     <div className="min-h-screen bg-background">

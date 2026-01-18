@@ -1,4 +1,4 @@
-import { useState, createContext, useContext } from "react";
+import { useState, createContext, useContext, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useBusinessSettings } from "@/contexts/BusinessContext";
 import { useRoleAccess } from "@/components/RoleGuard";
@@ -36,6 +36,30 @@ const SidebarContext = createContext<SidebarContextType>({
 });
 
 export const useSidebarState = () => useContext(SidebarContext);
+
+// Global state for sidebar collapsed (shared between components)
+let globalIsCollapsed = false;
+let globalSetIsCollapsed: ((value: boolean) => void) | null = null;
+
+export const useGlobalSidebarState = () => {
+  const [isCollapsed, setIsCollapsed] = useState(globalIsCollapsed);
+  
+  useEffect(() => {
+    globalSetIsCollapsed = (value: boolean) => {
+      globalIsCollapsed = value;
+      setIsCollapsed(value);
+    };
+  }, []);
+  
+  return {
+    isCollapsed,
+    setIsCollapsed: (value: boolean) => {
+      globalIsCollapsed = value;
+      setIsCollapsed(value);
+      if (globalSetIsCollapsed) globalSetIsCollapsed(value);
+    }
+  };
+};
 
 type AppRole = "admin" | "supervisor" | "viewer";
 
@@ -302,7 +326,7 @@ function SidebarContent({ onClose, isCollapsed = false }: { onClose?: () => void
 export function Sidebar() {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed, setIsCollapsed } = useGlobalSidebarState();
 
   if (isMobile) {
     return (
