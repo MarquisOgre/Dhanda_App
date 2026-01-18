@@ -151,15 +151,26 @@ export default function PaymentOut() {
 
       // Update invoice balance if linked
       if (linkedInvoice) {
-        const newBalance = Math.max(0, (linkedInvoice.balance_due || 0) - parseFloat(amount));
-        await supabase
+        // Get current invoice data to correctly add to existing paid amount
+        const { data: currentInvoice } = await supabase
           .from("purchase_invoices")
-          .update({
-            paid_amount: parseFloat(amount),
-            balance_due: newBalance,
-            status: newBalance <= 0 ? "paid" : "partial",
-          })
-          .eq("id", linkedInvoice.id);
+          .select("paid_amount, total_amount")
+          .eq("id", linkedInvoice.id)
+          .single();
+
+        if (currentInvoice) {
+          const newPaidAmount = (currentInvoice.paid_amount || 0) + parseFloat(amount);
+          const newBalance = Math.max(0, (currentInvoice.total_amount || 0) - newPaidAmount);
+          
+          await supabase
+            .from("purchase_invoices")
+            .update({
+              paid_amount: newPaidAmount,
+              balance_due: newBalance,
+              status: newBalance <= 0 ? "paid" : "partial",
+            })
+            .eq("id", linkedInvoice.id);
+        }
       }
 
       toast.success("Payment recorded successfully!");
