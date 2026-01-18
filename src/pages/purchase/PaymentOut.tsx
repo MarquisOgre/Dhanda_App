@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
+import { recordCashBankTransaction } from "@/hooks/useCashBankTransaction";
 
 interface LinkedInvoice {
   id: string;
@@ -172,6 +173,17 @@ export default function PaymentOut() {
             .eq("id", linkedInvoice.id);
         }
       }
+
+      // Record cash/bank transaction
+      await recordCashBankTransaction({
+        userId: user.id,
+        paymentMode: paymentMode,
+        amount: parseFloat(amount),
+        transactionType: "out",
+        description: `Payment made - ${receiptNumber}${linkedInvoice ? ` for ${linkedInvoice.invoice_number}` : ""}`,
+        referenceType: "payment_out",
+        transactionDate: paymentDate.toISOString().split("T")[0],
+      });
 
       toast.success("Payment recorded successfully!");
       navigate("/purchase/payment-out");
