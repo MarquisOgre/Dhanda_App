@@ -317,8 +317,8 @@ export default function StockReport() {
                     <TableHead className="w-16 text-center">Unit</TableHead>
                     <TableHead colSpan={3} className="text-center bg-blue-50 dark:bg-blue-950">Opening</TableHead>
                     <TableHead colSpan={3} className="text-center bg-green-50 dark:bg-green-950">Purchase</TableHead>
-                    <TableHead colSpan={2} className="text-center bg-purple-50 dark:bg-purple-950">Closing</TableHead>
                     <TableHead colSpan={3} className="text-center bg-orange-50 dark:bg-orange-950">Sale</TableHead>
+                    <TableHead colSpan={2} className="text-center bg-purple-50 dark:bg-purple-950">Closing</TableHead>
                   </TableRow>
                   <TableRow className="bg-muted/30">
                     <TableHead></TableHead><TableHead></TableHead><TableHead></TableHead>
@@ -328,11 +328,11 @@ export default function StockReport() {
                     <TableHead className="text-right text-xs bg-green-50 dark:bg-green-950">Qty</TableHead>
                     <TableHead className="text-right text-xs bg-green-50 dark:bg-green-950">Price</TableHead>
                     <TableHead className="text-right text-xs bg-green-50 dark:bg-green-950">Amt</TableHead>
-                    <TableHead className="text-right text-xs bg-purple-50 dark:bg-purple-950">Qty</TableHead>
-                    <TableHead className="text-right text-xs bg-purple-50 dark:bg-purple-950">Price</TableHead>
                     <TableHead className="text-right text-xs bg-orange-50 dark:bg-orange-950">Qty</TableHead>
                     <TableHead className="text-right text-xs bg-orange-50 dark:bg-orange-950">Price</TableHead>
                     <TableHead className="text-right text-xs bg-orange-50 dark:bg-orange-950">Amt</TableHead>
+                    <TableHead className="text-right text-xs bg-purple-50 dark:bg-purple-950">Qty</TableHead>
+                    <TableHead className="text-right text-xs bg-purple-50 dark:bg-purple-950">Price</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -348,15 +348,15 @@ export default function StockReport() {
                         <TableCell className="text-right text-success">{formatNumber(item.purchaseQty)}</TableCell>
                         <TableCell className="text-right">{formatNumber(item.purchaseAvgPrice)}</TableCell>
                         <TableCell className="text-right">{formatNumber(item.purchaseAmt)}</TableCell>
-                        <TableCell className="text-right font-medium">{formatNumber(item.closingQty)}</TableCell>
-                        <TableCell className="text-right">{formatNumber(item.closingPrice)}</TableCell>
                         <TableCell className="text-right text-destructive">{formatNumber(item.saleQty)}</TableCell>
                         <TableCell className="text-right">{formatNumber(item.saleAvgPrice)}</TableCell>
                         <TableCell className="text-right">{formatNumber(item.saleAmt)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatNumber(item.closingQty)}</TableCell>
+                        <TableCell className="text-right">{formatNumber(item.closingPrice)}</TableCell>
                       </TableRow>
                     ))}
                 </TableBody>
-                {filteredStockData.length > 0 && <tfoot><TableRow className="bg-muted/50 font-semibold"><TableCell colSpan={3}>Total</TableCell><TableCell className="text-right">{formatNumber(totals.openingQty)}</TableCell><TableCell></TableCell><TableCell className="text-right">{formatNumber(totals.openingAmt)}</TableCell><TableCell className="text-right text-success">{formatNumber(totals.purchaseQty)}</TableCell><TableCell></TableCell><TableCell className="text-right">{formatNumber(totals.purchaseAmt)}</TableCell><TableCell className="text-right font-bold">{formatNumber(totals.closingQty)}</TableCell><TableCell></TableCell><TableCell className="text-right text-destructive">{formatNumber(totals.saleQty)}</TableCell><TableCell></TableCell><TableCell className="text-right">{formatNumber(totals.saleAmt)}</TableCell></TableRow></tfoot>}
+                {filteredStockData.length > 0 && <tfoot><TableRow className="bg-muted/50 font-semibold"><TableCell colSpan={3}>Total</TableCell><TableCell className="text-right">{formatNumber(totals.openingQty)}</TableCell><TableCell></TableCell><TableCell className="text-right">{formatNumber(totals.openingAmt)}</TableCell><TableCell className="text-right text-success">{formatNumber(totals.purchaseQty)}</TableCell><TableCell></TableCell><TableCell className="text-right">{formatNumber(totals.purchaseAmt)}</TableCell><TableCell className="text-right text-destructive">{formatNumber(totals.saleQty)}</TableCell><TableCell></TableCell><TableCell className="text-right">{formatNumber(totals.saleAmt)}</TableCell><TableCell className="text-right font-bold">{formatNumber(totals.closingQty)}</TableCell><TableCell></TableCell></TableRow></tfoot>}
               </Table>
             </CardContent>
           </Card>
@@ -364,9 +364,9 @@ export default function StockReport() {
 
         <TabsContent value="summary">
           <div className="metric-card overflow-hidden p-0">
-            <table className="data-table"><thead><tr><th>Item Name</th><th>Category</th><th className="text-center">Current Stock</th><th className="text-center">Min Stock</th><th className="text-right">Stock Value</th><th>Status</th></tr></thead>
-              <tbody>{filteredStockData.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No items found</td></tr> : filteredStockData.map((item) => (<tr key={item.id}><td className="font-medium">{item.name}</td><td className="text-muted-foreground">{item.category}</td><td className="text-center">{item.closingQty}</td><td className="text-center text-muted-foreground">{item.lowStockAlert}</td><td className="text-right font-medium">₹{(item.closingQty * item.purchaseRate).toLocaleString()}</td><td><span className={cn("px-2 py-1 text-xs font-medium rounded-full capitalize", getStatusBadge(item.status))}>{item.status === "in-stock" ? "In Stock" : item.status === "low" ? "Low Stock" : "Out of Stock"}</span></td></tr>))}</tbody>
-              {filteredStockData.length > 0 && <tfoot><tr className="bg-muted/50 font-semibold"><td colSpan={4}>Total</td><td className="text-right">₹{filteredStockData.reduce((sum, s) => sum + (s.closingQty * s.purchaseRate), 0).toLocaleString()}</td><td></td></tr></tfoot>}
+            <table className="data-table"><thead><tr><th>Item Name</th><th>Category</th><th className="text-center">Current Stock</th><th className="text-right">Purchase Price</th><th className="text-center">Min Stock</th><th className="text-right">Stock Value</th><th>Status</th></tr></thead>
+              <tbody>{filteredStockData.length === 0 ? <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No items found</td></tr> : filteredStockData.map((item) => (<tr key={item.id}><td className="font-medium">{item.name}</td><td className="text-muted-foreground">{item.category}</td><td className="text-center">{item.closingQty}</td><td className="text-right">₹{item.purchaseRate.toLocaleString()}</td><td className="text-center text-muted-foreground">{item.lowStockAlert}</td><td className="text-right font-medium">₹{(item.closingQty * item.purchaseRate).toLocaleString()}</td><td><span className={cn("px-2 py-1 text-xs font-medium rounded-full capitalize", getStatusBadge(item.status))}>{item.status === "in-stock" ? "In Stock" : item.status === "low" ? "Low Stock" : "Out of Stock"}</span></td></tr>))}</tbody>
+              {filteredStockData.length > 0 && <tfoot><tr className="bg-muted/50 font-semibold"><td colSpan={2}>Total</td><td className="text-center font-bold">{filteredStockData.reduce((sum, s) => sum + s.closingQty, 0)}</td><td></td><td></td><td className="text-right">₹{filteredStockData.reduce((sum, s) => sum + (s.closingQty * s.purchaseRate), 0).toLocaleString()}</td><td></td></tr></tfoot>}
             </table>
           </div>
         </TabsContent>

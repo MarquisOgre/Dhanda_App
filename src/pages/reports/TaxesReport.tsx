@@ -82,7 +82,7 @@ export default function TaxesReport() {
         monthlyTotals[monthKey].total += taxAmount;
       });
       
-      // Add TCS from purchase invoices
+      // Add taxable value and TDS from purchase invoices
       (purchaseInvoices || []).forEach((inv: any) => {
         const monthKey = format(new Date(inv.invoice_date), 'MMM yyyy');
         if (!monthlyTotals[monthKey]) { 
@@ -98,6 +98,8 @@ export default function TaxesReport() {
           }; 
         }
         const tcsAmount = inv.tcs_amount || 0;
+        // Add purchase invoice subtotal to taxable value
+        monthlyTotals[monthKey].taxableValue += inv.subtotal || 0;
         // For purchase invoices, TCS is TDS (tax deducted at source)
         monthlyTotals[monthKey].tds += tcsAmount;
       });
