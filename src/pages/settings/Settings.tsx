@@ -79,6 +79,8 @@ import { LicenseSettings } from "./LicenseSettings";
 import { TwoFactorAuth } from "./TwoFactorAuth";
 import { LicensePlans } from "@/components/settings/LicensePlans";
 import { UserManagement } from "@/components/settings/UserManagement";
+import { SuperAdminSettings } from "@/components/settings/SuperAdminSettings";
+import { Crown } from "lucide-react";
 
 type AppRole = 'admin' | 'supervisor' | 'viewer';
 
@@ -624,6 +626,12 @@ export default function Settings() {
             <Shield className="w-4 h-4" />
             <span className="hidden md:inline">License</span>
           </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="superadmin" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+              <Crown className="w-4 h-4" />
+              <span className="hidden md:inline">Super Admin</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Business Settings */}
@@ -1373,6 +1381,13 @@ export default function Settings() {
           <LicenseSettings />
           <LicensePlans />
         </TabsContent>
+
+        {/* Super Admin Settings */}
+        {isSuperAdmin && (
+          <TabsContent value="superadmin" className="space-y-6">
+            <SuperAdminSettings />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

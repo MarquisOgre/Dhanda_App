@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, MoreHorizontal, FileText, Loader2, Download, Printer, Eye, CreditCard } from "lucide-react";
+import { Plus, Search, MoreHorizontal, FileText, Loader2, Download, Printer, Eye, CreditCard, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +17,7 @@ import { RoleGuard, useRoleAccess } from "@/components/RoleGuard";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateInvoicePDF, printInvoicePDF } from "@/lib/invoicePdf";
+import { MonthFilter, filterByMonth } from "@/components/MonthFilter";
 
 interface PurchaseBill {
   id: string;
@@ -41,6 +42,7 @@ export default function PurchaseBills() {
   const { canWrite } = useRoleAccess();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [bills, setBills] = useState<PurchaseBill[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -112,7 +114,10 @@ export default function PurchaseBills() {
     }
   };
 
-  const filteredBills = bills.filter(
+  // Filter by month first, then by search
+  const monthFilteredBills = filterByMonth(bills, selectedMonth);
+  
+  const filteredBills = monthFilteredBills.filter(
     (bill) =>
       bill.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (bill.parties?.name && bill.parties.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -127,8 +132,8 @@ export default function PurchaseBills() {
     return styles[status || "unpaid"] || "";
   };
 
-  const totalAmount = bills.reduce((sum, b) => sum + (b.total_amount || 0), 0);
-  const paidAmount = bills.reduce((sum, b) => sum + (b.paid_amount || 0), 0);
+  const totalAmount = monthFilteredBills.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+  const paidAmount = monthFilteredBills.reduce((sum, b) => sum + (b.paid_amount || 0), 0);
   const unpaidAmount = totalAmount - paidAmount;
 
   if (loading) {
@@ -173,20 +178,26 @@ export default function PurchaseBills() {
           <p className="text-2xl font-bold text-destructive mt-1">₹{unpaidAmount.toLocaleString()}</p>
         </div>
         <div className="metric-card">
-          <p className="text-sm text-muted-foreground">This Month</p>
-          <p className="text-2xl font-bold text-warning mt-1">₹{totalAmount.toLocaleString()}</p>
+          <p className="text-sm text-muted-foreground">Bill Count</p>
+          <p className="text-2xl font-bold text-warning mt-1">{monthFilteredBills.length}</p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by bill number or party..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by bill number or party..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <MonthFilter selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+        </div>
       </div>
 
       {/* Bills Table */}

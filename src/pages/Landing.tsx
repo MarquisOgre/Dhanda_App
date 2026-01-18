@@ -25,9 +25,12 @@ import {
   Download,
   Users,
   Smartphone,
-  Monitor
+  Monitor,
+  MessageCircle,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { TrialRequestForm } from "@/components/TrialRequestForm";
 
 const features = [
   {
@@ -199,6 +202,7 @@ export default function Landing() {
     phone: "",
     message: ""
   });
+  const [submittingContact, setSubmittingContact] = useState(false);
 
   // Fetch pricing plans from database
   useEffect(() => {
@@ -252,10 +256,38 @@ export default function Landing() {
     }
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Thank you for contacting us! We'll get back to you soon.");
-    setContactForm({ name: "", email: "", phone: "", message: "" });
+    
+    if (!contactForm.name || !contactForm.email || !contactForm.message) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setSubmittingContact(true);
+    try {
+      const { error } = await supabase.from("contact_submissions").insert({
+        name: contactForm.name.trim(),
+        email: contactForm.email.trim(),
+        phone: contactForm.phone.trim() || null,
+        message: contactForm.message.trim(),
+      });
+
+      if (error) throw error;
+
+      toast.success("Thank you for contacting us! We'll get back to you soon.");
+      setContactForm({ name: "", email: "", phone: "", message: "" });
+    } catch (error: any) {
+      toast.error("Failed to submit: " + error.message);
+    } finally {
+      setSubmittingContact(false);
+    }
+  };
+
+  const openWhatsApp = () => {
+    const phone = "918500606000";
+    const message = encodeURIComponent("Hi, I'm interested in DhandhaApp. Can you help me?");
+    window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
   };
 
   return (
@@ -593,6 +625,21 @@ export default function Landing() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <MessageCircle className="w-6 h-6 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">WhatsApp</p>
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto text-green-500 hover:text-green-600"
+                      onClick={openWhatsApp}
+                    >
+                      Chat with us on WhatsApp
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                     <MapPin className="w-6 h-6 text-primary" />
                   </div>
@@ -601,6 +648,19 @@ export default function Landing() {
                     <p className="text-muted-foreground">Hyderabad, India</p>
                   </div>
                 </div>
+              </div>
+
+              {/* WhatsApp & Trial CTA */}
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Button 
+                  size="lg" 
+                  className="bg-green-500 hover:bg-green-600 text-white gap-2"
+                  onClick={openWhatsApp}
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  Chat on WhatsApp
+                </Button>
+                <TrialRequestForm />
               </div>
             </div>
 
@@ -641,8 +701,9 @@ export default function Landing() {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full">
-                    Send Message
+                  <Button type="submit" className="w-full" disabled={submittingContact}>
+                    {submittingContact ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    {submittingContact ? "Sending..." : "Send Message"}
                   </Button>
                 </form>
               </CardContent>

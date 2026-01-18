@@ -10,6 +10,7 @@ import {
   Loader2,
   CreditCard,
   Printer,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ import { RoleGuard, useRoleAccess } from "@/components/RoleGuard";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateInvoicePDF, printInvoicePDF } from "@/lib/invoicePdf";
+import { MonthFilter, filterByMonth } from "@/components/MonthFilter";
 
 interface Invoice {
   id: string;
@@ -51,6 +53,7 @@ export default function SaleInvoices() {
   const { canWrite } = useRoleAccess();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -122,7 +125,10 @@ export default function SaleInvoices() {
     }
   };
 
-  const filteredInvoices = invoices.filter(
+  // Filter by month first, then by search
+  const monthFilteredInvoices = filterByMonth(invoices, selectedMonth);
+  
+  const filteredInvoices = monthFilteredInvoices.filter(
     (inv) =>
       inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (inv.parties?.name && inv.parties.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -137,9 +143,9 @@ export default function SaleInvoices() {
     return styles[status || "unpaid"] || "";
   };
 
-  // Calculate summary
-  const totalAmount = invoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-  const paidAmount = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+  // Calculate summary based on filtered invoices
+  const totalAmount = monthFilteredInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const paidAmount = monthFilteredInvoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
   const unpaidAmount = totalAmount - paidAmount;
 
   if (loading) {
@@ -184,20 +190,26 @@ export default function SaleInvoices() {
           <p className="text-2xl font-bold text-destructive mt-1">₹{unpaidAmount.toLocaleString()}</p>
         </div>
         <div className="metric-card">
-          <p className="text-sm text-muted-foreground">This Month</p>
-          <p className="text-2xl font-bold text-primary mt-1">₹{totalAmount.toLocaleString()}</p>
+          <p className="text-sm text-muted-foreground">Invoice Count</p>
+          <p className="text-2xl font-bold text-primary mt-1">{monthFilteredInvoices.length}</p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by invoice number or party..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by invoice number or party..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <MonthFilter selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+        </div>
       </div>
 
       {/* Invoices Table */}
