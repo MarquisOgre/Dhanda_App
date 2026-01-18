@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminUserId } from "@/hooks/useAdminUserId";
 import { toast } from "sonner";
 
 // Generic item interface for both sale and purchase
@@ -27,6 +28,7 @@ interface SaveInvoiceParams {
 
 export function useInvoiceSave() {
   const { user } = useAuth();
+  const { adminUserId } = useAdminUserId();
   const [loading, setLoading] = useState(false);
 
   const saveInvoice = async ({
@@ -38,7 +40,7 @@ export function useInvoiceSave() {
     items,
     notes,
   }: SaveInvoiceParams) => {
-    if (!user) {
+    if (!user || !adminUserId) {
       toast.error("Please login to save");
       return null;
     }
@@ -80,11 +82,11 @@ export function useInvoiceSave() {
 
     setLoading(true);
     try {
-      // Get business settings for TCS
+      // Get business settings for TCS - use admin's settings
       const { data: settings } = await supabase
         .from("business_settings")
         .select("tcs_receivable, tcs_payable")
-        .eq("user_id", user.id)
+        .eq("user_id", adminUserId)
         .maybeSingle();
 
       // Calculate totals
@@ -122,7 +124,7 @@ export function useInvoiceSave() {
       const { data: invoice, error: invoiceError } = await supabase
         .from(tableName)
         .insert({
-          user_id: user.id,
+          user_id: adminUserId,
           invoice_type: invoiceType,
           invoice_number: invoiceNumber,
           invoice_date: invoiceDate.toISOString().split("T")[0],

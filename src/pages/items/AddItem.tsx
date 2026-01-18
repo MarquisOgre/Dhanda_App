@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminUserId } from "@/hooks/useAdminUserId";
 
 interface UnitOption {
   id: string;
@@ -23,6 +24,7 @@ interface UnitOption {
 export default function AddItem() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { adminUserId } = useAdminUserId();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOption[]>([]);
@@ -69,7 +71,7 @@ export default function AddItem() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
+    if (!user || !adminUserId) {
       toast.error("Please login to add an item");
       return;
     }
@@ -85,7 +87,7 @@ export default function AddItem() {
       const currentStock = formData.currentStock ? parseFloat(formData.currentStock) : openingStock;
       
       const { error } = await supabase.from("items").insert({
-        user_id: user.id,
+        user_id: adminUserId,
         name: formData.name.trim(),
         category_id: formData.categoryId || null,
         unit: formData.unit || "Bottles",

@@ -15,10 +15,12 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminUserId } from "@/hooks/useAdminUserId";
 
 export default function AddParty() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { adminUserId } = useAdminUserId();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -34,7 +36,7 @@ export default function AddParty() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
+    if (!user || !adminUserId) {
       toast.error("Please login to add a party");
       return;
     }
@@ -47,7 +49,7 @@ export default function AddParty() {
     setLoading(true);
     try {
       const { error } = await supabase.from("parties").insert({
-        user_id: user.id,
+        user_id: adminUserId,
         name: formData.name.trim(),
         party_type: formData.type,
         phone: formData.phone || null,

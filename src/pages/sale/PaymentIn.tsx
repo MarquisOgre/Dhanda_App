@@ -13,6 +13,7 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminUserId } from "@/hooks/useAdminUserId";
 import { recordCashBankTransaction } from "@/hooks/useCashBankTransaction";
 
 interface LinkedInvoice {
@@ -28,6 +29,7 @@ export default function PaymentIn() {
   const invoiceId = searchParams.get("invoice");
   const modeFromUrl = searchParams.get("mode");
   const { user } = useAuth();
+  const { adminUserId } = useAdminUserId();
   const [loading, setLoading] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoice | null>(null);
   const [partyOutstanding, setPartyOutstanding] = useState<number>(0);
@@ -146,7 +148,7 @@ export default function PaymentIn() {
     setLoading(true);
     try {
       const { error } = await supabase.from("payments").insert({
-        user_id: user.id,
+        user_id: adminUserId || user.id,
         payment_number: receiptNumber,
         payment_type: "in",
         payment_date: paymentDate.toISOString().split("T")[0],

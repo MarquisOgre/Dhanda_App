@@ -1082,6 +1082,7 @@ export type Database = {
     }
     Functions: {
       can_write: { Args: { _user_id: string }; Returns: boolean }
+      get_admin_user_id: { Args: { _user_id: string }; Returns: string }
       get_family_user_ids: {
         Args: { _user_id: string }
         Returns: {
