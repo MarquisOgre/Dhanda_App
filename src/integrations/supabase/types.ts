@@ -364,6 +364,36 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_read: boolean | null
+          message: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -1024,6 +1054,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trial_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          business_name: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          status: string | null
+          trial_end_date: string | null
+          trial_start_date: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          business_name?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          status?: string | null
+          trial_end_date?: string | null
+          trial_start_date?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          business_name?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          status?: string | null
+          trial_end_date?: string | null
+          trial_start_date?: string | null
+        }
+        Relationships: []
       }
       units: {
         Row: {
