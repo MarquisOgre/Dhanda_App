@@ -70,9 +70,12 @@ export default function Categories() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Get admin user ID for data isolation
+      const { data: adminId } = await supabase.rpc('get_admin_user_id', { _user_id: user.id });
+
       const { error } = await supabase
         .from('categories')
-        .insert({ name, user_id: user.id });
+        .insert({ name, user_id: adminId || user.id });
       
       if (error) throw error;
     },

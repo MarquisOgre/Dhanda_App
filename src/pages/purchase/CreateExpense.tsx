@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminUserId } from "@/hooks/useAdminUserId";
 
 const expenseCategories = [
   "Office Supplies",
@@ -32,6 +33,7 @@ const expenseCategories = [
 export default function CreateExpense() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { adminUserId } = useAdminUserId();
   const [loading, setLoading] = useState(false);
   
   const [expenseNumber, setExpenseNumber] = useState("");
@@ -88,7 +90,7 @@ export default function CreateExpense() {
     setLoading(true);
     try {
       const { error } = await supabase.from("expenses").insert({
-        user_id: user.id,
+        user_id: adminUserId || user.id,
         expense_number: expenseNumber,
         expense_date: expenseDate,
         category,
