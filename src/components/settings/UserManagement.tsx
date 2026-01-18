@@ -571,8 +571,24 @@ export function UserManagement() {
                       </div>
                       <p className="text-xs text-muted-foreground">{group.admin.email}</p>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {group.members.length} team member{group.members.length !== 1 ? 's' : ''}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {group.members.length} team member{group.members.length !== 1 ? 's' : ''}
+                      </span>
+                      {/* SuperAdmin can change password for other admins */}
+                      {isSuperAdmin && group.admin.user_id !== user?.id && group.admin.email.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase() && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => {
+                            setSelectedUserForPassword(group.admin);
+                            setPasswordDialogOpen(true);
+                          }}
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}

@@ -313,33 +313,15 @@ export default function Settings() {
     if (!user) return;
     setLoadingUnits(true);
     try {
+      // Fetch all units (global for all users)
       const { data, error } = await supabase
         .from('units')
         .select('*')
-        .eq('user_id', user.id)
         .order('name');
 
       if (error) throw error;
       
-      // If no units exist, create default "Bottles" unit
-      if (!data || data.length === 0) {
-        const { data: newUnit, error: insertError } = await supabase
-          .from('units')
-          .insert({
-            user_id: user.id,
-            name: 'Bottles',
-            symbol: 'Btl',
-            is_default: true
-          })
-          .select()
-          .single();
-        
-        if (!insertError && newUnit) {
-          setUnits([newUnit]);
-        }
-      } else {
-        setUnits(data);
-      }
+      setUnits(data || []);
     } catch (error: any) {
       console.error('Error fetching units:', error);
     } finally {
@@ -350,6 +332,12 @@ export default function Settings() {
   const handleAddUnit = async () => {
     if (!newUnitName.trim() || !user) {
       toast.error('Please enter a unit name');
+      return;
+    }
+
+    // Only SuperAdmin can add units
+    if (!isSuperAdmin) {
+      toast.error('Only SuperAdmin can add units');
       return;
     }
 
@@ -381,6 +369,12 @@ export default function Settings() {
   };
 
   const handleDeleteUnit = async (unitId: string) => {
+    // Only SuperAdmin can delete units
+    if (!isSuperAdmin) {
+      toast.error('Only SuperAdmin can delete units');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('units')
@@ -780,34 +774,39 @@ export default function Settings() {
               Units of Measure
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Add custom units to use across items and invoices
+              {isSuperAdmin 
+                ? "Add custom units to use across items and invoices (visible to all users)"
+                : "Units are managed by SuperAdmin and shared across all users"
+              }
             </p>
             
-            {/* Add new unit */}
-            <div className="flex gap-2 mb-4">
-              <Input
-                placeholder="Unit name (e.g., Bottles)"
-                value={newUnitName}
-                onChange={(e) => setNewUnitName(e.target.value)}
-                disabled={!isAdmin || addingUnit}
-                className="flex-1"
-              />
-              <Input
-                placeholder="Symbol (e.g., Btl)"
-                value={newUnitSymbol}
-                onChange={(e) => setNewUnitSymbol(e.target.value)}
-                disabled={!isAdmin || addingUnit}
-                className="w-24"
-              />
-              <Button 
-                onClick={handleAddUnit} 
-                disabled={!isAdmin || addingUnit || !newUnitName.trim()}
-                className="gap-1"
-              >
-                {addingUnit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Add
-              </Button>
-            </div>
+            {/* Add new unit - Only SuperAdmin */}
+            {isSuperAdmin && (
+              <div className="flex gap-2 mb-4">
+                <Input
+                  placeholder="Unit name (e.g., Bottles)"
+                  value={newUnitName}
+                  onChange={(e) => setNewUnitName(e.target.value)}
+                  disabled={addingUnit}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="Symbol (e.g., Btl)"
+                  value={newUnitSymbol}
+                  onChange={(e) => setNewUnitSymbol(e.target.value)}
+                  disabled={addingUnit}
+                  className="w-24"
+                />
+                <Button 
+                  onClick={handleAddUnit} 
+                  disabled={addingUnit || !newUnitName.trim()}
+                  className="gap-1"
+                >
+                  {addingUnit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Add
+                </Button>
+              </div>
+            )}
 
             {/* Units list */}
             {loadingUnits ? (
@@ -827,7 +826,7 @@ export default function Settings() {
                         <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Default</span>
                       )}
                     </div>
-                    {isAdmin && !unit.is_default && (
+                    {isSuperAdmin && !unit.is_default && (
                       <Button
                         variant="ghost"
                         size="icon"
