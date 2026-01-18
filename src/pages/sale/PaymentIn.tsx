@@ -13,6 +13,7 @@ import { PartySelector } from "@/components/sale/PartySelector";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { recordCashBankTransaction } from "@/hooks/useCashBankTransaction";
 
 interface LinkedInvoice {
   id: string;
@@ -181,6 +182,17 @@ export default function PaymentIn() {
             .eq("id", linkedInvoice.id);
         }
       }
+
+      // Record cash/bank transaction
+      await recordCashBankTransaction({
+        userId: user.id,
+        paymentMode: paymentMode,
+        amount: parseFloat(amount),
+        transactionType: "in",
+        description: `Payment received - ${receiptNumber}${linkedInvoice ? ` for ${linkedInvoice.invoice_number}` : ""}`,
+        referenceType: "payment_in",
+        transactionDate: paymentDate.toISOString().split("T")[0],
+      });
 
       toast.success("Payment recorded successfully!");
       navigate("/sale/payment-in");
