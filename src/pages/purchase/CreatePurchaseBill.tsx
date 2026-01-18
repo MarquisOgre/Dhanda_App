@@ -85,6 +85,8 @@ export default function CreatePurchaseBill() {
       partyId: selectedParty,
       items,
       notes,
+      paymentMode,
+      paymentAmount,
     });
 
     if (result) {

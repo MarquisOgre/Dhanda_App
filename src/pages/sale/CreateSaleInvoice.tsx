@@ -90,6 +90,8 @@ export default function CreateSaleInvoice() {
       partyId: selectedParty,
       items,
       notes,
+      paymentMode,
+      paymentAmount,
     });
 
     if (result) {

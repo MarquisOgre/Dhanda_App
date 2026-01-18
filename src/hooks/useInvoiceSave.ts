@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminUserId } from "@/hooks/useAdminUserId";
+import { recordCashBankTransaction } from "@/hooks/useCashBankTransaction";
 import { toast } from "sonner";
 
 // Generic item interface for both sale and purchase
@@ -24,6 +25,8 @@ interface SaveInvoiceParams {
   partyId: string;
   items: BaseInvoiceItem[];
   notes?: string;
+  paymentMode?: string;
+  paymentAmount?: number;
 }
 
 export function useInvoiceSave() {
@@ -39,6 +42,8 @@ export function useInvoiceSave() {
     partyId,
     items,
     notes,
+    paymentMode,
+    paymentAmount,
   }: SaveInvoiceParams) => {
     if (!user || !adminUserId) {
       toast.error("Please login to save");
@@ -117,6 +122,13 @@ export function useInvoiceSave() {
 
       const totalAmount = Math.round(taxableAmount + taxAmount + tcsAmount);
 
+      // Calculate payment details
+      const actualPayment = (paymentMode && paymentMode !== "none" && paymentAmount && paymentAmount > 0) 
+        ? Math.min(paymentAmount, totalAmount) 
+        : 0;
+      const balanceDue = totalAmount - actualPayment;
+      const status = balanceDue <= 0 ? "paid" : (actualPayment > 0 ? "partial" : "unpaid");
+
       // Determine which table to use based on invoice type
       const tableName = isSaleType ? "sale_invoices" : "purchase_invoices";
 
@@ -135,23 +147,28 @@ export function useInvoiceSave() {
           discount_amount: discountAmount,
           tcs_amount: tcsAmount,
           total_amount: totalAmount,
-          balance_due: totalAmount,
+          paid_amount: actualPayment,
+          balance_due: balanceDue,
           notes: notes || null,
-          status: "unpaid",
+          status,
         })
         .select()
         .single();
 
-      if (invoiceError) throw invoiceError;
+      if (invoiceError) {
+        console.error("Invoice insert error:", invoiceError);
+        throw invoiceError;
+      }
 
-      // Insert invoice items into the appropriate table
-      const invoiceItems = validItems.map((item) => {
+      // Insert items into appropriate items table
+      const invoiceItemsData = validItems.map((item) => {
         const itemSubtotal = item.quantity * item.rate;
         const itemDiscount = (itemSubtotal * item.discount) / 100;
-        const taxableAmount = itemSubtotal - itemDiscount;
-        const itemTax = (taxableAmount * item.taxRate) / 100;
+        const itemTaxableAmount = itemSubtotal - itemDiscount;
+        const itemTax = (itemTaxableAmount * item.taxRate) / 100;
+        const total = itemTaxableAmount + itemTax;
 
-        const baseItem = {
+        return {
           item_id: item.itemId,
           item_name: item.name,
           hsn_code: item.hsn || null,
@@ -162,65 +179,116 @@ export function useInvoiceSave() {
           discount_amount: itemDiscount,
           tax_rate: item.taxRate,
           tax_amount: itemTax,
-          total: taxableAmount + itemTax,
+          total,
         };
-
-        return isSaleType 
-          ? { ...baseItem, sale_invoice_id: invoice.id }
-          : { ...baseItem, purchase_invoice_id: invoice.id };
       });
 
-      // Use the appropriate items table
-      const itemsTable = isSaleType ? "sale_invoice_items" : "purchase_invoice_items";
-      const { error: itemsError } = await supabase
-        .from(itemsTable)
-        .insert(invoiceItems);
-
-      if (itemsError) throw itemsError;
-
-      // Update stock for sale invoices (deduct) and purchase invoices (add)
-      if (invoiceType === "sale_invoice") {
-        // Deduct stock for each item sold
-        for (const item of validItems) {
-          // Get current stock and calculate new value
-          const { data: itemData } = await supabase
-            .from("items")
-            .select("current_stock")
-            .eq("id", item.itemId)
-            .single();
-          
-          if (itemData) {
-            const newStock = Math.max(0, (itemData.current_stock || 0) - item.quantity);
-            await supabase
-              .from("items")
-              .update({ current_stock: newStock })
-              .eq("id", item.itemId);
-          }
+      if (isSaleType) {
+        const saleItems = invoiceItemsData.map(item => ({
+          ...item,
+          sale_invoice_id: invoice.id,
+        }));
+        const { error: itemsError } = await supabase
+          .from("sale_invoice_items")
+          .insert(saleItems);
+        if (itemsError) {
+          console.error("Items insert error:", itemsError);
+          throw itemsError;
         }
-      } else if (invoiceType === "purchase_bill") {
-        // Add stock for each item purchased
-        for (const item of validItems) {
-          const { data: itemData } = await supabase
-            .from("items")
-            .select("current_stock")
-            .eq("id", item.itemId)
-            .single();
-          
-          if (itemData) {
-            const newStock = (itemData.current_stock || 0) + item.quantity;
-            await supabase
-              .from("items")
-              .update({ current_stock: newStock })
-              .eq("id", item.itemId);
-          }
+      } else {
+        const purchaseItems = invoiceItemsData.map(item => ({
+          ...item,
+          purchase_invoice_id: invoice.id,
+        }));
+        const { error: itemsError } = await supabase
+          .from("purchase_invoice_items")
+          .insert(purchaseItems);
+        if (itemsError) {
+          console.error("Items insert error:", itemsError);
+          throw itemsError;
         }
       }
 
-      const displayType = invoiceType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      toast.success(`${displayType} saved successfully!`);
+      // Update stock based on invoice type
+      for (const item of validItems) {
+        const { data: currentItem } = await supabase
+          .from("items")
+          .select("current_stock")
+          .eq("id", item.itemId)
+          .single();
+
+        if (currentItem) {
+          const stockChange = isSaleType ? -item.quantity : item.quantity;
+          const newStock = (currentItem.current_stock || 0) + stockChange;
+
+          await supabase
+            .from("items")
+            .update({ current_stock: newStock })
+            .eq("id", item.itemId);
+        }
+      }
+
+      // Record payment if any amount was paid during invoice creation
+      if (actualPayment > 0 && paymentMode && paymentMode !== "none") {
+        // Generate payment number
+        const { data: existingPayments } = await supabase
+          .from("payments")
+          .select("payment_number")
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        let paymentNumber = "REC-001";
+        if (existingPayments && existingPayments.length > 0) {
+          const lastPayment = existingPayments[0].payment_number;
+          const match = lastPayment.match(/(\d+)$/);
+          if (match) {
+            const nextNum = parseInt(match[1]) + 1;
+            const prefix = lastPayment.replace(/\d+$/, "");
+            paymentNumber = `${prefix}${String(nextNum).padStart(3, "0")}`;
+          }
+        }
+
+        const paymentType = isSaleType ? "in" : "out";
+        const invoiceIdColumn = isSaleType ? "sale_invoice_id" : "purchase_invoice_id";
+
+        // Insert payment record
+        const { error: paymentError } = await supabase
+          .from("payments")
+          .insert({
+            user_id: adminUserId,
+            party_id: partyId,
+            [invoiceIdColumn]: invoice.id,
+            payment_number: paymentNumber,
+            payment_type: paymentType,
+            payment_mode: paymentMode,
+            amount: actualPayment,
+            payment_date: invoiceDate.toISOString().split("T")[0],
+            notes: `Payment for ${invoiceNumber}`,
+          });
+
+        if (paymentError) {
+          console.error("Payment insert error:", paymentError);
+          // Don't throw - invoice was saved successfully
+        } else {
+          // Record cash/bank transaction
+          await recordCashBankTransaction({
+            userId: adminUserId,
+            paymentMode,
+            amount: actualPayment,
+            transactionType: paymentType,
+            description: `Payment for ${invoiceNumber}`,
+            referenceType: isSaleType ? "sale_invoice" : "purchase_invoice",
+            referenceId: invoice.id,
+            transactionDate: invoiceDate.toISOString().split("T")[0],
+          });
+        }
+      }
+
+      toast.success(`${isSaleType ? "Sale" : "Purchase"} invoice saved successfully`);
       return invoice;
     } catch (error: any) {
-      toast.error(error.message || "Failed to save");
+      console.error("Error saving invoice:", error);
+      toast.error(error.message || "Failed to save invoice");
       return null;
     } finally {
       setLoading(false);
