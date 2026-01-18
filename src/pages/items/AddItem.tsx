@@ -54,11 +54,10 @@ export default function AddItem() {
   };
 
   const fetchUnits = async () => {
-    if (!user) return;
+    // Fetch all units (global for all users)
     const { data } = await supabase
       .from("units")
       .select("id, name")
-      .eq("user_id", user.id)
       .order("name");
     if (data && data.length > 0) {
       setUnitOptions(data);
